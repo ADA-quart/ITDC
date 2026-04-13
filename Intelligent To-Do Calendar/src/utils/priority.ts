@@ -18,14 +18,14 @@ export function getQuadrantLabel(urgency: number, importance: number): string {
   return labels[priority];
 }
 
-export function getDeadlineCountdown(deadline: string | null): string {
-  if (!deadline) return '无截止时间';
+export function getDeadlineCountdown(deadline: string | null, t: { noDeadline: string; expired: string; remainingHours: string; remainingDays: string }): string {
+  if (!deadline) return t.noDeadline;
   const now = Date.now();
   const dl = new Date(deadline).getTime();
   const diff = dl - now;
-  if (diff < 0) return '已过期';
+  if (diff < 0) return t.expired;
   const hours = Math.floor(diff / (1000 * 60 * 60));
-  if (hours < 24) return `剩余 ${hours} 小时`;
+  if (hours < 24) return t.remainingHours.replaceAll('{n}', String(hours));
   const days = Math.floor(hours / 24);
-  return `剩余 ${days} 天`;
+  return t.remainingDays.replaceAll('{n}', String(days));
 }

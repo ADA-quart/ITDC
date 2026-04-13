@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS todos (
   status TEXT DEFAULT 'pending',
   scheduled_start DATETIME,
   scheduled_end DATETIME,
+  color TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -43,6 +44,11 @@ CREATE TABLE IF NOT EXISTS llm_config (
   model TEXT,
   is_active INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
 );
 
 -- 默认日历（仅首次建表时插入）

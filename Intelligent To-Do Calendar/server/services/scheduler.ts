@@ -30,6 +30,7 @@ const WORK_START_HOUR = 7;
 const WORK_END_HOUR = 23;
 const BREAK_AFTER_MINUTES = 120;
 const BREAK_DURATION_MINUTES = 15;
+const MAX_SEGMENT_MINUTES = 90;
 
 function getBusySlots(startDate: Date, endDate: Date): BusySlot[] {
   const events = db.prepare(
@@ -46,6 +47,17 @@ function getBusySlots(startDate: Date, endDate: Date): BusySlot[] {
   ];
 
   return busy.sort((a, b) => a.start.localeCompare(b.start));
+}
+
+/** Insert a busy slot into sorted array using binary search — O(n) instead of O(n log n) per insert */
+function insertBusySlot(slots: BusySlot[], slot: BusySlot): void {
+  let lo = 0, hi = slots.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (slots[mid].start < slot.start) lo = mid + 1;
+    else hi = mid;
+  }
+  slots.splice(lo, 0, slot);
 }
 
 function getPendingTodos(): TodoItem[] {
@@ -133,6 +145,12 @@ export function generateSchedule(): ScheduledItem[] {
     const searchStart = new Date(now.getTime());
     const deadline = todo.deadline ? new Date(todo.deadline) : null;
 
+    const needsSplit = todo.estimated_minutes > MAX_SEGMENT_MINUTES;
+    const segmentMinutes = needsSplit
+      ? splitIntoSegments(todo.estimated_minutes, MAX_SEGMENT_MINUTES)
+      : [todo.estimated_minutes];
+    const totalSegments = segmentMinutes.length;
+
     if (continuousWorkMinutes >= BREAK_AFTER_MINUTES) {
       const breakStart = findNextFreeSlot(
         new Date(Math.max(...newBusySlots.map(s => new Date(s.end).getTime()), searchStart.getTime())),
@@ -142,30 +160,81 @@ export function generateSchedule(): ScheduledItem[] {
       );
       if (breakStart) {
         const breakEnd = new Date(breakStart.getTime() + BREAK_DURATION_MINUTES * 60 * 1000);
-        newBusySlots.push({ start: breakStart.toISOString(), end: breakEnd.toISOString() });
-        newBusySlots.sort((a, b) => a.start.localeCompare(b.start));
+        insertBusySlot(newBusySlots, { start: breakStart.toISOString(), end: breakEnd.toISOString() });
       }
       continuousWorkMinutes = 0;
     }
 
-    const slotStart = findNextFreeSlot(searchStart, todo.estimated_minutes, newBusySlots, deadline);
+    const firstSlotStart = findNextFreeSlot(searchStart, segmentMinutes[0], newBusySlots, deadline);
 
-    if (slotStart) {
-      const slotEnd = new Date(slotStart.getTime() + todo.estimated_minutes * 60 * 1000);
+    if (!firstSlotStart) continue;
+
+    const firstSlotEnd = new Date(firstSlotStart.getTime() + segmentMinutes[0] * 60 * 1000);
+
+    const segmentTitle = totalSegments > 1
+      ? `${todo.title} (1/${totalSegments})`
+      : todo.title;
+
+    result.push({
+      todo_id: todo.id,
+      title: segmentTitle,
+      start: firstSlotStart.toISOString(),
+      end: firstSlotEnd.toISOString(),
+      priority: todo.priority,
+    });
+
+    insertBusySlot(newBusySlots, { start: firstSlotStart.toISOString(), end: firstSlotEnd.toISOString() });
+    continuousWorkMinutes += segmentMinutes[0];
+
+    for (let i = 1; i < segmentMinutes.length; i++) {
+      const breakStart = findNextFreeSlot(
+        new Date(newBusySlots[newBusySlots.length - 1].end),
+        BREAK_DURATION_MINUTES,
+        newBusySlots,
+        deadline
+      );
+      if (breakStart) {
+        const breakEnd = new Date(breakStart.getTime() + BREAK_DURATION_MINUTES * 60 * 1000);
+        insertBusySlot(newBusySlots, { start: breakStart.toISOString(), end: breakEnd.toISOString() });
+        continuousWorkMinutes = 0;
+      }
+
+      const segStart = findNextFreeSlot(
+        new Date(newBusySlots[newBusySlots.length - 1].end),
+        segmentMinutes[i],
+        newBusySlots,
+        deadline
+      );
+
+      if (!segStart) break;
+
+      const segEnd = new Date(segStart.getTime() + segmentMinutes[i] * 60 * 1000);
 
       result.push({
         todo_id: todo.id,
-        title: todo.title,
-        start: slotStart.toISOString(),
-        end: slotEnd.toISOString(),
+        title: `${todo.title} (${i + 1}/${totalSegments})`,
+        start: segStart.toISOString(),
+        end: segEnd.toISOString(),
         priority: todo.priority,
       });
 
-      newBusySlots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString() });
-      newBusySlots.sort((a, b) => a.start.localeCompare(b.start));
-      continuousWorkMinutes += todo.estimated_minutes;
+      insertBusySlot(newBusySlots, { start: segStart.toISOString(), end: segEnd.toISOString() });
+      continuousWorkMinutes += segmentMinutes[i];
     }
   }
 
   return result;
+}
+
+function splitIntoSegments(totalMinutes: number, maxPerSegment: number): number[] {
+  const segments: number[] = [];
+  let remaining = totalMinutes;
+  while (remaining > maxPerSegment) {
+    segments.push(maxPerSegment);
+    remaining -= maxPerSegment;
+  }
+  if (remaining > 0) {
+    segments.push(remaining);
+  }
+  return segments;
 }

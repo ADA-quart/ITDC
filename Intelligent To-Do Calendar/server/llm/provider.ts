@@ -9,6 +9,7 @@ export interface LLMResponse {
 
 export interface LLMProvider {
   chat(messages: LLMMessage[]): Promise<LLMResponse>;
+  testConnection(): Promise<{ success: boolean; message: string; model?: string }>;
 }
 
 export interface LLMConfig {

@@ -30,4 +30,22 @@ export class OllamaProvider implements LLMProvider {
     const data = await response.json();
     return { content: data.message.content };
   }
+
+  async testConnection(): Promise<{ success: boolean; message: string; model?: string }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/tags`);
+      if (!response.ok) {
+        return { success: false, message: `Ollama 连接失败: ${response.status}` };
+      }
+      const data = await response.json();
+      const modelNames: string[] = (data.models || []).map((m: any) => m.name || m.model || m);
+      return {
+        success: true,
+        message: `Ollama 连接成功，可用模型: ${modelNames.slice(0, 5).join(', ')}`,
+        model: modelNames.length > 0 ? modelNames[0] : this.model,
+      };
+    } catch (err: any) {
+      return { success: false, message: `Ollama 连接失败: ${err.message}` };
+    }
+  }
 }

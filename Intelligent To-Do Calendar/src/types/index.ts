@@ -34,6 +34,7 @@ export interface Todo {
   status: TodoStatus;
   scheduled_start: string | null;
   scheduled_end: string | null;
+  color: string | null;
   created_at: string;
 }
 
@@ -59,8 +60,7 @@ export interface ScheduleResult {
 
 export interface LLMConfig {
   id: number;
-  provider: 'openai' | 'deepseek' | 'ollama';
-  // 注意：api_key 不会从后端返回（安全原因），仅在前端创建配置时使用
+  provider: 'openai' | 'deepseek' | 'ollama' | 'lmstudio' | 'custom';
   base_url?: string;
   model?: string;
   is_active: number;
@@ -80,3 +80,9 @@ export const PRIORITY_COLORS: Record<Priority, string> = {
   'urgent': '#1890ff',
   'normal': '#52c41a',
 };
+
+export const TODO_PALETTE = [
+  '#722ed1', '#13c2c2', '#eb2f96', '#fa8c16',
+  '#52c41a', '#1890ff', '#f5222d', '#2f54eb',
+  '#a0d911', '#fadb14', '#fa541c', '#9254de',
+];

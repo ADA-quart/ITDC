@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Modal, Upload, Input, Button, message } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
+import { DownloadOutlined } from '@ant-design/icons';
 import { calendarApi } from '../api/client';
+import { useI18n } from '../i18n';
 
 interface Props {
   open: boolean;
@@ -10,25 +11,26 @@ interface Props {
 }
 
 const ImportModal: React.FC<Props> = ({ open, onClose, onImported }) => {
+  const { t } = useI18n();
   const [file, setFile] = useState<File | null>(null);
   const [calendarName, setCalendarName] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleImport = async () => {
     if (!file) {
-      message.warning('请选择 .ics 文件');
+      message.warning(t.calendar.icsOnly);
       return;
     }
     setLoading(true);
     try {
       const result = await calendarApi.importIcs(file, calendarName || undefined);
-      message.success(`导入成功，共 ${result.imported_count} 个事件`);
+      message.success(t.calendar.imported.replaceAll('{count}', String(result.imported_count)));
       setFile(null);
       setCalendarName('');
       onImported();
       onClose();
     } catch (err: any) {
-      message.error(err?.response?.data?.error || '导入失败');
+      message.error(err?.response?.data?.error || t.calendar.importFailed);
     } finally {
       setLoading(false);
     }
@@ -36,19 +38,19 @@ const ImportModal: React.FC<Props> = ({ open, onClose, onImported }) => {
 
   return (
     <Modal
-      title="导入 iCal 日历"
+      title={t.calendar.importIcal}
       open={open}
       onOk={handleImport}
       onCancel={() => { setFile(null); setCalendarName(''); onClose(); }}
-      okText="导入"
-      cancelText="取消"
+      okText={t.calendar.importIcal}
+      cancelText={t.calendar.cancel}
       confirmLoading={loading}
     >
       <div style={{ marginBottom: 16 }}>
         <Upload
           beforeUpload={(f) => {
             if (!f.name.endsWith('.ics')) {
-              message.error('请上传 .ics 文件');
+              message.error(t.calendar.icsOnly);
               return Upload.LIST_IGNORE;
             }
             setFile(f);
@@ -58,11 +60,11 @@ const ImportModal: React.FC<Props> = ({ open, onClose, onImported }) => {
           onRemove={() => setFile(null)}
           accept=".ics"
         >
-          <Button icon={<UploadOutlined />}>选择 .ics 文件</Button>
+          <Button icon={<DownloadOutlined />}>.ics</Button>
         </Upload>
       </div>
       <Input
-        placeholder="日历名称 (可选)"
+        placeholder={t.calendar.calendarName}
         value={calendarName}
         onChange={(e) => setCalendarName(e.target.value)}
         style={{ marginBottom: 8 }}
