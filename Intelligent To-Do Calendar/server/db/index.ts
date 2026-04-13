@@ -30,7 +30,6 @@ class Database {
   async init() {
     const SQL = await initSqlJs();
 
-    // 如果已存在数据库文件则加载
     if (fs.existsSync(DB_PATH)) {
       const fileBuffer = fs.readFileSync(DB_PATH);
       this.db = new SQL.Database(fileBuffer);
@@ -38,13 +37,34 @@ class Database {
       this.db = new SQL.Database();
     }
 
-    // 执行建表语句
     const schema = fs.readFileSync(SCHEMA_PATH, 'utf-8');
     this.db.exec(schema);
+
+    this.runMigrations();
     this.save();
 
-    // 定期自动保存
     this.saveTimer = setInterval(() => this.save(), 5000);
+  }
+
+  private runMigrations() {
+    try {
+      const todoCols = this.db.exec("PRAGMA table_info(todos)");
+      if (todoCols.length > 0) {
+        const colNames = todoCols[0].values.map((row: any[]) => row[1]);
+        if (!colNames.includes('color')) {
+          this.db.exec("ALTER TABLE todos ADD COLUMN color TEXT");
+          this.markDirty();
+        }
+      }
+
+      const tableResult = this.db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='settings'");
+      if (tableResult.length === 0 || tableResult[0].values.length === 0) {
+        this.db.exec("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
+        this.markDirty();
+      }
+    } catch (err) {
+      console.error('Migration error:', err);
+    }
   }
 
   /**

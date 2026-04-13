@@ -4,13 +4,24 @@ import { ThunderboltOutlined, RobotOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { scheduleApi } from '../api/client';
 import type { ScheduleResult, Priority } from '../types';
-import { PRIORITY_LABELS, PRIORITY_COLORS } from '../types';
+import { PRIORITY_COLORS } from '../types';
+import { useI18n } from '../i18n';
+import { useTheme } from '../contexts/ThemeContext';
 
 const SchedulePanel: React.FC = () => {
+  const { t } = useI18n();
+  const { isDark } = useTheme();
   const [mode, setMode] = useState<'algorithm' | 'llm'>('algorithm');
   const [result, setResult] = useState<ScheduleResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
+
+  const priorityLabels: Record<Priority, string> = {
+    'urgent-important': t.priority.urgentImportant,
+    'important': t.priority.important,
+    'urgent': t.priority.urgent,
+    'normal': t.priority.normal,
+  };
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -19,7 +30,7 @@ const SchedulePanel: React.FC = () => {
       const data = await scheduleApi.generate(mode);
       setResult(data);
     } catch (err: any) {
-      const msg = err?.response?.data?.error || '生成方案失败';
+      const msg = err?.response?.data?.error || t.schedule.generateFailed;
       setResult({
         mode,
         schedule: [],
@@ -35,10 +46,10 @@ const SchedulePanel: React.FC = () => {
     setApplying(true);
     try {
       await scheduleApi.apply(result.schedule);
-      message.success('调度方案已应用');
+      message.success(t.schedule.applied);
       setResult(null);
     } catch {
-      message.error('应用方案失败');
+      message.error(t.schedule.applyFailed);
     } finally {
       setApplying(false);
     }
@@ -67,12 +78,12 @@ const SchedulePanel: React.FC = () => {
           <div style={{ fontWeight: 'bold' }}>
             {item.title}
             <Tag color={PRIORITY_COLORS[item.priority as Priority]} style={{ marginLeft: 8 }}>
-              {PRIORITY_LABELS[item.priority as Priority]}
+              {priorityLabels[item.priority as Priority]}
             </Tag>
           </div>
-          <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: isDark ? '#aaa' : '#666', marginTop: 4 }}>
             {dayjs(item.start).format('MM/DD HH:mm')} - {dayjs(item.end).format('HH:mm')}
-            <span style={{ marginLeft: 8 }}>({duration} 分钟)</span>
+            <span style={{ marginLeft: 8 }}>({duration} {t.schedule.minutes})</span>
           </div>
         </div>
       </div>
@@ -83,7 +94,7 @@ const SchedulePanel: React.FC = () => {
     if (!result || result.validation.errors.length === 0) return null;
     return (
       <Alert
-        message="方案存在以下问题"
+        message={t.schedule.problems}
         description={
           <ul style={{ margin: 0, paddingLeft: 20 }}>
             {result.validation.errors.map((e, i) => (
@@ -99,26 +110,26 @@ const SchedulePanel: React.FC = () => {
   };
 
   return (
-    <div style={{ background: '#fff', padding: 24, borderRadius: 8 }}>
-      <Card title="智能日程规划" size="small" style={{ marginBottom: 16 }}>
+    <div style={{ background: isDark ? '#1f1f1f' : '#fff', padding: 24, borderRadius: 8 }}>
+      <Card title={t.schedule.title} size="small" style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-          <span>调度模式：</span>
+          <span>{t.schedule.mode}</span>
           <Radio.Group value={mode} onChange={(e) => setMode(e.target.value)}>
             <Radio.Button value="algorithm">
-              <ThunderboltOutlined /> 算法调度
+              <ThunderboltOutlined /> {t.schedule.algorithmSchedule}
             </Radio.Button>
             <Radio.Button value="llm">
-              <RobotOutlined /> LLM 调度
+              <RobotOutlined /> {t.schedule.llmSchedule}
             </Radio.Button>
           </Radio.Group>
           <Button type="primary" onClick={handleGenerate} loading={loading}>
-            生成方案
+            {t.schedule.generate}
           </Button>
         </div>
 
         {mode === 'llm' && (
           <Alert
-            message="LLM 调度需要在设置中先配置 LLM 服务"
+            message={t.schedule.llmConfigRequired}
             type="info"
             showIcon
             style={{ marginBottom: 12 }}
@@ -128,7 +139,7 @@ const SchedulePanel: React.FC = () => {
 
       {loading && (
         <div style={{ textAlign: 'center', padding: 40 }}>
-          <Spin size="large" tip="正在生成调度方案...">
+          <Spin size="large" tip={t.schedule.generating}>
             <div />
           </Spin>
         </div>
@@ -139,11 +150,11 @@ const SchedulePanel: React.FC = () => {
           {renderErrors()}
 
           {sortedSchedule.length === 0 ? (
-            <Empty description="没有待安排的待办事件" />
+            <Empty description={t.schedule.noPending} />
           ) : (
             <>
               <Card
-                title={`调度方案 (${sortedSchedule.length} 个待办)`}
+                title={`${t.schedule.schedulePlan} (${sortedSchedule.length} ${t.schedule.todos})`}
                 size="small"
                 style={{ marginBottom: 16 }}
               >
@@ -157,7 +168,7 @@ const SchedulePanel: React.FC = () => {
                 onClick={handleApply}
                 loading={applying}
               >
-                应用此方案
+                {t.schedule.applyPlan}
               </Button>
             </>
           )}

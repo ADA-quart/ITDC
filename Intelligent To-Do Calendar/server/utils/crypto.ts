@@ -2,14 +2,19 @@ import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypt
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
+const DEFAULT_SECRET = 'smart-calendar-default-secret-key';
 
 // 从环境变量派生密钥；若未设置 CRYPTO_SECRET 则使用默认值（仅适用于开发环境，生产环境务必设置环境变量）
 function getKey(): Buffer {
   const secret = process.env.CRYPTO_SECRET;
-  if (!secret) {
-    console.warn('[安全警告] 未设置 CRYPTO_SECRET 环境变量，使用默认密钥。生产环境请务必通过环境变量 CRYPTO_SECRET 设置强密钥！');
+  if (!secret || secret === DEFAULT_SECRET) {
+    console.warn(
+      '[安全警告] 未设置 CRYPTO_SECRET 环境变量或使用默认密钥。\n' +
+      '  这意味着任何持有源码的人都能解密存储的 API Key。\n' +
+      '  生产环境请务必通过环境变量 CRYPTO_SECRET 设置强密钥！'
+    );
   }
-  return scryptSync(secret || 'smart-calendar-default-secret-key', 'smart-calendar-salt', 32);
+  return scryptSync(secret || DEFAULT_SECRET, 'smart-calendar-salt', 32);
 }
 
 export function encrypt(plaintext: string): string {

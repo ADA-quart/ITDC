@@ -3,6 +3,7 @@ import multer from 'multer';
 import XLSX from 'xlsx-js-style';
 import db from '../db/index.js';
 import { parseIcsFile } from '../services/ical-parser.js';
+import { debug } from '../utils/debug.js';
 
 function getWeekRange(date: Date): { start: Date; end: Date } {
   const d = new Date(date);
@@ -47,6 +48,8 @@ router.delete('/calendars/:id', (req: Request, res: Response) => {
     db.prepare('DELETE FROM events WHERE calendar_id = ?').run(req.params.id);
     db.prepare('DELETE FROM calendars WHERE id = ?').run(req.params.id);
   });
+  // transaction() 内部已调用 markDirty()，显式 save 确保立即持久化
+  db.save();
   res.json({ success: true });
 });
 
@@ -72,6 +75,9 @@ router.post('/events', (req: Request, res: Response) => {
   if (!title || !calendar_id || !start_time || !end_time) {
     return res.status(400).json({ error: '标题、日历、开始时间和结束时间为必填项' });
   }
+  if (new Date(end_time) <= new Date(start_time)) {
+    return res.status(400).json({ error: '结束时间必须晚于开始时间' });
+  }
   const result = db.prepare(
     'INSERT INTO events (calendar_id, title, description, start_time, end_time, rrule, location) VALUES (?, ?, ?, ?, ?, ?, ?)'
   ).run(calendar_id, title, description || null, start_time, end_time, rrule || null, location || null);
@@ -92,6 +98,19 @@ router.put('/events/:id', (req: Request, res: Response) => {
   if (location !== undefined) { fields.push('location = ?'); values.push(location); }
   if (calendar_id !== undefined) { fields.push('calendar_id = ?'); values.push(calendar_id); }
   if (fields.length === 0) return res.json({ success: true });
+
+  // 验证开始时间必须早于结束时间
+  if (start_time !== undefined || end_time !== undefined) {
+    const current = db.prepare('SELECT start_time, end_time FROM events WHERE id = ?').get(req.params.id) as { start_time: string; end_time: string } | undefined;
+    if (current) {
+      const finalStart = start_time ?? current.start_time;
+      const finalEnd = end_time ?? current.end_time;
+      if (new Date(finalEnd) <= new Date(finalStart)) {
+        return res.status(400).json({ error: '结束时间必须晚于开始时间' });
+      }
+    }
+  }
+
   values.push(req.params.id);
   db.prepare(`UPDATE events SET ${fields.join(', ')} WHERE id = ?`).run(...values);
   const event = db.prepare('SELECT * FROM events WHERE id = ?').get(req.params.id);
@@ -120,6 +139,8 @@ router.post('/import', upload.single('file'), (req: Request, res: Response) => {
 
     const calendarName = req.body.calendar_name || '导入日历';
     const calendarColor = req.body.calendar_color || '#52c41a';
+
+    debug.info('iCal import', { calendarName, eventCount: parsedEvents.length });
 
     const calendarResult = db.prepare(
       "INSERT INTO calendars (name, color, source) VALUES (?, ?, 'ical')"
@@ -150,36 +171,49 @@ router.post('/import', upload.single('file'), (req: Request, res: Response) => {
       return count;
     });
 
+    db.save();
+    debug.info('iCal import success', { importedCount });
     res.json({
       success: true,
       calendar_id: calendarId,
       imported_count: importedCount,
     });
   } catch (error: any) {
+    debug.error('iCal import failed', error.message);
     res.status(500).json({ error: error.message || '导入失败' });
   }
 });
 
-router.get('/export-week', (_req: Request, res: Response) => {
+router.get('/export-week', (req: Request, res: Response) => {
   try {
+    const lang = (req.query.lang as string) || (req.headers['accept-language']?.startsWith('zh') ? 'zh' : 'en');
     const { start: weekStart, end: weekEnd } = getWeekRange(new Date());
 
     const events = db.prepare(
       'SELECT e.*, c.name as calendar_name, c.color as calendar_color FROM events e JOIN calendars c ON e.calendar_id = c.id WHERE e.start_time < ? AND e.end_time > ? ORDER BY e.start_time'
-    ).all(weekEnd.toISOString(), weekStart.toISOString());
+    ).all(weekEnd.toISOString(), weekStart.toISOString()) as any[];
 
     const todos = db.prepare(
       "SELECT * FROM todos WHERE status = 'scheduled' AND scheduled_start < ? AND scheduled_end > ? ORDER BY scheduled_start"
-    ).all(weekEnd.toISOString(), weekStart.toISOString());
+    ).all(weekEnd.toISOString(), weekStart.toISOString()) as any[];
 
-    const PRIORITY_LABELS: Record<string, string> = {
+    const PRIORITY_LABELS_ZH: Record<string, string> = {
       'urgent-important': '紧急重要',
       'important': '重要不紧急',
       'urgent': '紧急不重要',
       'normal': '普通',
     };
+    const PRIORITY_LABELS_EN: Record<string, string> = {
+      'urgent-important': 'Urgent & Important',
+      'important': 'Important',
+      'urgent': 'Urgent',
+      'normal': 'Normal',
+    };
+    const PRIORITY_LABELS = lang === 'zh' ? PRIORITY_LABELS_ZH : PRIORITY_LABELS_EN;
 
-    const DAY_NAMES = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    const DAY_NAMES = lang === 'zh'
+      ? ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     interface CalendarItem {
       title: string;
@@ -203,10 +237,10 @@ router.get('/export-week', (_req: Request, res: Response) => {
         type: 'event' as const,
       })),
       ...todos.map((t: any) => ({
-        title: '[待办] ' + t.title,
+        title: (lang === 'zh' ? '[待办] ' : '[Todo] ') + t.title,
         start: t.scheduled_start,
         end: t.scheduled_end,
-        calendar_name: '待办',
+        calendar_name: lang === 'zh' ? '待办' : 'Todo',
         location: null,
         description: t.description,
         type: 'todo' as const,
@@ -243,8 +277,11 @@ router.get('/export-week', (_req: Request, res: Response) => {
       alignment: { horizontal: 'center' },
     };
 
+    const weekTitle = lang === 'zh'
+      ? `本周日历 (${fmt(weekStart)} ~ ${fmt(new Date(weekEnd.getTime() - 86400000))})`
+      : `Weekly Calendar (${fmt(weekStart)} ~ ${fmt(new Date(weekEnd.getTime() - 86400000))})`;
     const weekData: any[][] = [
-      [`本周日历 (${fmt(weekStart)} ~ ${fmt(new Date(weekEnd.getTime() - 86400000))})`, '', '', '', '', '', ''],
+      [weekTitle, '', '', '', '', '', ''],
       [],
       DAY_NAMES,
     ];
@@ -271,12 +308,13 @@ router.get('/export-week', (_req: Request, res: Response) => {
     });
 
     // --- Sheet 2: 事件明细 ---
-    const listData: any[][] = [
-      ['类型', '标题', '开始时间', '结束时间', '所属日历', '地点', '优先级', '描述'],
-    ];
+    const LIST_HEADERS = lang === 'zh'
+      ? ['类型', '标题', '开始时间', '结束时间', '所属日历', '地点', '优先级', '描述']
+      : ['Type', 'Title', 'Start', 'End', 'Calendar', 'Location', 'Priority', 'Description'];
+    const listData: any[][] = [LIST_HEADERS];
     for (const item of items) {
       listData.push([
-        item.type === 'todo' ? '待办' : '事件',
+        item.type === 'todo' ? (lang === 'zh' ? '待办' : 'Todo') : (lang === 'zh' ? '事件' : 'Event'),
         item.title,
         item.start,
         item.end,
@@ -300,14 +338,81 @@ router.get('/export-week', (_req: Request, res: Response) => {
 
     // --- Build workbook and send ---
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, weekSheet, '本周日历');
-    XLSX.utils.book_append_sheet(workbook, listSheet, '事件明细');
+    XLSX.utils.book_append_sheet(workbook, weekSheet, lang === 'zh' ? '本周日历' : 'Weekly Calendar');
+    XLSX.utils.book_append_sheet(workbook, listSheet, lang === 'zh' ? '事件明细' : 'Event Details');
 
     const buf = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="calendar-week-${fmt(weekStart)}.xlsx"`);
     res.send(buf);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || '导出失败' });
+  }
+});
+
+router.get('/export-ical', (req: Request, res: Response) => {
+  try {
+    const lang = (req.query.lang as string) || (req.headers['accept-language']?.startsWith('zh') ? 'zh' : 'en');
+
+    const events = db.prepare(
+      'SELECT e.*, c.name as calendar_name, c.color as calendar_color FROM events e JOIN calendars c ON e.calendar_id = c.id ORDER BY e.start_time'
+    ).all() as any[];
+
+    const todos = db.prepare(
+      "SELECT * FROM todos WHERE status = 'scheduled' AND scheduled_start IS NOT NULL AND scheduled_end IS NOT NULL ORDER BY scheduled_start"
+    ).all() as any[];
+
+    const TODO_PREFIX = lang === 'zh' ? '[待办] ' : '[Todo] ';
+
+    function escapeIcal(text: string): string {
+      return text.replace(/[\\;,\n]/g, (match) => {
+        if (match === '\n') return '\\n';
+        return '\\' + match;
+      });
+    }
+
+    function dateToIcal(dt: Date): string {
+      return dt.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    }
+
+    let ics = 'BEGIN:VCALENDAR\r\n';
+    ics += 'VERSION:2.0\r\n';
+    ics += 'PRODID:-//Smart Calendar//EN\r\n';
+    ics += 'CALSCALE:GREGORIAN\r\n';
+    ics += 'METHOD:PUBLISH\r\n';
+
+    for (const ev of events) {
+      const uid = ev.uid || `event-${ev.id}@smart-calendar`;
+      ics += 'BEGIN:VEVENT\r\n';
+      ics += `UID:${uid}\r\n`;
+      ics += `DTSTART:${dateToIcal(new Date(ev.start_time))}\r\n`;
+      ics += `DTEND:${dateToIcal(new Date(ev.end_time))}\r\n`;
+      ics += `SUMMARY:${escapeIcal(ev.title)}\r\n`;
+      if (ev.description) ics += `DESCRIPTION:${escapeIcal(ev.description)}\r\n`;
+      if (ev.location) ics += `LOCATION:${escapeIcal(ev.location)}\r\n`;
+      if (ev.rrule) ics += `RRULE:${ev.rrule}\r\n`;
+      ics += 'END:VEVENT\r\n';
+    }
+
+    for (const todo of todos) {
+      ics += 'BEGIN:VEVENT\r\n';
+      ics += `UID:todo-${todo.id}@smart-calendar\r\n`;
+      ics += `DTSTART:${dateToIcal(new Date(todo.scheduled_start))}\r\n`;
+      ics += `DTEND:${dateToIcal(new Date(todo.scheduled_end))}\r\n`;
+      ics += `SUMMARY:${escapeIcal(TODO_PREFIX + todo.title)}\r\n`;
+      if (todo.description) ics += `DESCRIPTION:${escapeIcal(todo.description)}\r\n`;
+      ics += 'END:VEVENT\r\n';
+    }
+
+    ics += 'END:VCALENDAR\r\n';
+
+    const fmt = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+    const filename = `calendar-${fmt(new Date())}.ics`;
+
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(ics);
   } catch (error: any) {
     res.status(500).json({ error: error.message || '导出失败' });
   }
