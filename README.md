@@ -1,248 +1,334 @@
-# 智能日历与待办规划 (Smart Calendar Planner)
+<p align="center">
+  <h1 align="center">📅 Smart Calendar Planner</h1>
+  <p align="center">
+    <em>智能日历与待办规划 — Integrated Calendar, Todo & AI-Powered Scheduling</em>
+  </p>
+  <p align="center">
+    <a href="https://github.com/ADA-quart/Intelligent-To-Do-Calendar/blob/main/LICENSE">
+      <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg">
+    </a>
+    <img alt="Node.js >=18" src="https://img.shields.io/badge/node-%3E%3D18-green.svg">
+    <img alt="React 18" src="https://img.shields.io/badge/react-18-61dafb.svg">
+    <img alt="Express" src="https://img.shields.io/badge/express-4-000000.svg">
+    <img alt="Vite 6" src="https://img.shields.io/badge/vite-6-646cff.svg">
+  </p>
+</p>
 
-一款集成日历管理、待办规划与智能调度的全栈应用。基于 Eisenhower 四象限优先级矩阵，提供算法自动排程与 LLM 智能排程两种模式，帮助你高效规划时间。
+---
 
-Designed by ADA-quart
+A full-stack calendar and task management application built on the **Eisenhower Priority Matrix**. It offers both algorithm-based and LLM-powered intelligent scheduling to help you plan your time efficiently.
 
-## 功能特性
+[中文文档](#中文说明)
 
-### 多日历管理
-- 创建、删除、切换显示多个日历，每个日历可自定义名称与颜色
-- 支持 iCal (.ics) 文件导入，自动创建独立日历并批量导入事件
-- 支持重复事件（RRULE 规则），完整兼容 RFC 5545
+---
 
-### 待办管理（Eisenhower 四象限）
-- 通过紧急度与重要度（1-4 级）自动归类为四象限优先级：
-  - **P1 紧急重要** - 红色标签
-  - **P2 重要不紧急** - 橙色标签
-  - **P3 紧急不重要** - 蓝色标签
-  - **P4 普通** - 绿色标签
-- 待办状态流转：待办 -> 已排程 -> 已完成
-- 截止日期倒计时，逾期红色高亮
-- 预估工时（分钟）、描述等完整字段
+## ✨ Features
 
-### 智能调度
-- **算法调度** - 贪心策略，按优先级和截止日期排序，自动避让已有事件，遵守工作时段（7:00-23:00），每 2 小时连续工作后插入 15 分钟休息，30 天规划范围
-- **LLM 调度** - 支持 OpenAI / DeepSeek / Ollama，通过自然语言理解上下文生成更智能的排程方案
-- 调度前自动校验：时间冲突、深夜排班、截止日期违规
-- 一键应用方案，待办自动标记为已排程并显示在日历上
+### 📆 Multi-Calendar Management
+- Create, delete, and toggle multiple calendars with custom names & colors
+- Import iCal (`.ics`) files — auto-creates a dedicated calendar and batch-imports events
+- Full RRULE (RFC 5545) support for recurring events
 
-### 日历交互
-- 拖拽移动事件、拖拽边缘修改时长
-- 点击空白区域快速创建事件
-- 已排程待办以紫色事件显示在日历上，前缀 `[待办]`
-- 导出本周日历为 Excel 表格（含周历视图与事件明细两个工作表）
+### ✅ Todo Management (Eisenhower Matrix)
+- Automatic priority classification by urgency & importance (1–4 scale):
+  - **P1 Urgent & Important** — Red
+  - **P2 Important** — Orange
+  - **P3 Urgent** — Blue
+  - **P4 Normal** — Green
+- Status flow: Todo → Scheduled → Done
+- Deadline countdown with overdue highlighting
+- Estimated duration, description, and full metadata
 
-### 安全
-- LLM API 密钥使用 AES-256-GCM 加密存储
-- 接口不返回 API 密钥明文
+### 🧠 Intelligent Scheduling
+- **Algorithm Scheduler** — Greedy strategy ordered by priority & deadline; avoids existing events; respects work hours (7:00–23:00); inserts 15-min breaks every 2 hours; 30-day planning horizon
+- **LLM Scheduler** — Supports OpenAI / DeepSeek / Ollama / LM Studio / custom providers; generates context-aware schedules via natural language
+- **Smart Splitting** — Tasks > 90 min are auto-split with breaks; labeled `(1/N)`, `(2/N)`, etc.; produces independent todo records when applied
+- Pre-schedule validation: time conflicts, late-night shifts, deadline violations
+- One-click apply — auto-marks todos as scheduled and displays on calendar
+- Customizable LLM prompt templates for fine-tuning scheduling strategy
 
-## 技术栈
+### 🌙 Dark Mode
+- Light / Dark / System theme options
+- Full component-level dark mode support
 
-| 层级 | 技术 |
-|------|------|
-| 前端 | React 18 + TypeScript + Ant Design 5 + FullCalendar 6 |
-| 后端 | Express + TypeScript + sql.js (SQLite WASM) |
-| 构建 | Vite 6 |
+### 🌍 Internationalization
+- Chinese / English switch
+- Calendar locale auto-adjusts with language
+
+### 🖱️ Calendar Interactions
+- Drag to move events; drag edges to resize
+- Click empty area to quick-create an event
+- Scheduled todos shown with `[Todo]` prefix and custom color
+- Export weekly calendar to Excel (week view + event detail sheets)
+
+### 🔒 Security
+- LLM API keys stored with AES-256-GCM encryption
+- API never returns key plaintext
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18 · TypeScript · Ant Design 5 · FullCalendar 6 |
+| Backend | Express · TypeScript · sql.js (SQLite WASM) |
+| Build | Vite 6 |
 | LLM | OpenAI / DeepSeek / Ollama |
 
-## 环境要求
+---
 
-- **Node.js 18+**（推荐 LTS 版本）- [下载地址](https://nodejs.org)
-- 操作系统：Windows（提供 bat 脚本），macOS / Linux 可通过命令行使用
+## 📋 Prerequisites
 
-## 快速开始
+- **Node.js ≥ 18** (LTS recommended) — [Download](https://nodejs.org)
+- OS: Windows (batch scripts provided); macOS / Linux work via CLI
 
-### 方式一：一键脚本（Windows 推荐）
+---
 
-1. 双击 `install.bat` 安装依赖（仅在项目文件夹内安装）
-2. 双击 `start.bat` 启动应用
+## 🚀 Quick Start
 
-`start.bat` 会在 `node_modules` 不存在时自动安装依赖，然后依次启动后端和前端服务，并在浏览器就绪后自动打开页面。
+### Option 1: One-Click Scripts (Windows)
 
-### 方式二：命令行
+1. Double-click `install.bat` to install dependencies
+2. Double-click `start.bat` to launch the app
+
+> `start.bat` auto-installs dependencies if `node_modules` is missing, starts backend & frontend, and opens the browser when ready.
+
+### Option 2: Command Line
 
 ```bash
-# 克隆仓库
-git clone https://github.com/<your-username>/smart-calendar.git
-cd smart-calendar
+# Clone the repository
+git clone https://github.com/ADA-quart/Intelligent-To-Do-Calendar.git
+cd Intelligent-To-Do-Calendar
 
-# 安装依赖
+# Install dependencies
 npm install
 
-# 配置环境变量（可选，使用默认值即可开发）
+# (Optional) Configure environment
 cp .env.example .env
 
-# 启动开发服务器
+# Start dev servers
 npm run dev:all
 ```
 
-打开浏览器访问 http://localhost:5173
+Open http://localhost:5173 in your browser.
 
-## 卸载
+---
 
-双击 `uninstall.bat`，选择卸载模式：
-
-| 模式 | 说明 |
-|------|------|
-| **Clean only** (1) | 删除依赖、构建缓存和数据库（node_modules、dist、data、package-lock.json、tsconfig.tsbuildinfo），保留源码 |
-| **Full delete** (2) | 删除整个项目文件夹，包括源码和数据，不可恢复 |
-
-- Clean only 模式仅清理项目本地文件，不会影响全局 npm 缓存
-- Full delete 模式需要二次确认，脚本会先退出自身再删除文件夹，避免文件锁定
-
-## 项目结构
+## 📁 Project Structure
 
 ```
-├── .env.example               # 环境变量模板
-├── .gitignore
-├── LICENSE                    # MIT License
-├── index.html                 # Vite 入口
-├── install.bat                # 一键安装（仅安装到项目目录）
-├── start.bat                  # 一键启动
-├── uninstall.bat              # 一键卸载
+├── .env.example               # Environment variable template
+├── index.html                 # Vite HTML entry
+├── install.bat                # One-click install (Windows)
+├── start.bat                  # One-click start (Windows)
+├── uninstall.bat              # One-click uninstall (Windows)
 ├── package.json
-├── package-lock.json
 ├── vite.config.ts
 ├── tsconfig.json
 ├── server/
-│   ├── index.ts               # Express 服务入口
+│   ├── index.ts               # Express server entry
 │   ├── db/
-│   │   ├── index.ts           # sql.js 数据库封装
-│   │   └── schema.sql         # 数据库表结构
+│   │   ├── index.ts           # sql.js database wrapper
+│   │   └── schema.sql         # Database schema
 │   ├── llm/
-│   │   ├── provider.ts        # LLM 接口定义
-│   │   ├── openai-compatible.ts # OpenAI / DeepSeek 兼容实现
-│   │   └── ollama.ts          # Ollama 本地模型实现
+│   │   ├── provider.ts        # LLM interface definition
+│   │   ├── openai-compatible.ts # OpenAI / DeepSeek implementation
+│   │   └── ollama.ts          # Ollama / LM Studio implementation
 │   ├── routes/
-│   │   ├── calendar.ts        # 日历与事件 API + iCal 导入 + Excel 导出
-│   │   ├── todo.ts            # 待办 API（含优先级自动计算）
-│   │   └── schedule.ts        # 调度 API + LLM 配置管理
+│   │   ├── calendar.ts        # Calendar & event API + iCal import + Excel export
+│   │   ├── todo.ts            # Todo API (auto priority)
+│   │   ├── schedule.ts        # Schedule API + LLM config
+│   │   └── settings.ts        # App settings API
 │   ├── services/
-│   │   ├── scheduler.ts       # 算法调度引擎
-│   │   ├── llm-scheduler.ts   # LLM 调度引擎
-│   │   └── ical-parser.ts     # iCal 文件解析
+│   │   ├── scheduler.ts       # Algorithm scheduling engine
+│   │   ├── llm-scheduler.ts   # LLM scheduling engine
+│   │   └── ical-parser.ts     # iCal file parser
 │   └── utils/
-│       └── crypto.ts          # API 密钥 AES-256-GCM 加密工具
+│       ├── crypto.ts          # AES-256-GCM encryption utility
+│       └── debug.ts           # Debug logger
 ├── src/
-│   ├── main.tsx               # React 入口
-│   ├── App.tsx                # 根组件（侧边栏导航）
+│   ├── main.tsx               # React entry
+│   ├── App.tsx                # Root component (sidebar navigation)
 │   ├── api/
-│   │   └── client.ts          # Axios API 客户端
+│   │   └── client.ts          # Axios API client
 │   ├── types/
-│   │   └── index.ts           # TypeScript 类型定义
+│   │   └── index.ts           # TypeScript type definitions
 │   ├── utils/
-│   │   └── priority.ts        # 优先级计算工具
-│   ├── components/
-│   │   ├── CalendarView.tsx   # 日历视图
-│   │   ├── TodoList.tsx       # 待办列表
-│   │   ├── TodoForm.tsx       # 待办表单
-│   │   ├── SchedulePanel.tsx  # 智能调度面板
-│   │   ├── ImportModal.tsx    # iCal 导入弹窗
-│   │   └── SettingsModal.tsx  # LLM 配置管理
-│   └── custom.d.ts            # sql.js / ical.js 类型声明
-├── data/                      # [运行时生成] SQLite 数据库
-│   └── calendar.db
-├── dist/                      # [运行时生成] 构建产物
-└── node_modules/              # [运行时生成] npm 依赖
+│   │   └── priority.ts        # Priority calculation
+│   ├── contexts/
+│   │   └── ThemeContext.tsx    # Theme management (light/dark/system)
+│   ├── i18n/
+│   │   ├── index.tsx          # i18n init
+│   │   ├── zh.ts              # Chinese translations
+│   │   └── en.ts              # English translations
+│   └── components/
+│       ├── CalendarView.tsx    # Calendar view
+│       ├── TodoList.tsx        # Todo list
+│       ├── TodoForm.tsx        # Todo form
+│       ├── TodoSplitModal.tsx  # Todo split modal
+│       ├── SchedulePanel.tsx   # Smart scheduling panel
+│       ├── ImportModal.tsx     # iCal import modal
+│       └── SettingsModal.tsx   # Settings (LLM/prompts/theme/language)
 ```
 
-> 标注 `[运行时生成]` 的目录不包含在 Git 仓库中，由 `.gitignore` 忽略，在安装或运行时自动创建。
+---
 
-## API 接口
+## 📡 API Reference
 
-### 日历与事件 `/api/calendar`
+### Health Check
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/calendars` | 获取所有日历 |
-| POST | `/calendars` | 创建日历 |
-| DELETE | `/calendars/:id` | 删除日历及其所有事件 |
-| GET | `/events` | 获取事件（支持 start/end 范围筛选） |
-| POST | `/events` | 创建事件 |
-| PUT | `/events/:id` | 更新事件 |
-| DELETE | `/events/:id` | 删除事件 |
-| POST | `/import` | 导入 iCal 文件 |
-| GET | `/export-week` | 导出本周日历为 Excel (.xlsx) |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/health` | Service health check |
 
-### 待办 `/api/todos`
+### Calendar & Events `/api/calendar`
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/` | 获取待办列表（支持 status/priority 筛选） |
-| POST | `/` | 创建待办（自动计算优先级） |
-| PUT | `/:id` | 更新待办 |
-| DELETE | `/:id` | 删除待办 |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/calendars` | List all calendars |
+| POST | `/calendars` | Create a calendar |
+| DELETE | `/calendars/:id` | Delete a calendar and its events |
+| GET | `/events` | List events (supports `start`/`end` range) |
+| POST | `/events` | Create an event |
+| PUT | `/events/:id` | Update an event |
+| DELETE | `/events/:id` | Delete an event |
+| POST | `/import` | Import iCal file |
+| GET | `/export-week` | Export weekly calendar as Excel (.xlsx) |
 
-### 调度 `/api/schedule`
+### Todos `/api/todos`
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/generate` | 生成调度方案（algorithm / llm） |
-| POST | `/apply` | 应用调度方案 |
-| GET | `/llm-config` | 获取 LLM 配置（不含 API Key） |
-| POST | `/llm-config` | 创建 LLM 配置 |
-| PUT | `/llm-config/:id/activate` | 激活配置 |
-| DELETE | `/llm-config/:id` | 删除配置 |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | List todos (filter by `status`/`priority`) |
+| POST | `/` | Create a todo (auto-calculates priority) |
+| POST | `/:id/split` | Split a todo into time segments |
+| PUT | `/:id` | Update a todo |
+| DELETE | `/:id` | Delete a todo |
 
-## 配置
+### Scheduling `/api/schedule`
 
-### 环境变量
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/generate` | Generate a schedule (algorithm / llm) |
+| POST | `/apply` | Apply a generated schedule |
+| GET | `/llm-config` | Get LLM config (no API key) |
+| POST | `/llm-config/test` | Test LLM connectivity |
+| POST | `/llm-config` | Create LLM config |
+| PUT | `/llm-config/:id/activate` | Activate a config |
+| DELETE | `/llm-config/:id` | Delete a config |
+| GET | `/prompt-template` | Get prompt template |
+| PUT | `/prompt-template` | Update prompt template |
+| POST | `/prompt-template/reset` | Reset to default template |
 
-复制 `.env.example` 为 `.env` 并按需修改：
+---
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+Copy `.env.example` to `.env` and customize:
 
 ```bash
 cp .env.example .env
 ```
 
-| 变量 | 说明 | 默认值 |
-|------|------|--------|
-| `PORT` | 后端服务端口 | `3000` |
-| `CRYPTO_SECRET` | API 密钥加密密钥 | `smart-calendar-default-secret-key` |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Backend server port | `3000` |
+| `CRYPTO_SECRET` | API key encryption secret | `smart-calendar-default-secret-key` |
 
-> ⚠️ 生产环境请务必通过环境变量 `CRYPTO_SECRET` 设置强密钥，不要使用默认值。
+> ⚠️ **Production**: Always set a strong `CRYPTO_SECRET`. Never use the default value.
 
-### 端口
+### Ports
 
-| 服务 | 端口 |
-|------|------|
-| 前端 (Vite 开发服务器) | 5173 |
-| 后端 (Express API) | 3000 |
+| Service | Port |
+|---------|------|
+| Frontend (Vite dev server) | 5173 |
+| Backend (Express API) | 3000 (configurable via `PORT`) |
 
-### 数据库
+### Database
 
-- 引擎：sql.js（SQLite WASM，无需原生编译，无需系统安装 SQLite）
-- 文件：`data/calendar.db`（首次运行自动创建）
-- 自动保存：每 5 秒 + 关闭时
-- 写入策略：原子写入（临时文件 + 重命名）
+- Engine: sql.js (SQLite WASM — no native compilation or system SQLite required)
+- File: `data/calendar.db` (auto-created on first run)
+- Auto-save: every 5 seconds + on shutdown
+- Write strategy: atomic (temp file + rename)
 
-### LLM 提供商
+### LLM Providers
 
-| 提供商 | 默认模型 | 说明 |
-|--------|----------|------|
-| OpenAI | gpt-4o-mini | 需要 API Key |
-| DeepSeek | deepseek-chat | 需要 API Key |
-| Ollama | llama3 | 本地运行，无需 Key |
+| Provider | Default Model | API Key Required |
+|----------|---------------|-----------------|
+| OpenAI | gpt-4o-mini | Yes |
+| DeepSeek | deepseek-chat | Yes |
+| Ollama | llama3 | No (local) |
+| LM Studio | — | No (local) |
+| Custom | — | Depends |
 
-## 生产部署
+---
+
+## 🏭 Production Deployment
 
 ```bash
-npm run build        # 构建前端到 dist/
-npm start            # 启动服务（同时提供 API 和前端静态文件）
+npm run build   # Build frontend to dist/
+npm start       # Start server (serves both API and static files)
 ```
 
-生产模式下 Express 自动托管 `dist/` 目录，单进程即可在端口 3000 提供完整服务。
+In production, Express automatically serves the `dist/` directory — a single process on port 3000 provides the complete application.
 
-## NPM 脚本
+---
 
-| 命令 | 说明 |
-|------|------|
-| `npm run dev` | 启动前端开发服务器 |
-| `npm run dev:server` | 启动后端开发服务器（热重载） |
-| `npm run dev:all` | 同时启动前后端开发服务器 |
-| `npm run build` | 构建前端生产版本 |
-| `npm start` | 生产模式启动 |
+## 📜 NPM Scripts
 
-## License
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start frontend dev server (Vite) |
+| `npm run dev:server` | Start backend dev server (tsx watch) |
+| `npm run dev:all` | Start both frontend & backend concurrently |
+| `npm run build` | Build frontend for production |
+| `npm start` | Start production server |
 
-[MIT](LICENSE) © ADA-quart
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 中文说明
+
+一款集成日历管理、待办规划与智能调度的全栈应用。基于 Eisenhower 四象限优先级矩阵，提供算法自动排程与 LLM 智能排程两种模式，帮助你高效规划时间。
+
+### 主要功能
+
+- **多日历管理** — 自定义名称与颜色，支持 iCal 导入，完整 RRULE 重复事件支持
+- **四象限待办** — 按紧急度与重要度自动归类 P1–P4 优先级，截止日期倒计时
+- **智能调度** — 算法调度（贪心策略）与 LLM 调度（OpenAI / DeepSeek / Ollama / LM Studio）
+- **智能拆分** — 超过 90 分钟的长任务自动拆分，应用后生成独立待办记录
+- **深色模式** — 浅色 / 深色 / 跟随系统
+- **国际化** — 中英文切换
+- **日历交互** — 拖拽移动/调整时长，快速创建，Excel 周历导出
+- **安全** — API 密钥 AES-256-GCM 加密存储
+
+### 快速开始
+
+```bash
+git clone https://github.com/ADA-quart/Intelligent-To-Do-Calendar.git
+cd Intelligent-To-Do-Calendar
+npm install
+npm run dev:all
+```
+
+Windows 用户可直接双击 `install.bat` → `start.bat` 一键启动。
