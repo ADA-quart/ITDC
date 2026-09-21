@@ -4,7 +4,7 @@
     <em>智能日历与待办规划 — Integrated Calendar, Todo & AI-Powered Scheduling</em>
   </p>
   <p align="center">
-    <a href="https://github.com/ADA-quart/Intelligent-To-Do-Calendar/blob/main/LICENSE">
+    <a href="https://github.com/ADA-quart/ITDC/blob/main/LICENSE">
       <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg">
     </a>
     <img alt="Node.js >=18" src="https://img.shields.io/badge/node-%3E%3D18-green.svg">
@@ -98,8 +98,7 @@ A full-stack calendar and task management application built on the **Eisenhower 
 
 ```bash
 # Clone the repository
-git clone https://github.com/ADA-quart/Intelligent-To-Do-Calendar.git
-cd Intelligent-To-Do-Calendar
+git clone https://github.com/ADA-quart/ITDC.git
 
 # Install dependencies
 npm install
@@ -325,8 +324,7 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 ### 快速开始
 
 ```bash
-git clone https://github.com/ADA-quart/Intelligent-To-Do-Calendar.git
-cd Intelligent-To-Do-Calendar
+git clone https://github.com/ADA-quart/ITDC.git
 npm install
 npm run dev:all
 ```

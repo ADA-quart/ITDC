@@ -1,66 +1,42 @@
 import db from '../db/index.js';
 import { LLMProvider, LLMConfig } from '../llm/provider.js';
-import { createOpenAIProvider, createDeepSeekProvider, createLMStudioProvider, createCustomProvider } from '../llm/openai-compatible.js';
-import { OllamaProvider } from '../llm/ollama.js';
+import { createProvider } from '../llm/index.js';
 import { ScheduledItem } from './scheduler.js';
 import { decrypt, isEncrypted } from '../utils/crypto.js';
 import { debug } from '../utils/debug.js';
+
+
+/**
+ * Unified: decrypt the key in the config and create the corresponding LLM provider.
+ */
+function createProviderFromDb(config: LLMConfig & { api_key: string }): LLMProvider | null {
+  let apiKey = config.api_key;
+  if (apiKey && isEncrypted(apiKey)) {
+    try {
+      apiKey = decrypt(apiKey);
+    } catch {
+      console.error('API Key decryption failed, using the original value');
+    }
+  }
+
+  return createProvider({
+    provider: config.provider,
+    base_url: config.base_url ?? null,
+    model: config.model ?? null,
+    api_key: apiKey || null,
+  });
+}
 
 function getActiveProvider(): LLMProvider | null {
   const config = db.prepare('SELECT * FROM llm_config WHERE is_active = 1').get() as (LLMConfig & { api_key: string; base_url: string; model: string }) | undefined;
   if (!config) return null;
 
-  let apiKey = config.api_key;
-  if (apiKey && isEncrypted(apiKey)) {
-    try {
-      apiKey = decrypt(apiKey);
-    } catch {
-      console.error('API Key 解密失败，将使用原始值');
-    }
-  }
-
-  switch (config.provider) {
-    case 'openai':
-      return createOpenAIProvider(apiKey, config.base_url || undefined, config.model || undefined);
-    case 'deepseek':
-      return createDeepSeekProvider(apiKey, config.base_url || undefined, config.model || undefined);
-    case 'ollama':
-      return new OllamaProvider(config.base_url || undefined, config.model || undefined);
-    case 'lmstudio':
-      return createLMStudioProvider(config.base_url || undefined, config.model || undefined);
-    case 'custom':
-      return createCustomProvider(apiKey, config.base_url || undefined, config.model || undefined);
-    default:
-      return null;
-  }
+  return createProviderFromDb(config);
 }
 
 export function getProviderForConfig(config: LLMConfig & { api_key: string }): LLMProvider | null {
-  let apiKey = config.api_key;
-  if (apiKey && isEncrypted(apiKey)) {
-    try {
-      apiKey = decrypt(apiKey);
-    } catch {
-      console.error('API Key 解密失败');
-    }
-  }
-
-  switch (config.provider) {
-    case 'openai':
-      return createOpenAIProvider(apiKey, config.base_url || undefined, config.model || undefined);
-    case 'deepseek':
-      return createDeepSeekProvider(apiKey, config.base_url || undefined, config.model || undefined);
-    case 'ollama':
-      return new OllamaProvider(config.base_url || undefined, config.model || undefined);
-    case 'lmstudio':
-      return createLMStudioProvider(config.base_url || undefined, config.model || undefined);
-    case 'custom':
-      return createCustomProvider(apiKey, config.base_url || undefined, config.model || undefined);
-    default:
-      return null;
-  }
+  return createProviderFromDb(config);
 }
-
 function getPromptTemplate(): string {
   const row = db.prepare("SELECT value FROM settings WHERE key = 'llm_prompt_template'").get() as { value: string } | undefined;
   return row?.value || '';
