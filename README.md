@@ -38,6 +38,7 @@ A full-stack calendar and task management application built on the **Eisenhower 
 - Status flow: Todo → Scheduled → Done
 - Deadline countdown with overdue highlighting
 - Estimated duration, description, and full metadata
+- **Natural Language Add** — type a plain description (e.g. "finish the report by Friday afternoon") and AI parses it into a structured todo: title, urgency/importance, deadline, estimated duration; created directly with the correct priority quadrant
 
 ### 🧠 Intelligent Scheduling
 - **Algorithm Scheduler** — Greedy strategy ordered by priority & deadline; avoids existing events; respects work hours (7:00–23:00); inserts 15-min breaks every 2 hours; 30-day planning horizon

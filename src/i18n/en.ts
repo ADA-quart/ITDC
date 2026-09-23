@@ -114,6 +114,8 @@ const en: LocaleMessages = {
     saved: 'Saved',
     saveFailed: 'Save failed',
     algorithm: 'Algorithm',
+    nlPlaceholder: 'Add via natural language, e.g. finish the report by Friday afternoon',
+    nlButton: 'AI Add',
   },
   priority: {
     urgentImportant: 'Urgent & Important',

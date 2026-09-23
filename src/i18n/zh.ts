@@ -112,6 +112,8 @@ const zh = {
     saved: '已保存',
     saveFailed: '保存失败',
     algorithm: '算法',
+    nlPlaceholder: '自然语言添加，如：周五下午前交周报',
+    nlButton: 'AI 添加',
   },
   priority: {
     urgentImportant: '紧急重要',

@@ -93,6 +93,7 @@ export const todoApi = {
   delete: (id: number) => api.delete(`/todos/${id}`).then(r => r.data),
   split: (id: number, segments: { start: string; end: string }[]) =>
     api.post<Todo>(`/todos/${id}/split`, { segments }).then(r => r.data),
+  parseNL: (text: string) => api.post<Todo>('/todos/nl', { text }).then(r => r.data),
 };
 
 export const scheduleApi = {

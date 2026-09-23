@@ -27,7 +27,7 @@ function createProviderFromDb(config: LLMConfig & { api_key: string }): LLMProvi
   });
 }
 
-function getActiveProvider(): LLMProvider | null {
+export function getActiveProvider(): LLMProvider | null {
   const config = db.prepare('SELECT * FROM llm_config WHERE is_active = 1').get() as (LLMConfig & { api_key: string; base_url: string; model: string }) | undefined;
   if (!config) return null;
 
