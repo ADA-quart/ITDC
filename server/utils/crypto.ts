@@ -4,15 +4,26 @@ const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
 const DEFAULT_SECRET = 'smart-calendar-default-secret-key';
 
-// 从环境变量派生密钥；若未设置 CRYPTO_SECRET 则使用默认值（仅适用于开发环境，生产环境务必设置环境变量）
+// 从环境变量派生密钥；若未设置 CRYPTO_SECRET 则使用默认值（仅适用于开发环境）
+const isProduction = process.env.NODE_ENV === 'production';
+let warnedOnce = false;
+
 function getKey(): Buffer {
   const secret = process.env.CRYPTO_SECRET;
   if (!secret || secret === DEFAULT_SECRET) {
-    console.warn(
-      '[安全警告] 未设置 CRYPTO_SECRET 环境变量或使用默认密钥。\n' +
-      '  这意味着任何持有源码的人都能解密存储的 API Key。\n' +
-      '  生产环境请务必通过环境变量 CRYPTO_SECRET 设置强密钥！'
-    );
+    if (isProduction) {
+      throw new Error(
+        '[FATAL] 生产环境必须设置强 CRYPTO_SECRET（openssl rand -hex 32）。' +
+        '  否则存储的 API Key 将使用源码中可见的弱密钥加密，任何人都可解密。'
+      );
+    }
+    if (!warnedOnce) {
+      warnedOnce = true;
+      console.warn(
+        '[安全警告] 未设置 CRYPTO_SECRET，使用默认弱密钥（仅限开发环境）。' +
+        '\n  生产环境请务必通过环境变量 CRYPTO_SECRET 设置强密钥：openssl rand -hex 32'
+      );
+    }
   }
   return scryptSync(secret || DEFAULT_SECRET, 'smart-calendar-salt', 32);
 }
