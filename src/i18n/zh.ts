@@ -7,6 +7,7 @@ const zh = {
     calendar: '日历视图',
     todos: '待办管理',
     schedule: '智能规划',
+    review: '今日回顾',
     settings: '设置',
   },
   calendar: {
@@ -124,6 +125,16 @@ const zh = {
     p2: '重要不紧急 (P2)',
     p3: '紧急不重要 (P3)',
     p4: '普通 (P4)',
+  },
+  review: {
+    overdue: '逾期',
+    dueToday: '今日到期',
+    pending: '待处理',
+    done: '已完成',
+    trend: '近 7 天趋势（蓝=新建，绿=完成）',
+    today: '今天',
+    overdueList: '逾期任务：',
+    noOverdue: '暂无逾期任务',
   },
   schedule: {
     title: '智能日程规划',
