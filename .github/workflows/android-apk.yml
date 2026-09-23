@@ -39,12 +39,9 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Show all apk locations
-        run: find . -name *.apk | head -30; echo DONE_FIND
-
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: itdc-android-apk
-          path: android/app/build/outputs/debug/apk/*.apk
+          path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 7
