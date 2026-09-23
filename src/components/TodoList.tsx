@@ -61,6 +61,12 @@ const TodoList: React.FC = () => {
   }, [loadTodos]);
 
   const handleNLAdd = async () => {
+  useEffect(() => {
+    const handler = () => loadTodos();
+    window.addEventListener('todo-data-changed', handler);
+    return () => window.removeEventListener('todo-data-changed', handler);
+  }, [loadTodos]);
+
     const text = nlText.trim();
     if (!text) return;
     setNlLoading(true);

@@ -4,6 +4,7 @@ const en: LocaleMessages = {
   app: {
     title: 'Smart Calendar',
     designBy: 'Designed by ADA-quart',
+    offline: 'Offline — todos are from local cache',
   },
   nav: {
     calendar: 'Calendar',
