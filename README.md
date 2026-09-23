@@ -236,6 +236,7 @@ cp .env.example .env
 |----------|-------------|---------|
 | `PORT` | Backend server port | `3000` |
 | `CRYPTO_SECRET` | API key encryption secret | `smart-calendar-default-secret-key` |
+| `DB_PATH` | Path to the SQLite database file (relative paths resolve against cwd) | `<repo root>/data/calendar.db` |
 
 > ⚠️ **Production**: Always set a strong `CRYPTO_SECRET`. Never use the default value.
 
