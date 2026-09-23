@@ -39,8 +39,8 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Show APK location
-        run: find . -name *.apk -path */debug/* | head -20 || echo NO_APK_FOUND
+      - name: Show all apk locations
+        run: find . -name *.apk | head -30; echo DONE_FIND
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
