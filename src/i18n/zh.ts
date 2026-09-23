@@ -2,6 +2,7 @@ const zh = {
   app: {
     title: '智能日历规划',
     designBy: 'Designed by ADA-quart',
+    offline: '当前离线，待办数据为本地缓存',
   },
   nav: {
     calendar: '日历视图',

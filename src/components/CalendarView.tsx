@@ -105,6 +105,12 @@ const CalendarView: React.FC = () => {
 
   useEffect(() => { buildEvents(undefined, hiddenCalendars); }, [hiddenCalendars, buildEvents]);
 
+  useEffect(() => {
+    const handler = () => loadData();
+    window.addEventListener('todo-data-changed', handler);
+    return () => window.removeEventListener('todo-data-changed', handler);
+  }, [loadData]);
+
   const handleDateSelect = (selectInfo: any) => {
     form.setFieldsValue({
       start_time: dayjs(selectInfo.startStr),

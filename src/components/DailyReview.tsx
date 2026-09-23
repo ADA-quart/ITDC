@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Spin, Empty, Progress, Tag } from 'antd';
 import { todoApi } from '../api/client';
 import type { Todo, Priority } from '../types';
@@ -29,9 +29,12 @@ const DailyReview: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    todoApi.getAll().then(setTodos).catch(() => {}).finally(() => setLoading(false));
+    const refresh = () => todoApi.getAll().then(setTodos).catch(() => {}).finally(() => setLoading(false));
+    refresh();
+    const handler = () => refresh();
+    window.addEventListener('todo-data-changed', handler);
+    return () => window.removeEventListener('todo-data-changed', handler);
   }, []);
-
   if (loading) return <Spin />;
 
   const todayKey = dayKey(new Date());

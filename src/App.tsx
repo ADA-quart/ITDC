@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import * as offline from './api/offline';
+import { todoApi } from './api/client';
 import { ConfigProvider, Layout, Menu, theme as antTheme, Button } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import enUS from 'antd/locale/en_US';
@@ -37,6 +39,7 @@ function getPageFromHash(): PageKey {
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<PageKey>(getPageFromHash);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const { t, locale, setLocale } = useI18n();
   const { mode: themeMode, setMode: setThemeMode, isDark } = useTheme();
@@ -53,6 +56,19 @@ const App: React.FC = () => {
     return () => window.removeEventListener('resize', handler);
   }, []);
 
+  useEffect(() => {
+    let unsub: any;
+    const setOfflineState = (online: boolean) => {
+      setIsOffline(!online);
+      if (online) {
+        void offline.flushQueue(todoApi).then(() => window.dispatchEvent(new CustomEvent('todo-data-changed')));
+      }
+    };
+    unsub = offline.onOnlineChange(setOfflineState);
+    const handleOfflineMode = (e: any) => setIsOffline(e.detail?.mode === true);
+    window.addEventListener('todo-offline-mode', handleOfflineMode);
+    return () => { if (unsub) unsub(); window.removeEventListener('todo-offline-mode', handleOfflineMode); };
+  }, []);
   const handleMenuClick = (key: string) => {
     window.location.hash = key;
     setCurrentPage(key as PageKey);
@@ -80,6 +96,12 @@ const App: React.FC = () => {
     { key: 'review', icon: <PieChartOutlined />, label: t.nav.review },
   ];
 
+  const offlineBanner = isOffline ? (
+    <div style={{ position: 'sticky', top: 0, zIndex: 200, background: '#faad14', color: '#8a5a00', padding: '6px 12px', fontSize: 12, textAlign: 'center' }}>
+      {t.app.offline}
+    </div>
+  ) : null;
+
   if (isMobile) {
     return (
       <ConfigProvider
@@ -91,6 +113,7 @@ const App: React.FC = () => {
         <Layout style={{ minHeight: '100vh' }}>
           <Content style={{ padding: 12, background: isDark ? '#141414' : '#f5f5f5', overflow: 'auto', paddingBottom: 64 }}>
             {renderContent()}
+{offlineBanner}
           </Content>
           <div style={{
             position: 'fixed',
@@ -199,6 +222,7 @@ const App: React.FC = () => {
         </Sider>
         <Content style={{ padding: 24, background: isDark ? '#141414' : '#f5f5f5', overflow: 'auto' }}>
           {renderContent()}
+{offlineBanner}
         </Content>
       </Layout>
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />

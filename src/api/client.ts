@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { message } from 'antd';
 import type { Calendar, CalendarEvent, Todo, ScheduleResult, LLMConfig } from '../types';
+import * as offline from './offline';
 
 const api = axios.create({
   baseURL: '/api',
@@ -85,9 +86,9 @@ export const calendarApi = {
     }),
 };
 
-export const todoApi = {
-  getAll: (params?: { status?: string; priority?: string }) =>
-    api.get<Todo[]>('/todos', { params }).then(r => r.data),
+// ---------- 待办原始网络 API（flushQueue 内部使用） ----------
+const networkTodoApi = {
+  getAll: (params?: any) => api.get<Todo[]>('/todos', { params }).then(r => r.data),
   create: (data: Partial<Todo>) => api.post<Todo>('/todos', data).then(r => r.data),
   update: (id: number, data: Partial<Todo>) => api.put<Todo>(`/todos/${id}`, data).then(r => r.data),
   delete: (id: number) => api.delete(`/todos/${id}`).then(r => r.data),
@@ -96,6 +97,126 @@ export const todoApi = {
   parseNL: (text: string) => api.post<Todo>('/todos/nl', { text }).then(r => r.data),
 };
 
+// ---------- 待办离线层：断网时缓存读取 + 本地模拟 + 队列同步 ----------
+let offlineMode = false;
+export function setOfflineMode(on: boolean) {
+  if (offlineMode === on) return;
+  offlineMode = on;
+  window.dispatchEvent(new CustomEvent('todo-offline-mode', { detail: { mode: on } }));
+}
+
+function isNetworkError(err: any): boolean {
+  // 网络层错误（无响应、超时、连接失败），而非服务端 4xx/5xx
+  return !err?.response;
+}
+
+export const todoApi = {
+  async getAll(params?: { status?: string; priority?: string }): Promise<Todo[]> {
+    if (offline.isOnline()) {
+      try {
+        const data = await networkTodoApi.getAll(params);
+        // 缓存服务器数据（注意：带 filter 时只缓存全量，避免过滤后缓存不完整）
+        await offline.saveCachedTodos(data);
+        setOfflineMode(false);
+        return data;
+      } catch (err) {
+        if (!isNetworkError(err)) throw err;
+        // 网络断开 → 回退本地缓存
+        const cached = await offline.getCachedTodos();
+        if (cached.length > 0) {
+          setOfflineMode(true);
+          message.warning('当前离线，显示本地缓存数据');
+          return cached;
+        }
+        throw err;
+      }
+    } else {
+      // 明确离线（navigator.onLine=false）：直接读缓存
+      const cached = await offline.getCachedTodos();
+      setOfflineMode(cached.length > 0);
+      if (cached.length === 0) {
+        message.warning('当前离线，且没有本地数据');
+      }
+      return cached;
+    }
+  },
+
+  async create(data: Partial<Todo>): Promise<Todo> {
+    if (offline.isOnline()) {
+      const todo = await networkTodoApi.create(data);
+      setOfflineMode(false);
+      return todo;
+    } else {
+      // 离线：本地模拟创建，入队待同步
+      const todos = await offline.getCachedTodos();
+      const local = offline.localCreate(data);
+      await offline.saveCachedTodos([...todos, local]);
+      await offline.enqueue({ op: 'create', data, ts: Date.now() });
+      setOfflineMode(true);
+      message.info('离线保存，联网后将自动同步');
+      return local;
+    }
+  },
+
+  async update(id: number, data: Partial<Todo>): Promise<Todo> {
+    if (offline.isOnline()) {
+      const todo = await networkTodoApi.update(id, data);
+      setOfflineMode(false);
+      return todo;
+    } else {
+      // 离线：本地模拟更新，入队待同步
+      const todos = await offline.getCachedTodos();
+      const idx = todos.findIndex((t) => t.id === id);
+      if (idx >= 0) {
+        todos[idx] = offline.localUpdate(todos[idx], data);
+        await offline.saveCachedTodos(todos);
+        await offline.enqueue({ op: 'update', id, data, ts: Date.now() });
+        setOfflineMode(true);
+        message.info('离线保存，联网后将自动同步');
+      }
+      return todos[idx]!;
+    }
+  },
+
+  async delete(id: number): Promise<{ success: boolean }> {
+    if (offline.isOnline()) {
+      const res = await networkTodoApi.delete(id);
+      setOfflineMode(false);
+      return res;
+    } else {
+      // 离线：本地删除，入队待同步
+      const todos = await offline.getCachedTodos();
+      await offline.saveCachedTodos(offline.localDelete(todos, id));
+      await offline.enqueue({ op: 'delete', id, ts: Date.now() });
+      setOfflineMode(true);
+      message.info('离线删除，联网后将自动同步');
+      return { success: true };
+    }
+  },
+
+  async split(id: number, segments: { start: string; end: string }[]): Promise<Todo> {
+    if (offline.isOnline()) {
+      const todo = await networkTodoApi.split(id, segments);
+      setOfflineMode(false);
+      return todo;
+    } else {
+      // 离线：本地模拟拆分，入队（flush 时因 ID 可能不匹配会跳过，重新拉取即可）
+      const todos = await offline.getCachedTodos();
+      const idx = todos.findIndex((t) => t.id === id);
+      if (idx >= 0) {
+        const replaced = offline.localSplit(todos[idx], segments);
+        todos.splice(idx, 1, ...replaced);
+        await offline.saveCachedTodos(todos);
+        await offline.enqueue({ op: 'split', id, data: segments, ts: Date.now() });
+        setOfflineMode(true);
+        message.info('离线拆分，联网后将自动同步');
+      }
+      return todos[idx]!;
+    }
+  },
+
+  parseNL: (text: string) => networkTodoApi.parseNL(text),
+};
 export const scheduleApi = {
   generate: (mode: 'algorithm' | 'llm') =>
     api.post<ScheduleResult>('/schedule/generate', { mode }).then(r => r.data),
