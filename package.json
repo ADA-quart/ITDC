@@ -10,8 +10,8 @@
     "build": "vite build",
     "start": "tsx server/index.ts",
     "test": "vitest run",
-  "android:sync": "npm run build && npx @capacitor/cli sync",
-  "android:open": "npx @capacitor/cli open android",
+    "android:sync": "npm run build && npx @capacitor/cli sync",
+    "android:open": "npx @capacitor/cli open android",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -33,7 +33,8 @@
     "react-dom": "^18.3.1",
     "rrule": "^2.8.1",
     "sql.js": "^1.11.0",
-    "xlsx-js-style": "^1.2.0"
+    "xlsx-js-style": "^1.2.0",
+    "tsx": "^4.19.5"
   },
   "devDependencies": {
     "@capacitor/android": "^8.5.2",
@@ -46,7 +47,6 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "concurrently": "^9.1.0",
-    "tsx": "^4.19.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.0",
     "vite-plugin-pwa": "^1.3.0",
