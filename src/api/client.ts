@@ -3,8 +3,16 @@ import { message } from 'antd';
 import type { Calendar, CalendarEvent, Todo, ScheduleResult, LLMConfig } from '../types';
 import * as offline from './offline';
 
+const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE || "/api";
+function resolveApiBase(): string {
+  try {
+    return localStorage.getItem("itdc_api_base") ?? DEFAULT_API_BASE;
+  } catch {
+    return DEFAULT_API_BASE;
+  }
+}
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: resolveApiBase(),
   timeout: 30000,
 });
 
@@ -31,6 +39,23 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// For settings page, switchable server address (used when connecting to local service from mobile)
+function setApiBase(url: string): void {
+  try {
+    localStorage.setItem("itdc_api_base", url);
+  } catch {
+  }
+  api.defaults.baseURL = url;
+
+}
+// Get current API base, for display on the settings page
+function getApiBase(): string {
+  return (api.defaults.baseURL as string) || DEFAULT_API_BASE;
+}
+
+
+export { api, setApiBase, getApiBase };
 
 export const calendarApi = {
   getAll: () => api.get<Calendar[]>('/calendar/calendars').then(r => r.data),

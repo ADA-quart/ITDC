@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ITDC</string>
+    <string name="title_activity_main">ITDC</string>
+    <string name="package_name">com.alpha.itdc</string>
+    <string name="custom_url_scheme">com.alpha.itdc</string>
+</resources>

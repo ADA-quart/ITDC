@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Form, Input, Select, Button, Table, Tag, message, Space, Popconfirm, Tabs, Spin } from 'antd';
-import { llmConfigApi, promptTemplateApi, settingsApi } from '../api/client';
+import { llmConfigApi, promptTemplateApi, settingsApi, api, setApiBase, getApiBase } from '../api/client';
 import { scheduleApi } from '../api/client';
 import type { LLMConfig } from '../types';
 import { useI18n } from '../i18n';
@@ -56,6 +56,8 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
   const [defaultTemplate, setDefaultTemplate] = useState('');
   const [promptSaving, setPromptSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('llm');
+  const [serverUrl, setServerUrl] = useState(getApiBase());
+  const [testingServer, setTestingServer] = useState(false);
   const [debugLog, setDebugLog] = useState('');
 
   const PROVIDER_OPTIONS = locale === 'zh' ? PROVIDER_OPTIONS_ZH : PROVIDER_OPTIONS_EN;
@@ -85,6 +87,12 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
       loadPromptTemplate();
     }
   }, [open]);
+
+  const handleSaveServer = async () => {
+    if (!serverUrl) { message.error(locale === 'zh' ? '请填写服务器地址' : 'Please fill in the server address'); return; }
+    setApiBase(serverUrl);
+    try { await api.get('/calendar/calendars', { baseURL: serverUrl.endsWith('/') ? serverUrl : serverUrl + '/api', validateStatus: () => true }); message.success(locale === 'zh' ? '已连接服务器' : 'Connected to server'); } catch { message.warning(locale === 'zh' ? '保存成功，但服务器当前不可达' : 'Saved, but server unreachable now'); }
+  };
 
   const handleSubmit = async () => {
     try {
@@ -343,6 +351,16 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
             />
           </div>
           <div>
+            <h4>{locale === 'zh' ? '服务器地址' : 'Server Address'}</h4>
+            <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 8 }}>
+              {locale === 'zh' ? '移动端连接本机服务时使用，格式：http://你的电脑IP:3000/api（开发环境默认 /api）' : 'Used when connecting from mobile to the local server, e.g. http://YOUR_PC_IP:3000/api (dev defaults to /api)'}
+            </p>
+            <Space>
+              <Input value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder='http://192.168.x.x:3000/api' style={{ width: 340 }} />
+              <Button type="primary" onClick={handleSaveServer} loading={testingServer}>{locale === 'zh' ? '保存并测试' : 'Save & Test'}</Button>
+            </Space>
+          </div>
+          <div>
             <h4>{t.settings.theme}</h4>
             <Select
               value={themeMode}
@@ -360,14 +378,13 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
             <Space style={{ marginBottom: 8 }}>
               <Button onClick={async () => {
                 try {
-                  const res = await fetch('/api/schedule/debug-log');
-                  const data = await res.json();
+                  const data = await (await api.get('/schedule/debug-log')).data;
                   setDebugLog(data.log || '(empty)');
                 } catch { setDebugLog('(failed to load)'); }
               }}>{locale === 'zh' ? '刷新日志' : 'Refresh'}</Button>
               <Button danger onClick={async () => {
                 try {
-                  await fetch('/api/schedule/debug-log', { method: 'DELETE' });
+                  await api.delete('/schedule/debug-log');
                   setDebugLog('');
                   message.success(locale === 'zh' ? '已清理' : 'Cleared');
                 } catch { message.error('Error'); }
