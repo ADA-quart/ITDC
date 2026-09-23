@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import db from '../db/index.js';
 import { debug } from '../utils/debug.js';
+import { parseNaturalLanguageTodo } from '../services/nl-todo.js';
 
 const router = Router();
 
@@ -149,6 +150,29 @@ router.post('/:id/split', (req: Request, res: Response) => {
   } catch (error: any) {
     debug.error('Todo split failed', error.message);
     res.status(500).json({ error: error.message || '拆分失败' });
+  }
+});
+
+router.post('/nl', async (req: Request, res: Response) => {
+  try {
+    const { text } = req.body;
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      return res.status(400).json({ error: '请输入待办描述' });
+    }
+
+    debug.info('NL todo parse request', { length: String(text.length) });
+
+    const parsed = await parseNaturalLanguageTodo(String(text));
+
+    const result = db.prepare(
+      'INSERT INTO todos (title, description, estimated_minutes, priority, urgency, importance, deadline, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(parsed.title, null, parsed.estimated_minutes, parsed.priority, parsed.urgency, parsed.importance, parsed.deadline || null, null);
+
+    const todo = db.prepare('SELECT * FROM todos WHERE id = ?').get(result.lastInsertRowid);
+    res.json(todo);
+  } catch (error: any) {
+    debug.error('NL todo parse failed', error.message);
+    res.status(500).json({ error: error.message || '解析失败' });
   }
 });
 

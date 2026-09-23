@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { List, Tag, Button, Modal, message, Badge, Empty, Spin, ColorPicker } from 'antd';
+import { List, Tag, Button, Modal, message, Badge, Empty, Spin, ColorPicker, Input } from 'antd';
 import { DeleteOutlined, EditOutlined, SplitCellsOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { todoApi, scheduleApi } from '../api/client';
@@ -26,6 +26,8 @@ const TodoList: React.FC = () => {
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
   const [filterStatus, setFilterStatus] = useState<TodoStatus | undefined>(undefined);
   const [splitTodo, setSplitTodo] = useState<Todo | null>(null);
+  const [nlText, setNlText] = useState('');
+  const [nlLoading, setNlLoading] = useState(false);
 
   const statusLabels: Record<TodoStatus, string> = {
     pending: t.todo.pending,
@@ -57,6 +59,22 @@ const TodoList: React.FC = () => {
   useEffect(() => {
     loadTodos();
   }, [loadTodos]);
+
+  const handleNLAdd = async () => {
+    const text = nlText.trim();
+    if (!text) return;
+    setNlLoading(true);
+    try {
+      await todoApi.parseNL(text);
+      message.success(t.todo.created);
+      setNlText('');
+      loadTodos();
+    } catch (err: any) {
+      message.error(err?.response?.data?.error || err.message || t.todo.loadFailed);
+    } finally {
+      setNlLoading(false);
+    }
+  };
 
   const handleDelete = async (id: number) => {
     Modal.confirm({
@@ -127,6 +145,19 @@ const TodoList: React.FC = () => {
         </div>
         <Button type="primary" onClick={() => { setEditingTodo(null); setFormVisible(true); }}>
           {t.todo.newTodo}
+        </Button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <Input
+          placeholder={t.todo.nlPlaceholder}
+          value={nlText}
+          onChange={(e) => setNlText(e.target.value)}
+          onPressEnter={() => handleNLAdd()}
+          style={{ flex: 1 }}
+        />
+        <Button type="primary" loading={nlLoading} onClick={handleNLAdd}>
+          {t.todo.nlButton}
         </Button>
       </div>
 
