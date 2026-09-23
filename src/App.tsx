@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as offline from './api/offline';
-import { todoApi } from './api/client';
+import { todoApi, calendarApi } from './api/client';
 import { ConfigProvider, Layout, Menu, theme as antTheme, Button } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import enUS from 'antd/locale/en_US';
@@ -61,7 +61,7 @@ const App: React.FC = () => {
     const setOfflineState = (online: boolean) => {
       setIsOffline(!online);
       if (online) {
-        void offline.flushQueue(todoApi).then(() => window.dispatchEvent(new CustomEvent('todo-data-changed')));
+        void offline.flushQueue(todoApi, calendarApi).then(() => window.dispatchEvent(new CustomEvent('todo-data-changed')));
       }
     };
     unsub = offline.onOnlineChange(setOfflineState);
@@ -231,3 +231,5 @@ const App: React.FC = () => {
 };
 
 export default App;
+
+
