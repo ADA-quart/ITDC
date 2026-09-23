@@ -54,3 +54,9 @@ CREATE TABLE IF NOT EXISTS settings (
 -- 默认日历（仅首次建表时插入）
 INSERT OR IGNORE INTO calendars (id, name, color, source)
 VALUES (1, '我的日历', '#1890ff', 'manual');
+
+-- 索引：调度算法频繁按时间范围扫描 events/todos，加复合索引避免全表扫描
+CREATE INDEX IF NOT EXISTS idx_events_calendar_start ON events (calendar_id, start_time);
+CREATE INDEX IF NOT EXISTS idx_events_time ON events (start_time, end_time);
+CREATE INDEX IF NOT EXISTS idx_todos_status_deadline ON todos (status, deadline);
+CREATE INDEX IF NOT EXISTS idx_todos_scheduled ON todos (scheduled_start, scheduled_end);

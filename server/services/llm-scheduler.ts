@@ -103,6 +103,12 @@ function validateSchedule(items: ScheduledItem[]): { valid: boolean; errors: str
   ];
 
   for (const item of items) {
+    const todo = db.prepare('SELECT id, title FROM todos WHERE id = ?').get(item.todo_id) as { id: number; title: string } | undefined;
+    if (!todo) {
+      errors.push(`待办 ${item.title} 的 todo_id (${item.todo_id}) 不存在`);
+      continue;
+    }
+
     const itemStart = new Date(item.start);
     const itemEnd = new Date(item.end);
 
@@ -118,8 +124,8 @@ function validateSchedule(items: ScheduledItem[]): { valid: boolean; errors: str
       }
     }
 
-    const todo = db.prepare('SELECT deadline FROM todos WHERE id = ?').get(item.todo_id) as { deadline: string | null } | undefined;
-    if (todo?.deadline && itemEnd > new Date(todo.deadline)) {
+    const todoRow = db.prepare('SELECT deadline FROM todos WHERE id = ?').get(item.todo_id) as { deadline: string | null } | undefined;
+    if (todoRow?.deadline && itemEnd > new Date(todoRow.deadline)) {
       errors.push(`待办 "${item.title}" 超过了截止时间`);
     }
 

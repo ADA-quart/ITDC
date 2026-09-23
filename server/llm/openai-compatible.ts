@@ -6,16 +6,23 @@ export class OpenAICompatibleProvider implements LLMProvider {
   private model: string;
   private providerName: string;
 
+  private timeoutMs: number;
+  private maxRetries: number;
+
   constructor(options: {
     apiKey?: string | null;
     baseUrl?: string;
     model?: string;
     providerName?: string;
+    timeoutMs?: number;
+    maxRetries?: number;
   }) {
     this.apiKey = options.apiKey || null;
     this.baseUrl = (options.baseUrl || 'https://api.openai.com/v1').replace(/\/$/, '');
     this.model = options.model || 'gpt-4o-mini';
     this.providerName = options.providerName || 'OpenAI';
+    this.timeoutMs = options.timeoutMs ?? 60000;
+    this.maxRetries = options.maxRetries ?? 2;
   }
 
   async chat(messages: LLMMessage[]): Promise<LLMResponse> {
@@ -27,23 +34,47 @@ export class OpenAICompatibleProvider implements LLMProvider {
       headers['Authorization'] = `Bearer ${this.apiKey}`;
     }
 
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        model: this.model,
-        messages,
-        temperature: 0.3,
-      }),
+    const body = JSON.stringify({
+      model: this.model,
+      messages,
+      temperature: 0.3,
     });
 
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`${this.providerName} API 错误: ${response.status} - ${err}`);
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      if (attempt > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 500 * Math.pow(2, attempt)));
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
+
+      try {
+        const response = await fetch(`${this.baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers,
+          body,
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`${this.providerName} API 错误: ${response.status} - ${errText}`);
+        }
+
+        const data = await response.json();
+        return { content: data.choices[0].message.content };
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        const statusMatch = lastError.message.match(/(\d{3})/);
+        if (statusMatch && !['500', '502', '503', '504'].includes(statusMatch[1])) {
+          throw lastError;
+        }
+      } finally {
+        clearTimeout(timeoutId);
+      }
     }
 
-    const data = await response.json();
-    return { content: data.choices[0].message.content };
+    throw new Error(`${this.providerName} API 请求失败（已重试 ${this.maxRetries} 次）: ${lastError?.message}`);
   }
 
   async testConnection(): Promise<{ success: boolean; message: string; model?: string }> {
