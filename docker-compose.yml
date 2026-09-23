@@ -1,0 +1,16 @@
+services:
+  itdc:
+    build: .
+    container_name: itdc
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - CRYPTO_SECRET=
+      - DB_PATH=/app/data/calendar.db
+    volumes:
+      - itdc_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  itdc_data:
