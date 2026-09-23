@@ -22,12 +22,12 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: '17'
 
       - name: Setup Android SDK (API 36)
-        uses: actions/setup-android@v4
+        uses: android-actions/setup-android@v4
         with:
-          sdk-version: '36'
+          sdk-version: 36
 
       - name: Install dependencies
         run: npm ci
