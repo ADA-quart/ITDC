@@ -66,12 +66,12 @@ function getPendingTodos(): TodoItem[] {
   ).all() as TodoItem[];
 }
 
-function isWithinWorkHours(dt: Date): boolean {
+export function isWithinWorkHours(dt: Date): boolean {
   const h = dt.getHours();
   return h >= WORK_START_HOUR && h < WORK_END_HOUR;
 }
 
-function advanceToWorkHours(dt: Date): Date {
+export function advanceToWorkHours(dt: Date): Date {
   const result = new Date(dt);
   if (result.getHours() >= WORK_END_HOUR) {
     result.setDate(result.getDate() + 1);
@@ -82,7 +82,7 @@ function advanceToWorkHours(dt: Date): Date {
   return result;
 }
 
-function findNextFreeSlot(
+export function findNextFreeSlot(
   currentStart: Date,
   durationMinutes: number,
   busySlots: BusySlot[],
@@ -226,7 +226,7 @@ export function generateSchedule(): ScheduledItem[] {
   return result;
 }
 
-function splitIntoSegments(totalMinutes: number, maxPerSegment: number): number[] {
+export function splitIntoSegments(totalMinutes: number, maxPerSegment: number): number[] {
   const segments: number[] = [];
   let remaining = totalMinutes;
   while (remaining > maxPerSegment) {
