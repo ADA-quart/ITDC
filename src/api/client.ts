@@ -57,15 +57,165 @@ function getApiBase(): string {
 
 export { api, setApiBase, getApiBase };
 
-export const calendarApi = {
+// ---------- 日历原始网络 API（flushQueue 内部使用） ----------
+const networkCalendarApi = {
   getAll: () => api.get<Calendar[]>('/calendar/calendars').then(r => r.data),
   create: (data: Partial<Calendar>) => api.post<Calendar>('/calendar/calendars', data).then(r => r.data),
   delete: (id: number) => api.delete(`/calendar/calendars/${id}`).then(r => r.data),
-  getEvents: (start?: string, end?: string) =>
-    api.get<CalendarEvent[]>('/calendar/events', { params: { start, end } }).then(r => r.data),
+  getEvents: () => api.get<CalendarEvent[]>('/calendar/events').then(r => r.data),
   createEvent: (data: Partial<CalendarEvent>) => api.post<CalendarEvent>('/calendar/events', data).then(r => r.data),
   updateEvent: (id: number, data: Partial<CalendarEvent>) => api.put<CalendarEvent>(`/calendar/events/${id}`, data).then(r => r.data),
   deleteEvent: (id: number) => api.delete(`/calendar/events/${id}`).then(r => r.data),
+};
+
+// ---------- 日历离线层：断网时缓存读取 + 本地模拟 + 队列同步 ----------
+export const calendarApi = {
+  async getAll(): Promise<Calendar[]> {
+    if (offline.isOnline()) {
+      try {
+        const data = await networkCalendarApi.getAll();
+        await offline.saveCalendarCache(data);
+        setOfflineMode(false);
+        return data;
+      } catch (err) {
+        if (!isNetworkError(err)) throw err;
+        // 网络断开 → 回退本地缓存
+        const cached = await offline.getCalendarCache();
+        if (cached.length > 0) {
+          setOfflineMode(true);
+          message.warning('当前离线，显示本地缓存的日历');
+          return cached;
+        }
+        throw err;
+      }
+    } else {
+      // 明确离线（navigator.onLine=false）：直接读缓存
+      const cached = await offline.getCalendarCache();
+      setOfflineMode(cached.length > 0);
+      if (cached.length === 0) message.warning('当前离线，且没有本地日历数据');
+      return cached;
+    }
+  },
+  async create(data: Partial<Calendar>): Promise<Calendar> {
+    if (offline.isOnline()) {
+      const cal = await networkCalendarApi.create(data);
+      // 服务器为权威：刷新本地缓存
+      const cached = await offline.getCalendarCache();
+      await offline.saveCalendarCache([...cached.filter(c => c.id !== cal.id), cal]);
+      setOfflineMode(false);
+      return cal;
+    } else {
+      // 离线：本地模拟创建，入队待同步（临时 ID）
+      const cached = await offline.getCalendarCache();
+      const local = offline.localCreateCalendar(data);
+      await offline.saveCalendarCache([...cached, local]);
+      await offline.enqueue({ op: 'create-calendar', data, ts: Date.now() });
+      setOfflineMode(true);
+      message.info('离线保存，联网后将自动同步');
+      return local;
+    }
+  },
+  async delete(id: number): Promise<any> {
+    if (offline.isOnline()) {
+      const res = await networkCalendarApi.delete(id);
+      // 服务器为权威：刷新本地缓存
+      const cached = await offline.getCalendarCache();
+      await offline.saveCalendarCache(cached.filter(c => c.id !== id));
+      setOfflineMode(false);
+      return res;
+    } else {
+      // 离线：本地删除（连带事件），入队待同步
+      const calC = await offline.getCalendarCache();
+      const evC = await offline.getEventCache();
+      const { calendars, events } = offline.localDeleteCalendar(calC, evC, id);
+      await offline.saveCalendarCache(calendars);
+      await offline.saveEventCache(events);
+      await offline.enqueue({ op: 'delete-calendar', id, ts: Date.now() });
+      setOfflineMode(true);
+      message.info('离线删除，联网后将自动同步');
+      return { success: true };
+    }
+  },
+  async getEvents(): Promise<CalendarEvent[]> {
+    if (offline.isOnline()) {
+      try {
+        const data = await networkCalendarApi.getEvents();
+        await offline.saveEventCache(data);
+        setOfflineMode(false);
+        return data;
+      } catch (err) {
+        if (!isNetworkError(err)) throw err;
+        // 网络断开 → 回退本地缓存
+        const cached = await offline.getEventCache();
+        if (cached.length > 0) {
+          setOfflineMode(true);
+          message.warning('当前离线，显示本地缓存的事件');
+          return cached;
+        }
+        throw err;
+      }
+    } else {
+      // 明确离线：直接读缓存
+      const cached = await offline.getEventCache();
+      if (cached.length === 0) message.warning('当前离线，且没有本地事件数据');
+      return cached;
+    }
+  },
+  async createEvent(data: Partial<CalendarEvent>): Promise<CalendarEvent> {
+    if (offline.isOnline()) {
+      const evt = await networkCalendarApi.createEvent(data);
+      // 服务器为权威：缓存中替换同 id 条目
+      const cached = await offline.getEventCache();
+      await offline.saveEventCache([...cached.filter(e => e.id !== evt.id), evt]);
+      setOfflineMode(false);
+      return evt;
+    } else {
+      // 离线：本地模拟创建，入队待同步（临时 ID）
+      const cached = await offline.getEventCache();
+      const local = offline.localCreateEvent(data);
+      await offline.saveEventCache([...cached, local]);
+      await offline.enqueue({ op: 'create-event', data, ts: Date.now() });
+      setOfflineMode(true);
+      message.info('离线保存，联网后将自动同步');
+      return local;
+    }
+  },
+  async updateEvent(id: number, data: Partial<CalendarEvent>): Promise<CalendarEvent> {
+    if (offline.isOnline()) {
+      const evt = await networkCalendarApi.updateEvent(id, data);
+      // 服务器为权威：缓存中替换同 id 条目
+      const cached = await offline.getEventCache();
+      await offline.saveEventCache([...cached.filter(e => e.id !== evt.id), evt]);
+      setOfflineMode(false);
+      return evt;
+    } else {
+      // 离线：本地模拟更新，入队（flush 时因临时 ID 不匹配会跳过，重新拉取即可）
+      const cached = await offline.getEventCache();
+      await offline.saveEventCache(offline.localUpdateEvent(cached, id, data));
+      await offline.enqueue({ op: 'update-event', id, data, ts: Date.now() });
+      setOfflineMode(true);
+      message.info('离线保存，联网后将自动同步');
+      return cached.find(e => e.id === id) ?? { ...data } as CalendarEvent;
+    }
+  },
+  async deleteEvent(id: number): Promise<any> {
+    if (offline.isOnline()) {
+      const res = await networkCalendarApi.deleteEvent(id);
+      // 服务器为权威：刷新本地事件缓存
+      const cached = await offline.getEventCache();
+      await offline.saveEventCache(cached.filter(e => e.id !== id));
+      setOfflineMode(false);
+      return res;
+    } else {
+      // 离线：本地删除，入队待同步（临时 ID flush 时跳过）
+      const cached = await offline.getEventCache();
+      await offline.saveEventCache(offline.localDeleteEvent(cached, id));
+      await offline.enqueue({ op: 'delete-event', id, ts: Date.now() });
+      setOfflineMode(true);
+      message.info('离线删除，联网后将自动同步');
+      return { success: true };
+    }
+  },
   importIcs: (file: File, calendarName?: string, calendarColor?: string) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -110,6 +260,7 @@ export const calendarApi = {
       window.URL.revokeObjectURL(url);
     }),
 };
+
 
 // ---------- 待办原始网络 API（flushQueue 内部使用） ----------
 const networkTodoApi = {

@@ -1,12 +1,14 @@
-// 离线层：IndexedDB 缓存待办列表 + 操作队列，网络断开时仍可读写本地数据
-import type { Todo } from '../types';
+// 离线层：IndexedDB 缓存待办 + 日历事件，网络断开时仍可读写本地数据
+import type { Todo, Calendar, CalendarEvent } from '../types';
 
 const DB_NAME = 'itdc-offline-v1';
 const STORE = 'store';
-const STORE_VERSION = 1;
+const STORE_VERSION = 2;
 
 interface OfflineOp {
-  op: 'create' | 'update' | 'delete' | 'split';
+  op: 'create' | 'update' | 'delete' | 'split'
+    | 'create-calendar' | 'update-calendar' | 'delete-calendar'
+    | 'create-event' | 'update-event' | 'delete-event';
   id?: number;
   data?: any;
   ts: number;
@@ -47,7 +49,7 @@ async function set(key: string, value: any): Promise<void> {
   await (db as any).set(key, value);
 }
 
-// ---------- 缓存读写 ----------
+// ---------- 待办缓存读写 ----------
 export async function getCachedTodos(): Promise<Todo[]> {
   try {
     return (await get<Todo[]>('todos')) ?? [];
@@ -58,6 +60,31 @@ export async function getCachedTodos(): Promise<Todo[]> {
 
 export async function saveCachedTodos(todos: Todo[]): Promise<void> {
   try { await set('todos', todos); } catch {}
+}
+
+// ---------- 日历缓存读写 ----------
+export async function getCalendarCache(): Promise<Calendar[]> {
+  try {
+    return (await get<Calendar[]>('calendars')) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveCalendarCache(calendars: Calendar[]): Promise<void> {
+  try { await set('calendars', calendars); } catch {}
+}
+
+export async function getEventCache(): Promise<CalendarEvent[]> {
+  try {
+    return (await get<CalendarEvent[]>('events')) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveEventCache(events: CalendarEvent[]): Promise<void> {
+  try { await set('events', events); } catch {}
 }
 
 // ---------- 队列 ----------
@@ -85,6 +112,7 @@ function nextLocalId(): number {
   return ++localSeq;
 }
 
+// ---------- 待办本地模拟 ----------
 export function localCreate(data: Partial<Todo>): Todo {
   const now = new Date().toISOString();
   const u = Math.max(1, Math.min(4, Math.round(data.urgency ?? 2)));
@@ -128,7 +156,7 @@ export function localSplit(todo: Todo, segments: { start: string; end: string }[
     result.push({
       ...todo,
       id: nextLocalId(),
-      title: `${todo.title} (${i + 1}/${segments.length})`,
+      title: todo.title + ' (' + (i + 1) + '/' + segments.length + ')',
       estimated_minutes: mins,
       status: 'scheduled',
       scheduled_start: segments[i].start,
@@ -140,6 +168,55 @@ export function localSplit(todo: Todo, segments: { start: string; end: string }[
 
 export function localDelete(todos: Todo[], id: number): Todo[] {
   return todos.filter((t) => t.id !== id);
+}
+
+// ---------- 日历本地模拟 ----------
+export function localCreateCalendar(data: Partial<Calendar>): Calendar {
+  const now = new Date().toISOString();
+  return {
+    id: nextLocalId(),
+    name: data.name || 'New calendar',
+    color: data.color || '#1890ff',
+    source: 'manual',
+    created_at: now,
+  };
+}
+
+export function localUpdateCalendar(calendars: Calendar[], id: number, data: Partial<Calendar>): Calendar[] {
+  return calendars.map(c => (c.id === id ? { ...c, ...data } : c));
+}
+
+// 删除日历：连带删掉它的事件（本地）
+export function localDeleteCalendar(calendars: Calendar[], events: CalendarEvent[], id: number): { calendars: Calendar[]; events: CalendarEvent[] } {
+  return {
+    calendars: calendars.filter(c => c.id !== id),
+    events: events.filter(e => e.calendar_id !== id),
+  };
+}
+
+export function localCreateEvent(data: Partial<CalendarEvent>): CalendarEvent {
+  const now = new Date().toISOString();
+  return {
+    id: nextLocalId(),
+    calendar_id: data.calendar_id ?? 0,
+    title: data.title || 'Untitled',
+    description: data.description ?? null,
+    start_time: data.start_time || now,
+    end_time: data.end_time || now,
+    rrule: data.rrule ?? null,
+    location: data.location ?? null,
+    source: 'manual',
+    uid: null,
+    created_at: now,
+  };
+}
+
+export function localUpdateEvent(events: CalendarEvent[], id: number, data: Partial<CalendarEvent>): CalendarEvent[] {
+  return events.map(e => (e.id === id ? { ...e, ...data } : e));
+}
+
+export function localDeleteEvent(events: CalendarEvent[], id: number): CalendarEvent[] {
+  return events.filter(e => e.id !== id);
 }
 
 // ---------- 在线状态 ----------
@@ -177,12 +254,23 @@ export interface TodoApiLike {
   parseNL: (text: string) => Promise<Todo>;
 }
 
-export async function flushQueue(todoApi: TodoApiLike): Promise<void> {
+export interface CalendarApiLike {
+  getAll: () => Promise<Calendar[]>;
+  create: (data: Partial<Calendar>) => Promise<Calendar>;
+  delete: (id: number) => Promise<any>;
+  getEvents: () => Promise<CalendarEvent[]>;
+  createEvent: (data: Partial<CalendarEvent>) => Promise<CalendarEvent>;
+  updateEvent: (id: number, data: Partial<CalendarEvent>) => Promise<CalendarEvent>;
+  deleteEvent: (id: number) => Promise<any>;
+}
+
+export async function flushQueue(todoApi: TodoApiLike, calendarApi?: CalendarApiLike): Promise<void> {
   const queue = await getQueue();
   if (queue.length === 0) return;
   for (const op of queue) {
     try {
       switch (op.op) {
+        // ---- todo ----
         case 'create':
           await todoApi.create(op.data!);
           break;
@@ -194,6 +282,25 @@ export async function flushQueue(todoApi: TodoApiLike): Promise<void> {
           break;
         case 'split':
           // 离线 split 的本地 ID 与服务器不匹配，跳过；重新拉取即可
+          break;
+        // ---- calendar ----
+        case 'create-calendar':
+          if (calendarApi) { await calendarApi.create(op.data!); } else { throw new Error('no calendar api'); }
+          break;
+        case 'update-calendar':
+          // 服务器端无 update-calendar API，跳过；重新拉取即可
+          break;
+        case 'delete-calendar':
+          if (calendarApi) { await calendarApi.delete(op.id!); } else { throw new Error('no calendar api'); }
+          break;
+        case 'create-event':
+          if (calendarApi) { await calendarApi.createEvent(op.data!); } else { throw new Error('no calendar api'); }
+          break;
+        case 'update-event':
+          // 服务器端 update 需要真实 ID；离线生成的临时 ID 不匹配 → 跳过，重新拉取即可
+          break;
+        case 'delete-event':
+          if (calendarApi) { await calendarApi.deleteEvent(op.id!); } else { throw new Error('no calendar api'); }
           break;
       }
     } catch {
