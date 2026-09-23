@@ -35,6 +35,7 @@ export interface Todo {
   scheduled_start: string | null;
   scheduled_end: string | null;
   color: string | null;
+  completed_at: string | null;
   created_at: string;
 }
 

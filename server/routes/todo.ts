@@ -70,6 +70,10 @@ router.put('/:id', (req: Request, res: Response) => {
   }
   if (deadline !== undefined) { fields.push('deadline = ?'); values.push(deadline); }
   if (status !== undefined) { fields.push('status = ?'); values.push(status); }
+  if (status !== undefined) {
+    fields.push('completed_at = ?');
+    values.push(status === 'done' ? new Date().toISOString() : null);
+  }
   if (scheduled_start !== undefined) { fields.push('scheduled_start = ?'); values.push(scheduled_start); }
   if (scheduled_end !== undefined) { fields.push('scheduled_end = ?'); values.push(scheduled_end); }
   if (color !== undefined) { fields.push('color = ?'); values.push(color); }

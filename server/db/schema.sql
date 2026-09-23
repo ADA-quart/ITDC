@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS todos (
   scheduled_start DATETIME,
   scheduled_end DATETIME,
   color TEXT,
+  completed_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

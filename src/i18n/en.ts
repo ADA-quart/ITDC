@@ -9,6 +9,7 @@ const en: LocaleMessages = {
     calendar: 'Calendar',
     todos: 'Todos',
     schedule: 'Schedule',
+    review: 'Review',
     settings: 'Settings',
   },
   calendar: {
@@ -126,6 +127,16 @@ const en: LocaleMessages = {
     p2: 'Important (P2)',
     p3: 'Urgent (P3)',
     p4: 'Normal (P4)',
+  },
+  review: {
+    overdue: 'Overdue',
+    dueToday: 'Due Today',
+    pending: 'Pending',
+    done: 'Done',
+    trend: '7-day trend (blue=created, green=done)',
+    today: 'Today',
+    overdueList: 'Overdue todos:',
+    noOverdue: 'No overdue todos',
   },
   schedule: {
     title: 'Smart Schedule',

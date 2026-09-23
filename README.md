@@ -1,4 +1,4 @@
-<p align="center">
+﻿<p align="center">
   <h1 align="center">📅 Smart Calendar Planner</h1>
   <p align="center">
     <em>智能日历与待办规划 — Integrated Calendar, Todo & AI-Powered Scheduling</em>
@@ -318,6 +318,7 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 - **四象限待办** — 按紧急度与重要度自动归类 P1–P4 优先级，截止日期倒计时
 - **智能调度** — 算法调度（贪心策略）与 LLM 调度（OpenAI / DeepSeek / Ollama / LM Studio）
 - **智能拆分** — 超过 90 分钟的长任务自动拆分，应用后生成独立待办记录
+- **今日回顾** — 逾期/今日到期/待处理/已完成统计，近 7 天趋势图与逾期任务列表
 - **深色模式** — 浅色 / 深色 / 跟随系统
 - **国际化** — 中英文切换
 - **日历交互** — 拖拽移动/调整时长，快速创建，Excel 周历导出

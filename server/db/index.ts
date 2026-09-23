@@ -64,6 +64,15 @@ class Database {
         this.db.exec("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
         this.markDirty();
       }
+
+      const todoCols2 = this.db.exec("PRAGMA table_info(todos)");
+      if (todoCols2.length > 0) {
+        const colNames2 = todoCols2[0].values.map((row: any[]) => row[1]);
+        if (!colNames2.includes('completed_at')) {
+          this.db.exec("ALTER TABLE todos ADD COLUMN completed_at DATETIME");
+          this.markDirty();
+        }
+      }
     } catch (err) {
       console.error('Migration error:', err);
     }

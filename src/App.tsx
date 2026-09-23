@@ -10,19 +10,21 @@ import {
   SunOutlined,
   MoonOutlined,
   GlobalOutlined,
+  PieChartOutlined,
 } from '@ant-design/icons';
 import CalendarView from './components/CalendarView';
 import TodoList from './components/TodoList';
 import SchedulePanel from './components/SchedulePanel';
+import DailyReview from './components/DailyReview';
 import SettingsModal from './components/SettingsModal';
 import { useI18n } from './i18n';
 import { useTheme } from './contexts/ThemeContext';
 
 const { Sider, Content } = Layout;
 
-type PageKey = 'calendar' | 'todos' | 'schedule';
+type PageKey = 'calendar' | 'todos' | 'schedule' | 'review';
 
-const VALID_PAGES: PageKey[] = ['calendar', 'todos', 'schedule'];
+const VALID_PAGES: PageKey[] = ['calendar', 'todos', 'schedule', 'review'];
 
 function getPageFromHash(): PageKey {
   const hash = window.location.hash.replace('#', '');
@@ -64,6 +66,8 @@ const App: React.FC = () => {
         return <TodoList />;
       case 'schedule':
         return <SchedulePanel />;
+      case 'review':
+        return <DailyReview />;
     }
   };
 
@@ -73,6 +77,7 @@ const App: React.FC = () => {
     { key: 'calendar', icon: <CalendarOutlined />, label: t.nav.calendar },
     { key: 'todos', icon: <CheckSquareOutlined />, label: t.nav.todos },
     { key: 'schedule', icon: <ThunderboltOutlined />, label: t.nav.schedule },
+    { key: 'review', icon: <PieChartOutlined />, label: t.nav.review },
   ];
 
   if (isMobile) {
