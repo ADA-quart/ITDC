@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Form, Input, Select, Button, Table, Tag, message, Space, Popconfirm, Tabs, Spin } from 'antd';
 import { llmConfigApi, promptTemplateApi, settingsApi, api, setApiBase, getApiBase } from '../api/client';
+import { Capacitor } from '@capacitor/core';
+import { ITDCWidgetPlugin } from '../capacitor/itdc-widget';
 import { scheduleApi } from '../api/client';
 import type { LLMConfig } from '../types';
 import { useI18n } from '../i18n';
@@ -91,6 +93,9 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
   const handleSaveServer = async () => {
     if (!serverUrl) { message.error(locale === 'zh' ? '请填写服务器地址' : 'Please fill in the server address'); return; }
     setApiBase(serverUrl);
+    if (Capacitor.isNativePlatform()) {
+      try { await ITDCWidgetPlugin.setServerUrl({ url: serverUrl }); message.success(t.settings.widgetSynced); } catch {}
+    }
     try { await api.get('/calendar/calendars', { baseURL: serverUrl.endsWith('/') ? serverUrl : serverUrl + '/api', validateStatus: () => true }); message.success(locale === 'zh' ? '已连接服务器' : 'Connected to server'); } catch { message.warning(locale === 'zh' ? '保存成功，但服务器当前不可达' : 'Saved, but server unreachable now'); }
   };
 
@@ -359,6 +364,9 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
               <Input value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder='http://192.168.x.x:3000/api' style={{ width: 340 }} />
               <Button type="primary" onClick={handleSaveServer} loading={testingServer}>{locale === 'zh' ? '保存并测试' : 'Save & Test'}</Button>
             </Space>
+            <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 8 }}>
+              {t.settings.widgetHint}
+            </p>
           </div>
           <div>
             <h4>{t.settings.theme}</h4>

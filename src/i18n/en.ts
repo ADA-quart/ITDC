@@ -204,6 +204,8 @@ const en: LocaleMessages = {
     llmPromptHint: 'Use {{current_time}} as placeholder for current time',
     cancel: 'Cancel',
     general: 'General',
+    widgetHint: "Saving will sync the server URL to your home widget for quick access to today's schedule and todos",
+    widgetSynced: 'Server URL synced to home widget'
   },
 };
 

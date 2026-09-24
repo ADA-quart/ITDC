@@ -1,0 +1,10 @@
+{
+  "name": "itdc-widget",
+  "version": "1.0.0",
+  "description": "ITDC Android home screen widget plugin",
+  "capacitor": {
+    "android": {
+      "src": "./src/android"
+    }
+  }
+}

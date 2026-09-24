@@ -202,6 +202,8 @@ const zh = {
     llmPromptHint: '使用 {{current_time}} 作为当前时间的占位符',
     cancel: '取消',
     general: '通用设置',
+    widgetHint: '保存后会自动同步到桌面小组件，方便手机查看今日课表与待办任务',
+    widgetSynced: '服务器地址已同步至桌面小组件'
   },
 };
 
