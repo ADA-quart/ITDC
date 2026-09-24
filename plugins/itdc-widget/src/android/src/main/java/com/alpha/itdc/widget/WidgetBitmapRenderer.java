@@ -3,7 +3,7 @@ package com.alpha.itdc.widget;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.text.Paint;
+import android.graphics.Paint;
 import android.util.Log;
 
 import java.util.ArrayList;

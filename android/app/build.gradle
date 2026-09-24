@@ -30,12 +30,6 @@ repositories {
     }
 }
 
-sourceSets {
-    main {
-        java.srcDirs += file("../plugins/itdc-widget/src/android/src/main/java")
-    }
-}
-
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"

@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import type { Todo } from '../types';
-import { PushNotifications } from '@capacitor/push-notifications';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 const REMINDER_KEY = 'itdc_reminder_enabled';
 // 本地通知最多提前 90 天，超出则不排程（Android 对过远的定时通知行为不一致）
@@ -8,7 +8,7 @@ const MAX_AHEAD_MS = 90 * 24 * 3600_000;
 
 export function isAndroid(): boolean {
   try {
-    if (Capacitor.isNative) return Capacitor.getPlatform() === 'android';
+    return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
   } catch { /* ignore */ }
   const ua = navigator.userAgent || '';
   return /Android/i.test(ua);
@@ -41,18 +41,22 @@ export function reminderTimeFor(todo: Todo): Date | null {
   return null;
 }
 
-const notificationIdFor = (id: number) => String('todo-') + id;
+
 
 export async function scheduleTodoReminder(todo: Todo): Promise<void> {
   try {
     if (!isAndroid() || !getReminderEnabled()) return;
     const time = reminderTimeFor(todo);
     if (!time) return;
-    await PushNotifications.scheduleNotification({
-      id: notificationIdFor(todo.id),
-      title: todo.title,
-      body: '提醒：' + todo.title,
-      trigger: { type: 'TIME', date: time.toISOString() },
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          id: todo.id,
+          title: todo.title,
+          body: '提醒：' + todo.title,
+          schedule: { at: time },
+        },
+      ],
     });
   } catch (err) {
     // 通知排程失败不影响主流程（如权限未授予）
@@ -63,7 +67,7 @@ export async function scheduleTodoReminder(todo: Todo): Promise<void> {
 export async function cancelTodoReminder(id: number): Promise<void> {
   try {
     if (!isAndroid()) return;
-    await PushNotifications.cancelPendingNotification({ id: notificationIdFor(id) });
+    await LocalNotifications.cancel({ notifications: [{ id: id }] });
   } catch (err) {
     console.warn('cancelTodoReminder failed:', err);
   }
@@ -74,7 +78,7 @@ export async function cancelTodoReminder(id: number): Promise<void> {
 export async function syncAllReminders(todos: Todo[]): Promise<void> {
   try {
     if (!isAndroid()) return;
-    await PushNotifications.cancelAllPendingNotifications();
+    await LocalNotifications.cancelAll();
     for (const todo of todos) {
       if (getReminderEnabled() && reminderTimeFor(todo)) {
         await scheduleTodoReminder(todo);

@@ -7,3 +7,12 @@ data/
 *.log
 DS_Store
 *.tmp
+
+# Android build artifacts & debug dumps
+.gradle/
+android/build/
+android/app/build/
+android/*.txt
+plugins/*/build/
+lib/
+

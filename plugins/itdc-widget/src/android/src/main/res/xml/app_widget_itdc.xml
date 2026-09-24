@@ -2,5 +2,5 @@
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android.updatePeriodMillis="900000"
     android.initialLayout="@layout/widget_today"
-    android.label="@string/app_name">
+    android.label="@string/app_widget_label">
 </appwidget-provider>
