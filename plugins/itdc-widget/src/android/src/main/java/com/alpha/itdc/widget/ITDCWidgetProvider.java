@@ -23,7 +23,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
     @Override
     public void onReceive(Context context, Intent intent) {
         super.onReceive(context, intent);
-        if (intent.hasData()) {
+        if (intent.getData() != null) {
             String widgetIdStr = intent.getData().toString()
                     .substring(intent.getData().toString().lastIndexOf('/') + 1);
             try { refreshWidget(context, Integer.parseInt(widgetIdStr)); }
