@@ -63,7 +63,8 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         String serverUrl = getServerUrl(context);
         if (serverUrl == null || serverUrl.isEmpty()) { updateMissingServer(context, appWidgetId); return; }
         new Thread(() -> {
-            String json = fetchJson(serverUrl + "/api/widget/today");
+            String baseUrl = normalizeBaseUrl(serverUrl);
+            String json = fetchJson(baseUrl + "/api/widget/today");
             if (json == null) { updateError(context, appWidgetId, "离线\n无法连接服务器"); return; }
             Bitmap bmp = WidgetBitmapRenderer.render(context, json);
             new Handler(Looper.getMainLooper()).post(() -> {
@@ -99,6 +100,13 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         });
     }
 
+    private static String normalizeBaseUrl(String url)
+    {
+        if (url == null || url.isEmpty()) return url;
+        String u = url.trim();
+        while (u.EndsWith("/api")) { u = u.Substring(0, u.Length() - 4); }
+        return u;
+    }
     private String getServerUrl(Context context) {
         SharedPreferences prefs = context.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE);
         return prefs.getString("server_url", null);
