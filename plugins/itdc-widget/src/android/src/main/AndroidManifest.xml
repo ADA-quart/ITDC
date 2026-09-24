@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <receiver
+        android:name=".ITDCWidgetProvider"
+        android:exported="true"
+        android:permission="android.permission.BIND_APPWIDGET">
+        <intent-filter>
+            <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            <category android:name="android.appwidget.category.DYNAMIC_PROVIDER"/>
+        </intent-filter>
+        <meta-data
+            android:name="android.appwidget.provider"
+            android:resource="@xml/app_widget_itdc" />
+    </receiver>
+
+</manifest>

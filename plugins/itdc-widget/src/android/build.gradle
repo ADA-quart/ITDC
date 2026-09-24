@@ -1,0 +1,30 @@
+apply plugin: "com.android.library"
+
+android {
+    namespace = "com.alpha.itdc.widget"
+    compileSdk 36
+    defaultConfig {
+        minSdkVersion 24
+        targetSdkVersion 36
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(':capacitor-android')
+    implementation "androidx.appcompat:appcompat:1.7.1"
+    implementation "androidx.core:core:1.17.0"
+}

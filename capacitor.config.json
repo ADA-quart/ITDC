@@ -10,6 +10,7 @@
   },
   "plugins": {
     "PushNotifications": {},
-    "itdc-widget": {}
+    "itdc-widget": {},
+    "LocalNotifications": {}
   }
 }

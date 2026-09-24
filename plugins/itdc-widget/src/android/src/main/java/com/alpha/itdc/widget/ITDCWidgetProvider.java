@@ -1,6 +1,7 @@
 package com.alpha.itdc.widget;
 
 import android.app.AlarmManager;
+import android.appwidget.AppWidgetProvider;
 import android.app.AppWidgetManager;
 import android.content.ComponentName;
 import android.content.Context;
@@ -11,13 +12,13 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
-import android.widget.PendingIntent;
+import android.app.PendingIntent;
 import android.widget.RemoteViews;
 
 public class ITDCWidgetProvider extends AppWidgetProvider {
 
     private static final String TAG = "ITDCWidget";
-    private static final int REFRESH_INTERVAL_MS = 15 * 60 * 1000L;
+    private static final long REFRESH_INTERVAL_MS = 15 * 60 * 1000L;
 
     @Override
     public void onReceive(Context context, Intent intent) {
