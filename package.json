@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@ant-design/icons": "^5.5.0",
+    "@capacitor/push-notifications": "^8.1.2",
     "@fullcalendar/core": "^6.1.15",
     "@fullcalendar/daygrid": "^6.1.15",
     "@fullcalendar/interaction": "^6.1.15",
@@ -33,8 +34,9 @@
     "react-dom": "^18.3.1",
     "rrule": "^2.8.1",
     "sql.js": "^1.11.0",
+    "tsx": "^4.19.5",
     "xlsx-js-style": "^1.2.0",
-    "tsx": "^4.19.5"
+    "itdc-widget": "file:./plugins/itdc-widget"
   },
   "devDependencies": {
     "@capacitor/android": "^8.5.2",

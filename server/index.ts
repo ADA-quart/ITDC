@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import calendarRouter from './routes/calendar.js';
 import todoRouter from './routes/todo.js';
 import scheduleRouter from './routes/schedule.js';
+import widgetRouter from './routes/widget.js';
 import settingsRouter from './routes/settings.js';
 import db, { ready } from './db/index.js';
 
@@ -47,6 +48,7 @@ app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 app.use('/api/calendar', calendarRouter);
 app.use('/api/todos', todoRouter);
 app.use('/api/schedule', scheduleRouter);
+app.use('/api/widget', widgetRouter);
 app.use('/api/settings', settingsRouter);
 
 // 生产环境：静态文件服务 & SPA fallback（必须在错误中间件之前，否则 API 404 会被当作 SPA 路由）
