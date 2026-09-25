@@ -37,7 +37,7 @@ public class WidgetBitmapRenderer {
         Paint headerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         headerPaint.setTextSize(56);
         headerPaint.setTypeface(android.graphics.Typeface.SANS_SERIF);
-        headerPaint.setTextColor(Color.parseColor("#e0e0e0"));
+        headerPaint.setColor(Color.parseColor("#e0e0e0"));
         canvas.drawText("今日课表", 48, 100, headerPaint);
 
         Paint itemPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -48,10 +48,10 @@ public class WidgetBitmapRenderer {
             String time = parts.length > 0 ? parts[0] : "";
             String title = parts.length > 1 ? parts[1] : "";
             itemPaint.setTextSize(44);
-            itemPaint.setTextColor(Color.parseColor("#ffffff"));
+            itemPaint.setColor(Color.parseColor("#ffffff"));
             canvas.drawText(time, 48, y + 32, itemPaint);
             itemPaint.setTextSize(34);
-            itemPaint.setTextColor(Color.parseColor("#b0b0c0"));
+            itemPaint.setColor(Color.parseColor("#b0b0c0"));
             canvas.drawText(title, 150, y + 60, itemPaint);
             y += 90;
         }
@@ -63,7 +63,7 @@ public class WidgetBitmapRenderer {
         y += 40;
 
         headerPaint.setTextSize(56);
-        headerPaint.setTextColor(Color.parseColor("#e0e0e0"));
+        headerPaint.setColor(Color.parseColor("#e0e0e0"));
         canvas.drawText("待办", 48, y + 32, headerPaint);
         y += 70;
 
@@ -72,7 +72,7 @@ public class WidgetBitmapRenderer {
             String[] parts = item.split("\\|");
             String title = parts.length > 0 ? parts[0] : "";
             itemPaint.setTextSize(34);
-            itemPaint.setTextColor(Color.parseColor("#ffffff"));
+            itemPaint.setColor(Color.parseColor("#ffffff"));
             canvas.drawText("• " + title, 60, y + 32, itemPaint);
             y += 75;
         }
