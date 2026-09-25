@@ -104,7 +104,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
     {
         if (url == null || url.isEmpty()) return url;
         String u = url.trim();
-        while (u.EndsWith("/api")) { u = u.Substring(0, u.Length() - 4); }
+        while (u.endsWith("/api")) { u = u.substring(0, u.length() - 4); }
         return u;
     }
     private String getServerUrl(Context context) {
