@@ -15,7 +15,7 @@ public class WidgetBitmapRenderer {
     private static final int H = 1080;
 
     public static Bitmap render(Context context, String json) {
-        try { return renderFromJson(context, json); }
+        try { return renderFromJson(json); }
         catch (Exception e) { Log.e("WidgetBitmapRenderer", "render failed", e); }
         return null;
     }
@@ -138,7 +138,8 @@ public class WidgetBitmapRenderer {
             int end = obj.indexOf('"', valStart + 1);
             return end > valStart ? obj.substring(valStart + 1, end) : null;
         } else {
-            int end = Math.min(obj.indexOf(',', valStart), obj.length());
+            int end = obj.indexOf(',', valStart);
+            if (end < 0) { end = obj.length(); }
             String v = obj.substring(valStart, end).trim();
             if (v.equals("null")) return null;
             return v;
