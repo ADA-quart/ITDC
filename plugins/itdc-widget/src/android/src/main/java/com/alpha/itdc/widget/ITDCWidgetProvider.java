@@ -70,7 +70,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             new Handler(Looper.getMainLooper()).post(() -> {
                 try {
                     AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
-                    RemoteViews rv = new RemoteViews(context, R.layout.widget_today);
+                    RemoteViews rv = new RemoteViews(context.getPackageName(), R.layout.widget_today);
                     rv.setImageViewBitmap(R.id.widget_image, bmp);
                     awm.updateAppWidget(appWidgetId, rv);
                 } catch (Exception e) { Log.e(TAG, "updateAppWidget failed", e); }
@@ -82,7 +82,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         new Handler(Looper.getMainLooper()).post(() -> {
             try {
                 AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
-                RemoteViews rv = new RemoteViews(context, R.layout.widget_today_error);
+                RemoteViews rv = new RemoteViews(context.getPackageName(), R.layout.widget_today_error);
                 rv.setTextViewText(R.id.error_text, "未配置服务器\n请在 ITDC 设置中填写");
                 awm.updateAppWidget(appWidgetId, rv);
             } catch (Exception e) { Log.e(TAG, "updateMissingServer failed", e); }
@@ -93,7 +93,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         new Handler(Looper.getMainLooper()).post(() -> {
             try {
                 AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
-                RemoteViews rv = new RemoteViews(context, R.layout.widget_today_error);
+                RemoteViews rv = new RemoteViews(context.getPackageName(), R.layout.widget_today_error);
                 rv.setTextViewText(R.id.error_text, msg);
                 awm.updateAppWidget(appWidgetId, rv);
             } catch (Exception e) { Log.e(TAG, "updateError failed", e); }
