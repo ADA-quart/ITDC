@@ -2,7 +2,7 @@ package com.alpha.itdc.widget;
 
 import android.app.AlarmManager;
 import android.appwidget.AppWidgetProvider;
-import android.app.AppWidgetManager;
+import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -41,7 +41,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
 
     private void refreshAll(Context context) {
         try {
-            AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APP_WIDGET_SERVICE);
+            AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
             ComponentName comp = new ComponentName(context, ITDCWidgetProvider.class.getName());
             for (int id : awm.getAppWidgetIds(comp)) refreshWidget(context, id);
         } catch (Exception e) { Log.e(TAG, "refreshAll failed", e); }
@@ -69,7 +69,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             Bitmap bmp = WidgetBitmapRenderer.render(context, json);
             new Handler(Looper.getMainLooper()).post(() -> {
                 try {
-                    AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APP_WIDGET_SERVICE);
+                    AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
                     RemoteViews rv = new RemoteViews(context, R.layout.widget_today);
                     rv.setImageViewBitmap(R.id.widget_image, bmp);
                     awm.updateAppWidget(appWidgetId, rv);
@@ -81,7 +81,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
     private void updateMissingServer(Context context, int appWidgetId) {
         new Handler(Looper.getMainLooper()).post(() -> {
             try {
-                AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APP_WIDGET_SERVICE);
+                AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
                 RemoteViews rv = new RemoteViews(context, R.layout.widget_today_error);
                 rv.setTextViewText(R.id.error_text, "未配置服务器\n请在 ITDC 设置中填写");
                 awm.updateAppWidget(appWidgetId, rv);
@@ -92,7 +92,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
     private void updateError(Context context, int appWidgetId, String msg) {
         new Handler(Looper.getMainLooper()).post(() -> {
             try {
-                AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APP_WIDGET_SERVICE);
+                AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
                 RemoteViews rv = new RemoteViews(context, R.layout.widget_today_error);
                 rv.setTextViewText(R.id.error_text, msg);
                 awm.updateAppWidget(appWidgetId, rv);
@@ -134,3 +134,4 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         return null;
     }
 }
+
