@@ -1,15 +1,16 @@
 package com.alpha.itdc.widget;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Paint;
 import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class WidgetBitmapRenderer {
+
 
     private static final int W = 720;
     private static final int H = 1080;
