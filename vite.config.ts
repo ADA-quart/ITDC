@@ -34,6 +34,7 @@ export default defineConfig({
     open: process.env.VITE_OPEN !== 'false',
     proxy: { '/api': { target: 'http://localhost:' + BACKEND_PORT, changeOrigin: true } },
   },
+  base: "./",
   build: {
     rollupOptions: {
       output: {
