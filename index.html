@@ -4,6 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>智能日历与待办规划</title>
+    <script>
+// 白屏诊断层0（内联，不依赖打包JS）：3秒后 #root 无内容 = JS bundle 没加载/没执行，显示具体原因
+(function () {
+  var errs = [];
+  window.addEventListener('error', function (e) {
+    if (errs.length < 30) errs.push((e.message || 'Error') + ' @ ' + (e.filename || 'unknown') + ':' + (e.lineno || '?'));
+  }, true);
+  setTimeout(function () {
+    var root = document.getElementById('root');
+    if (!root || !root.childNodes.length) {
+      var url = window.location.href;
+      var text = '页面白屏诊断（内联脚本）\nURL: ' + url + '\n\nJS bundle 未执行或渲染失败。已捕获错误:\n' + (errs.length ? errs.join('\n') : '(无)');
+      var el = document.createElement('div');
+      el.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:#b91c1c;color:#fff;padding:16px;font-family:monospace;font-size:13px;white-space:pre-wrap;word-break:break-all';
+      el.textContent = text;
+      document.body.appendChild(el);
+    }
+  }, 3000);
+})();
+</script>
   </head>
   <body>
     <div id="root"></div>
