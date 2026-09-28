@@ -13,12 +13,14 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.app.PendingIntent;
+import android.os.Bundle;
+import android.util.DisplayMetrics;
 import android.widget.RemoteViews;
 
 public class ITDCWidgetProvider extends AppWidgetProvider {
 
     private static final String TAG = "ITDCWidget";
-    private static final long REFRESH_INTERVAL_MS = 15 * 60 * 1000L;
+    private static final long REFRESH_INTERVAL_MS = 30 * 60 * 1000L;
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -37,6 +39,26 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
         for (int id : appWidgetIds) refreshWidget(context, id);
         scheduleRefresh(context);
+    }
+
+    // 用户拖动改尺寸后立即按新尺寸重绘，避免位图被拉伸变形
+    @Override
+    public void onAppWidgetOptionsChanged(Context context, AppWidgetManager appWidgetManager, int appWidgetId, Bundle newOptions) {
+        refreshWidget(context, appWidgetId);
+    }
+
+    // 删除最后一个小组件时停止定时刷新，避免无谓的后台唤醒
+    @Override
+    public void onDisabled(Context context) {
+        try {
+            AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+            Intent it = new Intent(context, ITDCWidgetProvider.class);
+            it.setAction("com.alpha.itdc.WIDGET_REFRESH");
+            int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
+            PendingIntent pi = PendingIntent.getBroadcast(context, 0, it, flags);
+            am.cancel(pi);
+        } catch (Exception e) { Log.e(TAG, "onDisabled failed", e); }
     }
 
     private void refreshAll(Context context) {
@@ -62,20 +84,55 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
     private void refreshWidget(Context context, int appWidgetId) {
         String serverUrl = getServerUrl(context);
         if (serverUrl == null || serverUrl.isEmpty()) { updateMissingServer(context, appWidgetId); return; }
+        int[] size = widgetSize(context, appWidgetId);
         new Thread(() -> {
             String baseUrl = normalizeBaseUrl(serverUrl);
             String json = fetchJson(baseUrl + "/api/widget/today");
-            if (json == null) { updateError(context, appWidgetId, "离线\n无法连接服务器"); return; }
-            Bitmap bmp = WidgetBitmapRenderer.render(context, json);
+            if (json == null) {
+                updateError(context, appWidgetId, context.getString(R.string.widget_offline));
+                return;
+            }
+            Bitmap bmp = WidgetBitmapRenderer.render(context, json, size[0], size[1]);
             new Handler(Looper.getMainLooper()).post(() -> {
                 try {
                     AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
                     RemoteViews rv = new RemoteViews(context.getPackageName(), R.layout.widget_today);
                     rv.setImageViewBitmap(R.id.widget_image, bmp);
+                    rv.setOnClickPendingIntent(R.id.widget_container, openAppIntent(context));
                     awm.updateAppWidget(appWidgetId, rv);
                 } catch (Exception e) { Log.e(TAG, "updateAppWidget failed", e); }
             });
         }).start();
+    }
+
+    // 点按小组件任意位置打开 App 主界面
+    private PendingIntent openAppIntent(Context context) {
+        Intent launch = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+        if (launch == null) launch = new Intent();
+        launch.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
+        return PendingIntent.getActivity(context, 0, launch, flags);
+    }
+
+    // 读取小组件当前占用的实际像素尺寸（用户改尺寸后按真实大小重绘）
+    private int[] widgetSize(Context context, int appWidgetId) {
+        int w = 640, h = 360;
+        try {
+            AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
+            Bundle opts = awm.getAppWidgetOptions(appWidgetId);
+            int minW = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0);
+            int maxW = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0);
+            int minH = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0);
+            int maxH = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0);
+            int cellW = maxW > 0 ? maxW : minW;
+            int cellH = minH > 0 ? minH : maxH;
+            DisplayMetrics dm = context.getResources().getDisplayMetrics();
+            float scale = dm.density;
+            if (cellW > 0) w = Math.round(cellW * scale);
+            if (cellH > 0) h = Math.round(cellH * scale);
+        } catch (Exception e) { Log.e(TAG, "widgetSize failed", e); }
+        return new int[]{ Math.max(320, Math.min(w, 1600)), Math.max(180, Math.min(h, 1600)) };
     }
 
     private void updateMissingServer(Context context, int appWidgetId) {
@@ -83,7 +140,8 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             try {
                 AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
                 RemoteViews rv = new RemoteViews(context.getPackageName(), R.layout.widget_today_error);
-                rv.setTextViewText(R.id.error_text, "未配置服务器\n请在 ITDC 设置中填写");
+                rv.setTextViewText(R.id.error_text, context.getString(R.string.widget_missing_server));
+                rv.setOnClickPendingIntent(R.id.widget_container_error, openAppIntent(context));
                 awm.updateAppWidget(appWidgetId, rv);
             } catch (Exception e) { Log.e(TAG, "updateMissingServer failed", e); }
         });
@@ -95,6 +153,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
                 AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
                 RemoteViews rv = new RemoteViews(context.getPackageName(), R.layout.widget_today_error);
                 rv.setTextViewText(R.id.error_text, msg);
+                rv.setOnClickPendingIntent(R.id.widget_container_error, openAppIntent(context));
                 awm.updateAppWidget(appWidgetId, rv);
             } catch (Exception e) { Log.e(TAG, "updateError failed", e); }
         });

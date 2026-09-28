@@ -20,8 +20,10 @@ import SchedulePanel from './components/SchedulePanel';
 import DailyReview from './components/DailyReview';
 import SettingsModal from './components/SettingsModal';
 import { Capacitor } from '@capacitor/core';
+import { ITDCWidgetPlugin } from './capacitor/itdc-widget';
 import { useI18n } from './i18n';
 import { useTheme } from './contexts/ThemeContext';
+import { useIsMobile } from './hooks/useIsMobile';
 
 const { Sider, Content } = Layout;
 
@@ -42,7 +44,7 @@ const App: React.FC = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<string | undefined>(undefined);
   const [isOffline, setIsOffline] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const isMobile = useIsMobile();
   const { t, locale, setLocale } = useI18n();
   const { mode: themeMode, setMode: setThemeMode, isDark } = useTheme();
 
@@ -50,12 +52,6 @@ const App: React.FC = () => {
     const handler = () => setCurrentPage(getPageFromHash());
     window.addEventListener('hashchange', handler);
     return () => window.removeEventListener('hashchange', handler);
-  }, []);
-
-  useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
   }, []);
 
   useEffect(() => {
@@ -87,6 +83,17 @@ const App: React.FC = () => {
     if (!Capacitor.isNativePlatform()) return;
     try {
       if (!localStorage.getItem('itdc_api_base')) { setSettingsTab('general'); setSettingsOpen(true); }
+    } catch {}
+  }, []);
+
+  // 已配置过地址的设备：启动时把当前地址推给桌面小组件，
+  // 避免用户升级 App 后小组件仍停留在"未配置服务器"状态。
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    try {
+      const base = localStorage.getItem('itdc_api_base');
+      if (!base) return;
+      void ITDCWidgetPlugin.setServerUrl({ url: base }).catch(() => {});
     } catch {}
   }, []);
   const handleMenuClick = (key: string) => {
@@ -122,6 +129,11 @@ const App: React.FC = () => {
     </div>
   ) : null;
 
+  // 原生 APK 由 MainActivity 统一处理系统栏 insets（WebView 不解析 env()），
+  // 这里只给浏览器/PWA 场景保留 CSS 安全区，避免两处叠加造成双重留白。
+  const inset = (side: 'top' | 'bottom') =>
+    Capacitor.isNativePlatform() ? '0px' : `env(safe-area-inset-${side}, 0px)`;
+
   if (isMobile) {
     return (
       <ConfigProvider
@@ -131,7 +143,16 @@ const App: React.FC = () => {
         }}
       >
         <Layout style={{ minHeight: '100vh' }}>
-          <Content style={{ padding: 12, background: isDark ? '#141414' : '#f5f5f5', overflow: 'auto', paddingBottom: 64 }}>
+          <Content
+            style={{
+              padding: 12,
+              background: isDark ? '#141414' : '#f5f5f5',
+              overflow: 'auto',
+              // Android 15+ 强制 edge-to-edge：为状态栏与手势导航条留出空间
+              paddingTop: `calc(12px + ${inset('top')})`,
+              paddingBottom: `calc(64px + ${inset('bottom')})`,
+            }}
+          >
             {renderContent()}
 {offlineBanner}
           </Content>
@@ -145,7 +166,8 @@ const App: React.FC = () => {
             display: 'flex',
             justifyContent: 'space-around',
             alignItems: 'center',
-            height: 56,
+            height: `calc(56px + ${inset('bottom')})`,
+            paddingBottom: inset('bottom'),
             zIndex: 100,
           }}>
             {menuItems.map(item => (

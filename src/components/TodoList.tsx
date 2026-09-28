@@ -10,6 +10,7 @@ import TodoForm from './TodoForm';
 import TodoSplitModal from './TodoSplitModal';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 const STATUS_KEYS: Record<string, string> = {
   pending: 'pending',
@@ -20,6 +21,7 @@ const STATUS_KEYS: Record<string, string> = {
 const TodoList: React.FC = () => {
   const { t } = useI18n();
   const { isDark } = useTheme();
+  const isMobile = useIsMobile();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(false);
   const [formVisible, setFormVisible] = useState(false);
@@ -137,9 +139,9 @@ const TodoList: React.FC = () => {
   ];
 
   return (
-    <div style={{ background: isDark ? '#1f1f1f' : '#fff', padding: 24, borderRadius: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div style={{ display: 'flex', gap: 8 }}>
+    <div style={{ background: isDark ? '#1f1f1f' : '#fff', padding: isMobile ? 12 : 24, borderRadius: 8 }}>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', gap: 8, marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {filterButtons.map(btn => (
             <Button
               key={String(btn.key)}

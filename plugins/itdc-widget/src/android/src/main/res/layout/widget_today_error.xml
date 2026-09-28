@@ -4,12 +4,16 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:gravity="center">
+    android:gravity="center"
+    android:background="#1a1a2e"
+    android:padding="8dp">
 
     <TextView
         android:id="@+id/error_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textSize="32sp"
-        android:textColor="#ffffff" />
+        android:textSize="14sp"
+        android:gravity="center"
+        android:textAlignment="center"
+        android:textColor="#e0e0e0" />
 </LinearLayout>

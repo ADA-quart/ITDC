@@ -22,10 +22,12 @@ import { TODO_PALETTE } from '../types';
 import ImportModal from './ImportModal';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 const CalendarView: React.FC = () => {
   const { t, locale } = useI18n();
   const { isDark } = useTheme();
+  const isMobile = useIsMobile();
   const [events, setEvents] = useState<any[]>([]);
   const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [hiddenCalendars, setHiddenCalendars] = useState<Set<number>>(new Set());
@@ -281,7 +283,13 @@ const CalendarView: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 48px)', gap: 12, minHeight: 0 }}>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: isMobile ? undefined : 'calc(100vh - 48px)',
+      gap: 12,
+      minHeight: 0,
+    }}>
       {loadError && (
         <Alert
           type="error"
@@ -297,8 +305,19 @@ const CalendarView: React.FC = () => {
           onClose={() => setLoadError(null)}
         />
       )}
-      <div style={{ display: 'flex', flex: 1, gap: 16, minHeight: 0 }}>
-      <div style={{ width: 220, minWidth: 220, background: isDark ? '#1f1f1f' : '#fff', borderRadius: 8, padding: 16, display: 'flex', flexDirection: 'column' }}>
+      {/* 窄屏改为上下堆叠：日历优先占满，日历列表与导入导出折叠到下方 */}
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', flex: isMobile ? undefined : 1, gap: 12, minHeight: 0 }}>
+      <div style={{
+        width: isMobile ? '100%' : 220,
+        minWidth: isMobile ? undefined : 220,
+        background: isDark ? '#1f1f1f' : '#fff',
+        borderRadius: 8,
+        padding: isMobile ? 12 : 16,
+        display: 'flex',
+        flexDirection: 'column',
+        order: isMobile ? 2 : 0,
+        maxHeight: isMobile ? 260 : undefined,
+      }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <span style={{ fontWeight: 'bold' }}>{t.calendar.calendarList}</span>
           <Tooltip title={t.calendar.newCalendar}>
@@ -327,16 +346,26 @@ const CalendarView: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ flex: 1, background: isDark ? '#1f1f1f' : '#fff', padding: 16, borderRadius: 8, overflow: 'auto' }}>
+      <div style={{
+        flex: isMobile ? undefined : 1,
+        background: isDark ? '#1f1f1f' : '#fff',
+        padding: isMobile ? 8 : 16,
+        borderRadius: 8,
+        overflow: 'auto',
+        order: isMobile ? 1 : 0,
+        minHeight: 0,
+      }}>
         <div style={{ marginBottom: 12 }}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => { form.resetFields(); form.setFieldsValue({ calendar_id: calendars.length > 0 ? calendars[0].id : undefined }); setModalOpen(true); }}>{t.calendar.newEvent}</Button>
+          <Button type="primary" icon={<PlusOutlined />} block={isMobile} onClick={() => { form.resetFields(); form.setFieldsValue({ calendar_id: calendars.length > 0 ? calendars[0].id : undefined }); setModalOpen(true); }}>{t.calendar.newEvent}</Button>
         </div>
         <FullCalendar
           ref={calendarRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, rrulePlugin]}
-          initialView="timeGridWeek"
+          initialView={isMobile ? 'timeGridDay' : 'timeGridWeek'}
           locale={locale === 'zh' ? zhCnLocale : enLocale}
-          headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' }}
+          headerToolbar={isMobile
+            ? { left: 'prev,next', center: 'title', right: 'today' }
+            : { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' }}
           events={events}
           selectable
           editable
@@ -344,7 +373,7 @@ const CalendarView: React.FC = () => {
           eventClick={handleEventClick}
           eventDrop={handleEventDrop}
           eventResize={handleEventResize}
-          height="auto"
+          height={isMobile ? 520 : 'auto'}
           allDaySlot={true}
           slotMinTime="07:00:00"
           slotMaxTime="23:00:00"

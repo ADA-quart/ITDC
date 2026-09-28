@@ -7,10 +7,12 @@ import type { ScheduleResult, Priority } from '../types';
 import { PRIORITY_COLORS } from '../types';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 const SchedulePanel: React.FC = () => {
   const { t } = useI18n();
   const { isDark } = useTheme();
+  const isMobile = useIsMobile();
   const [mode, setMode] = useState<'algorithm' | 'llm'>('algorithm');
   const [result, setResult] = useState<ScheduleResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -110,9 +112,9 @@ const SchedulePanel: React.FC = () => {
   };
 
   return (
-    <div style={{ background: isDark ? '#1f1f1f' : '#fff', padding: 24, borderRadius: 8 }}>
+    <div style={{ background: isDark ? '#1f1f1f' : '#fff', padding: isMobile ? 12 : 24, borderRadius: 8 }}>
       <Card title={t.schedule.title} size="small" style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: 12, marginBottom: 16 }}>
           <span>{t.schedule.mode}</span>
           <Radio.Group value={mode} onChange={(e) => setMode(e.target.value)}>
             <Radio.Button value="algorithm">
@@ -122,7 +124,7 @@ const SchedulePanel: React.FC = () => {
               <RobotOutlined /> {t.schedule.llmSchedule}
             </Radio.Button>
           </Radio.Group>
-          <Button type="primary" onClick={handleGenerate} loading={loading}>
+          <Button type="primary" onClick={handleGenerate} loading={loading} block={isMobile}>
             {t.schedule.generate}
           </Button>
         </div>

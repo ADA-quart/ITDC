@@ -19,31 +19,41 @@ const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 const app = express();
 
-// CORS：允许 localhost 及局域网 IP 访问（开发模式 Vite 5173 + 生产模式同端口）
+// 反向代理（Railway / Render / Fly / Nginx）之后运行：取真实协议与客户端 IP
+app.set('trust proxy', true);
+
+// CORS：默认放行本机与局域网（开发 + 家用路由），云端前端来源用 CORS_ORIGINS 显式声明。
+// 例：CORS_ORIGINS=https://itdc.example.com,https://itdc.pages.dev
+// 纯自建/内网部署可设 CORS_ALLOW_ALL=1 直接放行任意来源。
+const LOCAL_HOSTNAME = /^(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})$/;
+const EXTRA_ORIGINS = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
+const CORS_ALLOW_ALL = process.env.CORS_ALLOW_ALL === '1';
+
 app.use(cors({
   origin: (origin, callback) => {
-    // 允许无 origin 的请求（如 curl、服务端调用）
+    // 无 origin：curl、服务端调用、原生 App 的直连请求
     if (!origin) return callback(null, true);
+    if (CORS_ALLOW_ALL) return callback(null, true);
     try {
       const url = new URL(origin);
-      if (
-        url.hostname === 'localhost' ||
-        url.hostname === '127.0.0.1' ||
-        // 允许局域网 IP (10.x / 172.16-31.x / 192.168.x)
-        /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(url.hostname) ||
-        /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(url.hostname) ||
-        /^192\.168\.\d{1,3}\.\d{1,3}$/.test(url.hostname)
-      ) {
-        return callback(null, true);
-      }
-    } catch {}
+      // 局域网 / 本机 / Capacitor WebView（https://localhost、capacitor://localhost）
+      if (LOCAL_HOSTNAME.test(url.hostname)) return callback(null, true);
+    } catch { /* 非法 origin 走下面的白名单判断 */ }
+    if (EXTRA_ORIGINS.includes(origin.replace(/\/+$/, ''))) return callback(null, true);
     callback(null, false);
   },
   credentials: true,
 }));
 app.use(express.json());
 
-app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/api/health', (_req, res) => res.json({
+  status: 'ok',
+  version: '1.1.0',
+  serverTime: new Date().toISOString(),
+}));
 
 app.use('/api/calendar', calendarRouter);
 app.use('/api/todos', todoRouter);

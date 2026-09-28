@@ -3,10 +3,14 @@
     android:id="@+id/widget_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:background="#1a1a2e"
+    android:padding="8dp">
 
     <ImageView
         android:id="@+id/widget_image"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:contentDescription="@string/app_widget_label" />
 </LinearLayout>

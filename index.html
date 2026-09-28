@@ -2,7 +2,8 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover：Android 15+ 强制 edge-to-edge，需它才能让 env(safe-area-inset-*) 取到系统栏高度 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>智能日历与待办规划</title>
     <script>
 // 白屏诊断层0（内联，不依赖打包JS）：3秒后 #root 无内容 = JS bundle 没加载/没执行，显示具体原因

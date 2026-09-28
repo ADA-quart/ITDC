@@ -14,6 +14,7 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/server ./server
 COPY package.json ./
-RUN mkdir -p data
+RUN mkdir -p data && chown -R node:node /app
+USER node
 EXPOSE 3000
 CMD ["npm", "start"]

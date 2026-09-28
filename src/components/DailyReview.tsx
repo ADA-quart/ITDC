@@ -5,6 +5,7 @@ import type { Todo, Priority } from '../types';
 import { PRIORITY_LABELS, PRIORITY_COLORS } from '../types';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 function dayKey(d: Date): string {
   const y = d.getFullYear();
@@ -25,6 +26,7 @@ const PRIORITY_ORDER: Priority[] = ['urgent-important', 'important', 'urgent', '
 const DailyReview: React.FC = () => {
   const { t } = useI18n();
   const { isDark } = useTheme();
+  const isMobile = useIsMobile();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -69,7 +71,7 @@ const DailyReview: React.FC = () => {
   const maxTrend = Math.max(1, ...trend.flatMap(x => [x.created, x.done]));
 
   return (
-    <div style={{ background: isDark ? '#1f1f1f' : '#fff', padding: 24, borderRadius: 8 }}>
+    <div style={{ background: isDark ? '#1f1f1f' : '#fff', padding: isMobile ? 12 : 24, borderRadius: 8 }}>
       <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
         {[
           { label: t.review.overdue, value: overdueCount, color: '#f5222d' },
@@ -79,7 +81,7 @@ const DailyReview: React.FC = () => {
         ].map(item => (
           <div
             key={item.label}
-            style={{ flex: 1, minWidth: 100, padding: '16px 8px', borderRadius: 8, border: `1px solid ${isDark ? '#333' : '#eee'}`, textAlign: 'center' }}
+            style={{ flex: 1, minWidth: isMobile ? '40%' : 100, padding: '16px 8px', borderRadius: 8, border: `1px solid ${isDark ? '#333' : '#eee'}`, textAlign: 'center' }}
           >
             <div style={{ fontSize: 28, fontWeight: 'bold', color: item.color }}>{item.value}</div>
             <div style={{ fontSize: 12, color: isDark ? '#aaa' : '#888' }}>{item.label}</div>

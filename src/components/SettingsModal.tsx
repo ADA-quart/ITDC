@@ -7,6 +7,7 @@ import { scheduleApi } from '../api/client';
 import type { LLMConfig } from '../types';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 interface Props {
   open: boolean;
@@ -49,6 +50,7 @@ const DEFAULT_MODELS: Record<string, string> = {
 const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
   const { t, locale, setLocale } = useI18n();
   const { mode: themeMode, setMode: setThemeMode, isDark } = useTheme();
+  const isMobile = useIsMobile();
 
   const [configs, setConfigs] = useState<LLMConfig[]>([]);
   const [form] = Form.useForm();
@@ -396,13 +398,15 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
           <div>
             <h4>{locale === 'zh' ? '服务器地址' : 'Server Address'}</h4>
             <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 8 }}>
-              {locale === 'zh' ? '移动端连接本机服务时使用，格式：http://你的电脑IP:3000/api（开发环境默认 /api）' : 'Used when connecting from mobile to the local server, e.g. http://YOUR_PC_IP:3000/api (dev defaults to /api)'}
+              {locale === 'zh'
+                ? '手机/电脑连同一个服务即可云端同步。填公网地址：https://你的域名/api；家里局域网用：http://电脑IP:3000/api（浏览器同机访问默认 /api）'
+                : 'Point every device at one server to sync across networks. Public: https://your-domain/api. Home LAN: http://YOUR_PC_IP:3000/api (same-machine browser defaults to /api)'}
             </p>
-            <Space>
-              <Input value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder='http://192.168.x.x:3000/api' style={{ width: 340 }} />
-              <Button type="primary" onClick={handleSaveServer} loading={testingServer}>{locale === 'zh' ? '保存并测试' : 'Save & Test'}</Button>
-              <Button onClick={handleResetServer}>{t.settings.serverReset}</Button>
-            </Space>
+            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, alignItems: isMobile ? 'stretch' : 'center', flexWrap: 'wrap' }}>
+              <Input value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder='http://192.168.x.x:3000/api' style={{ width: isMobile ? '100%' : 340 }} />
+              <Button type="primary" onClick={handleSaveServer} loading={testingServer} block={isMobile}>{locale === 'zh' ? '保存并测试' : 'Save & Test'}</Button>
+              <Button onClick={handleResetServer} block={isMobile}>{t.settings.serverReset}</Button>
+            </div>
             <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 8 }}>
               {t.settings.widgetHint}
             </p>
@@ -456,7 +460,8 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
       open={open}
       onCancel={onClose}
       footer={null}
-      width={700}
+      width={isMobile ? '96%' : 700}
+      style={isMobile ? { top: 12, maxWidth: '100%' } : undefined}
     >
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
     </Modal>
