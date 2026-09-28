@@ -7,7 +7,7 @@ import rrulePlugin from '@fullcalendar/rrule';
 import zhCnLocale from '@fullcalendar/core/locales/zh-cn';
 import enLocale from '@fullcalendar/core/locales/en-gb';
 import {
-  Button, Modal, Form, Input, Select, DatePicker, message,
+  Alert, Button, Modal, Form, Input, Select, DatePicker, message,
   Checkbox, Popconfirm, ColorPicker, Tooltip,
 } from 'antd';
 import {
@@ -15,7 +15,8 @@ import {
   FolderAddOutlined, DownloadOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { calendarApi, todoApi } from '../api/client';
+import { Capacitor } from '@capacitor/core';
+import { calendarApi, todoApi, getApiBase } from '../api/client';
 import type { Calendar, CalendarEvent, Todo } from '../types';
 import { TODO_PALETTE } from '../types';
 import ImportModal from './ImportModal';
@@ -35,6 +36,8 @@ const CalendarView: React.FC = () => {
   const [form] = Form.useForm();
   const [exporting, setExporting] = useState(false);
   const [exportingIcal, setExportingIcal] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const settingsPromptedRef = useRef(false);
   const calendarRef = useRef<FullCalendar>(null);
 
   const hiddenCalendarsRef = useRef<Set<number>>(hiddenCalendars);
@@ -89,6 +92,7 @@ const CalendarView: React.FC = () => {
         calendarApi.getAll(),
         calendarApi.getEvents(),
       ]);
+      setLoadError(null);
       setCalendars(cals);
       if (cals.length === 0 && !calInitRef.current.done) {
         calInitRef.current.done = true;
@@ -97,8 +101,17 @@ const CalendarView: React.FC = () => {
         setCalendars(newCals);
       }
       buildEvents(evts, hiddenCalendarsRef.current);
-    } catch {
+    } catch (err) {
+      console.warn('日历数据加载失败:', err);
       message.error(t.calendar.dataLoadFailed);
+      const base = getApiBase();
+      const hint = Capacitor.isNativePlatform() ? t.calendar.dataLoadFailedNative : t.calendar.dataLoadFailedDesktop;
+      setLoadError(`${hint}（${t.calendar.currentServer}: ${base}）`);
+      // 移动端首次失败自动打开设置引导配置；桌面端只常驻提示，避免打断使用
+      if (Capacitor.isNativePlatform() && !settingsPromptedRef.current) {
+        settingsPromptedRef.current = true;
+        window.dispatchEvent(new CustomEvent('itdc-open-settings'));
+      }
     }
   }, [buildEvents]);
 
@@ -268,7 +281,23 @@ const CalendarView: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 48px)', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 48px)', gap: 12, minHeight: 0 }}>
+      {loadError && (
+        <Alert
+          type="error"
+          showIcon
+          message={t.calendar.dataLoadFailed}
+          description={loadError}
+          action={
+            <Button size="small" onClick={() => window.dispatchEvent(new CustomEvent('itdc-open-settings'))}>
+              {t.calendar.gotoSettings}
+            </Button>
+          }
+          closable
+          onClose={() => setLoadError(null)}
+        />
+      )}
+      <div style={{ display: 'flex', flex: 1, gap: 16, minHeight: 0 }}>
       <div style={{ width: 220, minWidth: 220, background: isDark ? '#1f1f1f' : '#fff', borderRadius: 8, padding: 16, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <span style={{ fontWeight: 'bold' }}>{t.calendar.calendarList}</span>
@@ -320,6 +349,7 @@ const CalendarView: React.FC = () => {
           slotMinTime="07:00:00"
           slotMaxTime="23:00:00"
         />
+      </div>
       </div>
 
       <Modal title={t.calendar.newEvent} open={modalOpen} onOk={handleSubmit} onCancel={() => { setModalOpen(false); form.resetFields(); }} okText={t.calendar.createEvent} cancelText={t.calendar.cancel}>

@@ -58,6 +58,10 @@ const en: LocaleMessages = {
     calendarDeleted: 'Calendar deleted',
     calendarDeleteFailed: 'Failed to delete calendar',
     dataLoadFailed: 'Failed to load data',
+    dataLoadFailedNative: 'Cannot reach the server. Make sure the phone and PC share the same Wi-Fi and start.bat is running, then set the server address in Settings',
+    dataLoadFailedDesktop: 'Cannot reach the server. Make sure start.bat is running and the backend is up',
+    currentServer: 'Current server',
+    gotoSettings: 'Open Settings',
     todoPrefix: '[Todo] ',
     defaultCalendarName: 'My Calendar',
   },
@@ -205,7 +209,12 @@ const en: LocaleMessages = {
     cancel: 'Cancel',
     general: 'General',
     widgetHint: "Saving will sync the server URL to your home widget for quick access to today's schedule and todos",
-    widgetSynced: 'Server URL synced to home widget'
+    widgetSynced: 'Server URL synced to home widget',
+    serverConnected: 'Connected to server',
+    serverUnreachable: 'Server unreachable: check the PC IP, port 3000 and same Wi-Fi',
+    serverNotApi: 'Unexpected response: reachable but not an ITDC API endpoint',
+    serverInvalidFormat: 'Invalid format, must start with http:// or https://',
+    serverReset: 'Reset to default /api'
   },
 };
 

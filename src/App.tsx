@@ -19,6 +19,7 @@ import TodoList from './components/TodoList';
 import SchedulePanel from './components/SchedulePanel';
 import DailyReview from './components/DailyReview';
 import SettingsModal from './components/SettingsModal';
+import { Capacitor } from '@capacitor/core';
 import { useI18n } from './i18n';
 import { useTheme } from './contexts/ThemeContext';
 
@@ -39,6 +40,7 @@ function getPageFromHash(): PageKey {
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<PageKey>(getPageFromHash);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<string | undefined>(undefined);
   const [isOffline, setIsOffline] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const { t, locale, setLocale } = useI18n();
@@ -63,7 +65,7 @@ const App: React.FC = () => {
       if (online) {
         void offline
           .flushQueue(todoApi, calendarApi)
-          .then(() => window.dispatchEvent(new CustomEvent('todo-data-changed')))
+          .then((n) => { if (n > 0) window.dispatchEvent(new CustomEvent('todo-data-changed')); })
           .catch((err) => console.warn('离线队列同步失败:', err));
       }
     };
@@ -71,6 +73,21 @@ const App: React.FC = () => {
     const handleOfflineMode = (e: any) => setIsOffline(e.detail?.mode === true);
     window.addEventListener('todo-offline-mode', handleOfflineMode);
     return () => { if (unsub) unsub(); window.removeEventListener('todo-offline-mode', handleOfflineMode); };
+  }, []);
+
+  // 视图（如日历加载失败）可发此事件引导用户直接打开设置
+  useEffect(() => {
+    const handler = () => { setSettingsTab('general'); setSettingsOpen(true); };
+    window.addEventListener('itdc-open-settings', handler);
+    return () => window.removeEventListener('itdc-open-settings', handler);
+  }, []);
+
+  // 移动端首次启动：未配置过服务器地址时自动打开设置，避免用户面对"加载数据失败"却无从下手
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    try {
+      if (!localStorage.getItem('itdc_api_base')) { setSettingsTab('general'); setSettingsOpen(true); }
+    } catch {}
   }, []);
   const handleMenuClick = (key: string) => {
     window.location.hash = key;
@@ -167,7 +184,7 @@ const App: React.FC = () => {
               {t.nav.settings}
             </div>
           </div>
-          <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+          <SettingsModal open={settingsOpen} initialTab={settingsTab} onClose={() => { setSettingsOpen(false); setSettingsTab(undefined); }} />
         </Layout>
       </ConfigProvider>
     );
@@ -228,7 +245,7 @@ const App: React.FC = () => {
 {offlineBanner}
         </Content>
       </Layout>
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsModal open={settingsOpen} initialTab={settingsTab} onClose={() => { setSettingsOpen(false); setSettingsTab(undefined); }} />
     </ConfigProvider>
   );
 };

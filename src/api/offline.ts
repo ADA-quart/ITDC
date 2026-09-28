@@ -343,9 +343,11 @@ export function isStaleOperationError(err: any): boolean {
   return err?.response?.status === 404;
 }
 
-export async function flushQueue(todoApi: TodoApiLike, calendarApi?: CalendarApiLike): Promise<void> {
+// 返回本次真正同步掉的队列条数；返回 0 表示队列本为空（调用方据此避免无意义的刷新）
+export async function flushQueue(todoApi: TodoApiLike, calendarApi?: CalendarApiLike): Promise<number> {
   const queue = await getQueue();
-  if (queue.length === 0) return;
+  if (queue.length === 0) return 0;
+  let processed = 0;
   for (const op of queue) {
     try {
       switch (op.op) {
@@ -388,8 +390,10 @@ export async function flushQueue(todoApi: TodoApiLike, calendarApi?: CalendarApi
       // 其它失败：保留它和后面的队列，下次再试
       const idx = queue.indexOf(op);
       await set('queue', [op, ...queue.slice(idx + 1)]);
-      return;
+      return processed;
     }
+    processed++;
   }
   await clearQueue();
+  return processed;
 }

@@ -56,6 +56,10 @@ const zh = {
     calendarDeleted: '日历已删除',
     calendarDeleteFailed: '删除日历失败',
     dataLoadFailed: '加载数据失败',
+    dataLoadFailedNative: '连接不上服务器。请确认手机与电脑在同一 Wi-Fi，且电脑已在运行 start.bat，然后在设置中填写服务器地址',
+    dataLoadFailedDesktop: '连接不上服务器。请确认已运行 start.bat 且后端服务已启动',
+    currentServer: '当前服务器',
+    gotoSettings: '去设置',
     todoPrefix: '[待办] ',
     defaultCalendarName: '我的日历',
   },
@@ -203,7 +207,12 @@ const zh = {
     cancel: '取消',
     general: '通用设置',
     widgetHint: '保存后会自动同步到桌面小组件，方便手机查看今日课表与待办任务',
-    widgetSynced: '服务器地址已同步至桌面小组件'
+    widgetSynced: '服务器地址已同步至桌面小组件',
+    serverConnected: '已连接服务器',
+    serverUnreachable: '服务器不可达：请检查电脑 IP、端口 3000 与同一 Wi-Fi',
+    serverNotApi: '服务器响应异常：该地址可达但不是 ITDC API 端点',
+    serverInvalidFormat: '地址格式有误，需以 http:// 或 https:// 开头',
+    serverReset: '已恢复默认地址 /api'
   },
 };
 

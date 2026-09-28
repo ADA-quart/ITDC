@@ -11,6 +11,7 @@ import { useTheme } from '../contexts/ThemeContext';
 interface Props {
   open: boolean;
   onClose: () => void;
+  initialTab?: string;
 }
 
 const PROVIDER_OPTIONS_ZH = [
@@ -45,7 +46,7 @@ const DEFAULT_MODELS: Record<string, string> = {
   custom: '',
 };
 
-const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
+const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
   const { t, locale, setLocale } = useI18n();
   const { mode: themeMode, setMode: setThemeMode, isDark } = useTheme();
 
@@ -90,13 +91,50 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
     }
   }, [open]);
 
+  useEffect(() => {
+    if (open && initialTab) setActiveTab(initialTab);
+  }, [open, initialTab]);
+
   const handleSaveServer = async () => {
-    if (!serverUrl) { message.error(locale === 'zh' ? '请填写服务器地址' : 'Please fill in the server address'); return; }
-    setApiBase(serverUrl);
-    if (Capacitor.isNativePlatform()) {
-      try { await ITDCWidgetPlugin.setServerUrl({ url: serverUrl }); message.success(t.settings.widgetSynced); } catch {}
+    const raw = (serverUrl || '').trim().replace(/\/+$/, '');
+    if (!raw) { message.error(locale === 'zh' ? '请填写服务器地址' : 'Please fill in the server address'); return; }
+    if (!/^https?:\/\//i.test(raw)) { message.error(t.settings.serverInvalidFormat); return; }
+    // 地址未以 /api 结尾时自动补全（用户常只填 http://IP:3000），再回退尝试原样地址
+    const candidates = raw.endsWith('/api') ? [raw] : [raw + '/api', raw];
+    let normalized: string | null = null;
+    let lastStatus: number | null = null;
+    setTestingServer(true);
+    try {
+      for (const cand of candidates) {
+        try {
+          const res = await api.get('/calendar/calendars', { baseURL: cand, timeout: 8000 });
+          if (Array.isArray(res.data)) { normalized = cand; break; }
+          lastStatus = 200; // 可达但返回的不是数组 → 不是 API 端点
+        } catch (err: any) {
+          if (err?.response?.status) lastStatus = err.response.status;
+        }
+      }
+      if (!normalized) {
+        message.error(lastStatus ? t.settings.serverNotApi : t.settings.serverUnreachable);
+        return;
+      }
+      setApiBase(normalized);
+      setServerUrl(normalized);
+      if (Capacitor.isNativePlatform()) {
+        try { await ITDCWidgetPlugin.setServerUrl({ url: normalized }); } catch {}
+      }
+      message.success(t.settings.serverConnected + '：' + normalized);
+      window.dispatchEvent(new CustomEvent('todo-data-changed'));
+    } finally {
+      setTestingServer(false);
     }
-    try { await api.get('/calendar/calendars', { baseURL: serverUrl.endsWith('/') ? serverUrl : serverUrl + '/api', validateStatus: () => true }); message.success(locale === 'zh' ? '已连接服务器' : 'Connected to server'); } catch { message.warning(locale === 'zh' ? '保存成功，但服务器当前不可达' : 'Saved, but server unreachable now'); }
+  };
+
+  const handleResetServer = () => {
+    setApiBase('/api');
+    setServerUrl('/api');
+    message.success(t.settings.serverReset);
+    window.dispatchEvent(new CustomEvent('todo-data-changed'));
   };
 
   const handleSubmit = async () => {
@@ -363,6 +401,7 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
             <Space>
               <Input value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder='http://192.168.x.x:3000/api' style={{ width: 340 }} />
               <Button type="primary" onClick={handleSaveServer} loading={testingServer}>{locale === 'zh' ? '保存并测试' : 'Save & Test'}</Button>
+              <Button onClick={handleResetServer}>{t.settings.serverReset}</Button>
             </Space>
             <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 8 }}>
               {t.settings.widgetHint}
