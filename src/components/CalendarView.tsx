@@ -46,12 +46,13 @@ const CalendarView: React.FC = () => {
   };
 
   const buildEvents = useCallback(async (evts?: CalendarEvent[], currentHidden?: Set<number>) => {
-    if (!evts) {
-      evts = await calendarApi.getEvents();
-    }
+    const rawEvents = evts ?? await calendarApi.getEvents();
+    // 接口异常时仍可能拿到非数组（HTML 回退页等），这里归一化，保证渲染不崩
+    const eventList: CalendarEvent[] = Array.isArray(rawEvents) ? rawEvents : [];
     const hidden = currentHidden || hiddenCalendarsRef.current;
-    const todos = await todoApi.getAll({ status: 'scheduled' });
-    const fcEvents = evts
+    const rawTodos = await todoApi.getAll({ status: 'scheduled' });
+    const todoList: Todo[] = Array.isArray(rawTodos) ? rawTodos : [];
+    const fcEvents = eventList
       .filter((e: CalendarEvent) => !hidden.has(e.calendar_id))
       .map((e: CalendarEvent) => ({
         id: String(e.id),
@@ -63,7 +64,7 @@ const CalendarView: React.FC = () => {
         borderColor: e.calendar_color || '#1890ff',
         extendedProps: { ...e },
       }));
-    const todoEvents = (todos as Todo[])
+    const todoEvents = todoList
       .filter(todo => todo.scheduled_start && todo.scheduled_end)
       .map((todo, idx) => {
         const color = getTodoColor(todo, idx);
@@ -103,7 +104,10 @@ const CalendarView: React.FC = () => {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  useEffect(() => { buildEvents(undefined, hiddenCalendars); }, [hiddenCalendars, buildEvents]);
+  useEffect(() => {
+    // 隐藏日历变化时局部刷新；失败只影响刷新，不能冒泡成未处理拒绝导致白屏
+    buildEvents(undefined, hiddenCalendars).catch((err) => console.warn('日历事件刷新失败:', err));
+  }, [hiddenCalendars, buildEvents]);
 
   useEffect(() => {
     const handler = () => loadData();

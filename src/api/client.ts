@@ -59,10 +59,12 @@ export { api, setApiBase, getApiBase };
 
 // ---------- 日历原始网络 API（flushQueue 内部使用） ----------
 const networkCalendarApi = {
-  getAll: () => api.get<Calendar[]>('/calendar/calendars').then(r => r.data),
+  getAll: () => api.get<unknown>('/calendar/calendars')
+    .then(r => offline.requireArray<Calendar>(r.data, 'GET /calendar/calendars')),
   create: (data: Partial<Calendar>) => api.post<Calendar>('/calendar/calendars', data).then(r => r.data),
   delete: (id: number) => api.delete(`/calendar/calendars/${id}`).then(r => r.data),
-  getEvents: () => api.get<CalendarEvent[]>('/calendar/events').then(r => r.data),
+  getEvents: () => api.get<unknown>('/calendar/events')
+    .then(r => offline.requireArray<CalendarEvent>(r.data, 'GET /calendar/events')),
   createEvent: (data: Partial<CalendarEvent>) => api.post<CalendarEvent>('/calendar/events', data).then(r => r.data),
   updateEvent: (id: number, data: Partial<CalendarEvent>) => api.put<CalendarEvent>(`/calendar/events/${id}`, data).then(r => r.data),
   deleteEvent: (id: number) => api.delete(`/calendar/events/${id}`).then(r => r.data),
@@ -264,7 +266,8 @@ export const calendarApi = {
 
 // ---------- 待办原始网络 API（flushQueue 内部使用） ----------
 const networkTodoApi = {
-  getAll: (params?: any) => api.get<Todo[]>('/todos', { params }).then(r => r.data),
+  getAll: (params?: any) => api.get<unknown>('/todos', { params })
+    .then(r => offline.requireArray<Todo>(r.data, 'GET /todos')),
   create: (data: Partial<Todo>) => api.post<Todo>('/todos', data).then(r => r.data),
   update: (id: number, data: Partial<Todo>) => api.put<Todo>(`/todos/${id}`, data).then(r => r.data),
   delete: (id: number) => api.delete(`/todos/${id}`).then(r => r.data),
@@ -282,8 +285,9 @@ export function setOfflineMode(on: boolean) {
 }
 
 function isNetworkError(err: any): boolean {
-  // 网络层错误（无响应、超时、连接失败），而非服务端 4xx/5xx
-  return !err?.response;
+  // 网络层错误（无响应、超时、连接失败）或响应体格式异常（例如本地服务器把 /api/* 回退成 index.html），
+  // 而非服务端 4xx/5xx —— 后者由调用方按业务错误处理
+  return !err?.response || offline.isMalformedResponseError(err);
 }
 
 export const todoApi = {
@@ -393,15 +397,27 @@ export const todoApi = {
 
   parseNL: (text: string) => networkTodoApi.parseNL(text),
 };
+// 排程结果来自服务端；非结构化响应（HTML 错误页等）在这里归一，避免渲染期访问 .schedule 崩溃
+function normalizeScheduleResult(data: any): ScheduleResult {
+  const schedule = Array.isArray(data?.schedule) ? data.schedule : [];
+  const errors = Array.isArray(data?.validation?.errors) ? data.validation.errors : [];
+  return {
+    mode: data?.mode === 'llm' ? 'llm' : 'algorithm',
+    schedule,
+    validation: { valid: data?.validation?.valid === true && errors.length === 0, errors },
+  };
+}
+
 export const scheduleApi = {
   generate: (mode: 'algorithm' | 'llm') =>
-    api.post<ScheduleResult>('/schedule/generate', { mode }).then(r => r.data),
+    api.post<ScheduleResult>('/schedule/generate', { mode }).then(r => normalizeScheduleResult(r.data)),
   apply: (schedule: ScheduleResult['schedule']) =>
     api.post('/schedule/apply', { schedule }).then(r => r.data),
 };
 
 export const llmConfigApi = {
-  getAll: () => api.get<LLMConfig[]>('/schedule/llm-config').then(r => r.data),
+  getAll: () => api.get<unknown>('/schedule/llm-config')
+    .then(r => offline.requireArray<LLMConfig>(r.data, 'GET /schedule/llm-config')),
   create: (data: { provider: string; api_key?: string; base_url?: string; model?: string }) =>
     api.post('/schedule/llm-config', data).then(r => r.data),
   activate: (id: number) => api.put(`/schedule/llm-config/${id}/activate`).then(r => r.data),

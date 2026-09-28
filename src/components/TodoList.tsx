@@ -60,13 +60,15 @@ const TodoList: React.FC = () => {
     loadTodos();
   }, [loadTodos]);
 
-  const handleNLAdd = async () => {
+  // 监听全局数据变更：此前这段 effect 被误嵌进 handleNLAdd 内（只在点击“自然语言添加”时才注册），
+  // 既违反 Hooks 规则，也让其它页面的数据变更无法刷新列表。移到组件顶层。
   useEffect(() => {
     const handler = () => loadTodos();
     window.addEventListener('todo-data-changed', handler);
     return () => window.removeEventListener('todo-data-changed', handler);
   }, [loadTodos]);
 
+  const handleNLAdd = async () => {
     const text = nlText.trim();
     if (!text) return;
     setNlLoading(true);

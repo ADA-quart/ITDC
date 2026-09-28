@@ -14,45 +14,114 @@ interface OfflineOp {
   ts: number;
 }
 
-let dbPromise: Promise<IDBDatabase> | null = null;
+interface KVStore {
+  get<T>(key: string): Promise<T | undefined>;
+  set(key: string, value: any): Promise<void>;
+}
 
-function openDB(): Promise<IDBDatabase> {
-  if (!dbPromise) {
-    const p: Promise<IDBDatabase> = new Promise<IDBDatabase>((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, STORE_VERSION);
-      req.onsuccess = (e: any) => resolve(e.target.result as IDBDatabase);
-      req.onerror = () => reject(new Error('IndexedDB open failed'));
-      req.onupgradeneeded = (e: any) => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains(STORE)) {
-          db.transaction(STORE).createObjectStore(STORE, { keyPath: 'key' });
-        }
-      };
-    }).catch(() => {
-      // IndexedDB 不可用（极少数环境）：降级为内存-only，不抛错
-      const fallback = { get: async (k: string) => undefined as any, set: async () => {} } as unknown as IDBDatabase;
-      return Promise.resolve(fallback);
+// IndexedDB 不可用时的内存兜底：读写真实生效（旧实现是空桩，缓存永远为空）
+const memoryData = new Map<string, any>();
+const memoryStore: KVStore = {
+  get: async <T,>(key: string) => memoryData.get(key) as T | undefined,
+  set: async (key: string, value: any) => { memoryData.set(key, value); },
+};
+
+let storePromise: Promise<KVStore> | null = null;
+
+function idbStore(db: IDBDatabase): KVStore {
+  return {
+    get<T>(key: string): Promise<T | undefined> {
+      return new Promise<T | undefined>((resolve, reject) => {
+        const tx = db.transaction(STORE, 'readonly');
+        const r = tx.objectStore(STORE).get(key);
+        r.onsuccess = () => resolve((r.result?.value ?? undefined) as T | undefined);
+        r.onerror = () => reject(r.error ?? new Error('IndexedDB get failed'));
+      });
+    },
+    set(key: string, value: any): Promise<void> {
+      return new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE, 'readwrite');
+        tx.objectStore(STORE).put({ key, value });
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error ?? new Error('IndexedDB set failed'));
+        tx.onabort = () => reject(tx.error ?? new Error('IndexedDB set aborted'));
+      });
+    },
+  };
+}
+
+function openIndexedDB(): Promise<KVStore> {
+  return new Promise<KVStore>((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, STORE_VERSION);
+    req.onupgradeneeded = () => {
+      // 升级事务进行中只能经 req.result 建表：此处调用 db.transaction() 会抛
+      // InvalidStateError（A version change transaction is running），使 open 失败、离线层整体失效。
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE, { keyPath: 'key' });
+      }
+    };
+    req.onsuccess = () => {
+      const db = req.result;
+      // 其它页面请求升级时主动让路，避免版本升级被本连接长久阻塞
+      db.onversionchange = () => db.close();
+      resolve(idbStore(db));
+    };
+    req.onerror = () => reject(req.error ?? new Error('IndexedDB open failed'));
+    req.onblocked = () => reject(new Error('IndexedDB open blocked'));
+  });
+}
+
+function getStore(): Promise<KVStore> {
+  if (!storePromise) {
+    storePromise = openIndexedDB().catch((err) => {
+      console.warn('IndexedDB 不可用，离线缓存降级为内存存储:', err?.message ?? err);
+      return memoryStore;
     });
-    dbPromise = p;
   }
-  return dbPromise;
+  return storePromise;
 }
 
 // ---------- 存储辅助 ----------
 async function get<T>(key: string): Promise<T | undefined> {
-  const db = await openDB();
-  return (db as any).get(key);
+  const store = await getStore();
+  return store.get<T>(key);
 }
 
 async function set(key: string, value: any): Promise<void> {
-  const db = await openDB();
-  await (db as any).set(key, value);
+  const store = await getStore();
+  await store.set(key, value);
+}
+
+// ---------- 响应值归一化 ----------
+// 服务器或中间层可能返回非数组：典型场景是 Capacitor 本地服务器把未命中的 /api/* 回退成 index.html
+export function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+export function malformedResponseError(what: string): Error {
+  const err = new Error('接口返回格式异常：' + what + ' 不是数组') as Error & { malformedResponse?: boolean };
+  err.malformedResponse = true;
+  return err;
+}
+
+export function requireArray<T>(value: unknown, what: string): T[] {
+  if (Array.isArray(value)) return value as T[];
+  const head = typeof value === 'string'
+    ? value.slice(0, 30).split(String.fromCharCode(10)).join(' ')
+    : typeof value;
+  console.warn('[api] ' + what + ' 返回的不是数组（收到 ' + head + '），按网络故障回退离线缓存');
+  throw malformedResponseError(what);
+}
+
+export function isMalformedResponseError(err: unknown): boolean {
+  return (err as { malformedResponse?: boolean } | null | undefined)?.malformedResponse === true;
 }
 
 // ---------- 待办缓存读写 ----------
 export async function getCachedTodos(): Promise<Todo[]> {
   try {
-    return (await get<Todo[]>('todos')) ?? [];
+    return asArray<Todo>(await get<Todo[]>('todos'));
   } catch {
     return [];
   }
@@ -65,7 +134,7 @@ export async function saveCachedTodos(todos: Todo[]): Promise<void> {
 // ---------- 日历缓存读写 ----------
 export async function getCalendarCache(): Promise<Calendar[]> {
   try {
-    return (await get<Calendar[]>('calendars')) ?? [];
+    return asArray<Calendar>(await get<Calendar[]>('calendars'));
   } catch {
     return [];
   }
@@ -77,7 +146,7 @@ export async function saveCalendarCache(calendars: Calendar[]): Promise<void> {
 
 export async function getEventCache(): Promise<CalendarEvent[]> {
   try {
-    return (await get<CalendarEvent[]>('events')) ?? [];
+    return asArray<CalendarEvent>(await get<CalendarEvent[]>('events'));
   } catch {
     return [];
   }
@@ -90,16 +159,21 @@ export async function saveEventCache(events: CalendarEvent[]): Promise<void> {
 // ---------- 队列 ----------
 async function getQueue(): Promise<OfflineOp[]> {
   try {
-    return (await get<OfflineOp[]>('queue')) ?? [];
+    return asArray<OfflineOp>(await get<OfflineOp[]>('queue'));
   } catch {
     return [];
   }
 }
 
 export async function enqueue(op: OfflineOp): Promise<void> {
-  const q = await getQueue();
-  q.push(op);
-  await set('queue', q);
+  try {
+    const q = await getQueue();
+    q.push(op);
+    await set('queue', q);
+  } catch (err) {
+    // 入队失败只影响后续同步，本地数据此前已写入缓存；此处吞掉，避免冒泡成未处理拒绝
+    console.warn('离线队列写入失败:', err);
+  }
 }
 
 export async function clearQueue(): Promise<void> {

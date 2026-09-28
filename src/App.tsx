@@ -61,7 +61,10 @@ const App: React.FC = () => {
     const setOfflineState = (online: boolean) => {
       setIsOffline(!online);
       if (online) {
-        void offline.flushQueue(todoApi, calendarApi).then(() => window.dispatchEvent(new CustomEvent('todo-data-changed')));
+        void offline
+          .flushQueue(todoApi, calendarApi)
+          .then(() => window.dispatchEvent(new CustomEvent('todo-data-changed')))
+          .catch((err) => console.warn('离线队列同步失败:', err));
       }
     };
     unsub = offline.onOnlineChange(setOfflineState);
