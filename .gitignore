@@ -16,3 +16,16 @@ android/*.txt
 plugins/*/build/
 lib/
 
+# --- 调试/CI 临时物（2026-09-28 加） ---
+.ci_log*
+.ci_logs/
+.gradle_home/
+.logs_*
+.tmp_*
+tmp_apk_f2d/
+tmp_faded2d/
+plugins/*/src/android/build/
+
+# 本地构建出来的安装包（要装手机从这里拿，不入库）
+downloads/
+
