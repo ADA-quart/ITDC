@@ -264,6 +264,11 @@ export interface CalendarApiLike {
   deleteEvent: (id: number) => Promise<any>;
 }
 
+// 服务器 404：目标资源已不存在（例如离线期间被别处删除），该操作已失去意义
+export function isStaleOperationError(err: any): boolean {
+  return err?.response?.status === 404;
+}
+
 export async function flushQueue(todoApi: TodoApiLike, calendarApi?: CalendarApiLike): Promise<void> {
   const queue = await getQueue();
   if (queue.length === 0) return;
@@ -303,8 +308,10 @@ export async function flushQueue(todoApi: TodoApiLike, calendarApi?: CalendarApi
           if (calendarApi) { await calendarApi.deleteEvent(op.id!); } else { throw new Error('no calendar api'); }
           break;
       }
-    } catch {
-      // 当前操作失败：保留它和后面的队列，下次再试
+    } catch (err) {
+      // 目标已不存在：丢弃该操作继续同步，避免整个队列被一条失效操作永久卡住
+      if (isStaleOperationError(err)) continue;
+      // 其它失败：保留它和后面的队列，下次再试
       const idx = queue.indexOf(op);
       await set('queue', [op, ...queue.slice(idx + 1)]);
       return;

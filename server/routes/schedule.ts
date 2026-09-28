@@ -32,6 +32,9 @@ router.post('/generate', async (req: Request, res: Response) => {
 router.post('/apply', (req: Request, res: Response) => {
   try {
     const { schedule } = req.body as { schedule: ScheduledItem[] };
+    if (!Array.isArray(schedule)) {
+      return res.status(400).json({ error: 'schedule 必须是数组' });
+    }
     debug.info('Schedule apply', { count: schedule.length });
 
     const groups = new Map<number, ScheduledItem[]>();

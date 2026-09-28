@@ -88,6 +88,12 @@ router.post('/events', (req: Request, res: Response) => {
 // 更新事件
 router.put('/events/:id', (req: Request, res: Response) => {
   const { title, description, start_time, end_time, rrule, location, calendar_id } = req.body;
+
+  const existing = db.prepare('SELECT * FROM events WHERE id = ?').get(req.params.id);
+  if (!existing) {
+    return res.status(404).json({ error: '事件不存在' });
+  }
+
   const fields: string[] = [];
   const values: any[] = [];
   if (title !== undefined) { fields.push('title = ?'); values.push(title); }

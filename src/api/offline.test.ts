@@ -6,6 +6,7 @@ import {
   localSplit,
   localDelete,
   isOnline,
+  isStaleOperationError,
 } from './offline';
 
 function makeTodo(overrides?: Partial<Todo>): Todo {
@@ -103,5 +104,16 @@ describe('localDelete', () => {
 describe('isOnline', () => {
   it('returns true when navigator undefined (node env)', () => {
     expect(isOnline()).toBe(true);
+  });
+});
+
+describe('isStaleOperationError', () => {
+  it('treats 404 as a stale operation', () => {
+    expect(isStaleOperationError({ response: { status: 404 } })).toBe(true);
+  });
+
+  it('keeps 500 and network errors retryable', () => {
+    expect(isStaleOperationError({ response: { status: 500 } })).toBe(false);
+    expect(isStaleOperationError(new Error('Network Error'))).toBe(false);
   });
 });

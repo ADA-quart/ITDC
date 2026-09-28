@@ -51,6 +51,11 @@ app.use('/api/schedule', scheduleRouter);
 app.use('/api/widget', widgetRouter);
 app.use('/api/settings', settingsRouter);
 
+// 未匹配的 /api/* 统一返回 JSON 404，避免落入 SPA fallback 返回 index.html
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: '接口不存在' });
+});
+
 // 生产环境：静态文件服务 & SPA fallback（必须在错误中间件之前，否则 API 404 会被当作 SPA 路由）
 const distPath = path.resolve(__dirname, '../dist');
 if (fs.existsSync(distPath)) {

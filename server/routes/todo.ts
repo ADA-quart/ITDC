@@ -54,6 +54,11 @@ router.post('/', (req: Request, res: Response) => {
 router.put('/:id', (req: Request, res: Response) => {
   const { title, description, estimated_minutes, urgency, importance, deadline, status, scheduled_start, scheduled_end, color } = req.body;
 
+  const existing = db.prepare('SELECT * FROM todos WHERE id = ?').get(req.params.id) as any;
+  if (!existing) {
+    return res.status(404).json({ error: '待办不存在' });
+  }
+
   const fields: string[] = [];
   const values: any[] = [];
 
@@ -79,9 +84,8 @@ router.put('/:id', (req: Request, res: Response) => {
   if (color !== undefined) { fields.push('color = ?'); values.push(color); }
 
   if (urgency !== undefined || importance !== undefined) {
-    const current = db.prepare('SELECT urgency, importance FROM todos WHERE id = ?').get(req.params.id) as any;
-    const u = urgency !== undefined ? Math.max(1, Math.min(4, Math.round(urgency))) : current.urgency;
-    const i = importance !== undefined ? Math.max(1, Math.min(4, Math.round(importance))) : current.importance;
+    const u = urgency !== undefined ? Math.max(1, Math.min(4, Math.round(urgency))) : existing.urgency;
+    const i = importance !== undefined ? Math.max(1, Math.min(4, Math.round(importance))) : existing.importance;
     let priority = 'normal';
     if (u >= 3 && i >= 3) priority = 'urgent-important';
     else if (i >= 3) priority = 'important';
