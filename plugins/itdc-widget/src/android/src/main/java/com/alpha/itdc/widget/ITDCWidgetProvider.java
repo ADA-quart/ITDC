@@ -65,7 +65,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         } catch (Exception e) { Log.e(TAG, "onDisabled failed", e); }
     }
 
-    private void refreshAll(Context context) {
+    private static void refreshAll(Context context) {
         try {
             AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
             ComponentName comp = new ComponentName(context, ITDCWidgetProvider.class.getName());
@@ -102,7 +102,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
      * - 仅本机模式：直接用 App 推送的快照渲染（无网络请求）
      * - 同步模式：从服务器拉取今日数据
      */
-    private void refreshWidget(Context context, int appWidgetId) {
+    private static void refreshWidget(Context context, int appWidgetId) {
         String mode = getMode(context);
         final String snapshot = getLocalSnapshot(context);
 
@@ -149,13 +149,13 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
     }
 
     /** 用给定 JSON 渲染并更新小组件（本机快照与服务器数据共用同一条渲染路径） */
-    private void renderJson(Context context, int appWidgetId, String json) {
+    private static void renderJson(Context context, int appWidgetId, String json) {
         final int[] size = widgetSize(context, appWidgetId);
         Bitmap bmp = WidgetBitmapRenderer.render(context, json, size[0], size[1]);
         postBitmap(context, appWidgetId, bmp);
     }
 
-    private void postBitmap(Context context, int appWidgetId, Bitmap bmp) {
+    private static void postBitmap(Context context, int appWidgetId, Bitmap bmp) {
         new Handler(Looper.getMainLooper()).post(() -> {
             try {
                 AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
@@ -168,7 +168,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
     }
 
     // 点按小组件任意位置打开 App 主界面
-    private PendingIntent openAppIntent(Context context) {
+    private static PendingIntent openAppIntent(Context context) {
         Intent launch = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
         if (launch == null) launch = new Intent();
         launch.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -178,7 +178,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
     }
 
     // 读取小组件当前占用的实际像素尺寸（用户改尺寸后按真实大小重绘）
-    private int[] widgetSize(Context context, int appWidgetId) {
+    private static int[] widgetSize(Context context, int appWidgetId) {
         int w = 640, h = 360;
         try {
             AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
@@ -197,7 +197,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         return new int[]{ Math.max(320, Math.min(w, 1600)), Math.max(180, Math.min(h, 1600)) };
     }
 
-    private void updateHint(Context context, int appWidgetId, String msg) {
+    private static void updateHint(Context context, int appWidgetId, String msg) {
         new Handler(Looper.getMainLooper()).post(() -> {
             try {
                 AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
@@ -217,7 +217,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
     }
 
     /** 快照是否为今天生成：避免跨天后桌面仍显示昨天的日程 */
-    private boolean isSnapshotForToday(String snapshotJson) {
+    private static boolean isSnapshotForToday(String snapshotJson) {
         try {
             org.json.JSONObject obj = new org.json.JSONObject(snapshotJson);
             String day = obj.optString("day", "");
@@ -274,20 +274,24 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
                 .apply();
     }
 
-    /** App 调用：数据变更后立即重绘所有小组件实例 */
+    /**
+     * App 调用：数据变更后立即重绘所有小组件实例。
+     *
+     * 注意：这里必须直接调用刷新，不能用 sendBroadcast 通知自己。
+     * 该 receiver 声明了 android:permission="BIND_APPWIDGET"，
+     * 广播会要求发送方持有该权限，而 App 自身并不持有 —— 广播被系统静默丢弃，
+     * 表现为"数据已写入快照但桌面不更新"。
+     */
     public static void requestRefresh(Context context) {
         try {
             AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
             ComponentName comp = new ComponentName(context, ITDCWidgetProvider.class.getName());
             int[] ids = awm.getAppWidgetIds(comp);
-            if (ids.length == 0) return;
-            Intent it = new Intent(context, ITDCWidgetProvider.class);
-            it.setAction("com.alpha.itdc.WIDGET_REFRESH");
-            context.sendBroadcast(it);
+            for (int id : ids) refreshWidget(context, id);
         } catch (Exception e) { Log.e(TAG, "requestRefresh failed", e); }
     }
 
-    private String fetchJson(String url) {
+    private static String fetchJson(String url) {
         try {
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
             conn.setConnectTimeout(8000);
