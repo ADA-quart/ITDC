@@ -93,13 +93,25 @@ jobs:
           files: out/*.apk
           generate_release_notes: true
           body: |
-            > APK 使用 **debug 签名**，适合个人使用与测试，不适合上架应用商店。
+            ## 安装
 
-            **安装提示**
+            1. 下载下方 Assets 中的 APK
+            2. 首次安装需允许「未知来源」
 
-            - 首次安装需允许「未知来源」
-            - 覆盖安装即可保留本地数据
-            - 小组件不自动刷新时：进「设置 → 应用 → ITDC → 省电策略」改为**无限制**
-              （澎湃 OS / MIUI 等国产 ROM 默认限制后台）
+            > APK 使用 **debug 签名**，适用于个人使用与测试，不适合上架应用商店。
 
-            完整变更见 [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)。
+            ## 升级说明
+
+            通常情况下可直接覆盖安装，本地数据保留。
+
+            **但若本版本的变更包含应用包名调整，Android 会将其视为另一个应用，必须卸载旧版后重新安装
+            （本地数据会被清除）。请先查看下方变更日志确认，并提前导出备份。**
+
+            ## 小组件不刷新时
+
+            部分厂商定制系统（澎湃 OS、MIUI 等）默认限制后台运行。请进入
+            「设置 → 应用 → ITDC → 省电策略」并设为**无限制**。
+
+            ## 完整变更
+
+            见 [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)。
