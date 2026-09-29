@@ -43,9 +43,12 @@ router.post('/', (req: Request, res: Response) => {
 
   debug.info('Todo create', { title, estimated_minutes, priority });
 
+  // 生成跨设备 uid：客户端本地新建时也会带 uid，两端保持一致才能合并
+  const uid = (req.body.uid as string) || ('todo-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10));
+  const now = new Date().toISOString();
   const result = db.prepare(
-    'INSERT INTO todos (title, description, estimated_minutes, priority, urgency, importance, deadline, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(title, description || null, estimated_minutes, priority, u, i, deadline || null, color || null);
+    'INSERT INTO todos (title, description, estimated_minutes, priority, urgency, importance, deadline, color, sync_uid, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(title, description || null, estimated_minutes, priority, u, i, deadline || null, color || null, uid, now);
 
   const todo = db.prepare('SELECT * FROM todos WHERE id = ?').get(result.lastInsertRowid);
   res.json(todo);

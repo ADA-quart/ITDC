@@ -1,5 +1,9 @@
 export interface Calendar {
   id: number;
+  /** 跨设备稳定标识（服务端列名 sync_uid）：合并时按它匹配，不用自增 id */
+  sync_uid?: string;
+  /** 最后一次修改时间：同一条记录冲突时用它决胜（新的赢） */
+  updated_at?: string;
   name: string;
   color: string;
   source: string;
@@ -8,6 +12,9 @@ export interface Calendar {
 
 export interface CalendarEvent {
   id: number;
+  /** 跨设备稳定标识，见 Calendar.sync_uid（与下面 iCal 的 uid 语义不同） */
+  sync_uid?: string;
+  updated_at?: string;
   calendar_id: number;
   title: string;
   description: string | null;
@@ -24,6 +31,9 @@ export interface CalendarEvent {
 
 export interface Todo {
   id: number;
+  /** 跨设备稳定标识，见 Calendar.sync_uid */
+  sync_uid?: string;
+  updated_at?: string;
   title: string;
   description: string | null;
   estimated_minutes: number;

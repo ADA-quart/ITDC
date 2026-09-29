@@ -4,6 +4,7 @@ import { llmConfigApi, promptTemplateApi, settingsApi, api, setApiBase, getApiBa
 import { Capacitor } from '@capacitor/core';
 import { ITDCWidgetPlugin } from '../capacitor/itdc-widget';
 import { pushWidgetSnapshot, setWidgetMode } from '../api/widget-sync';
+import { mergeWithServer } from '../api/sync-merge';
 import { scheduleApi } from '../api/client';
 import type { LLMConfig } from '../types';
 import { useI18n } from '../i18n';
@@ -134,11 +135,29 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
       setApiBase(normalized);
       setServerUrl(normalized);
       setSyncOn(true);
+
+      // 合并同步：把本机与服务器的数据合到一起，而不是用服务器覆盖本机。
+      // 必须在 setApiBase 之后调用（此时请求才会打到新地址）。
+      try {
+        const merged = await mergeWithServer();
+        message.success(
+          locale === 'zh'
+            ? `已合并：待办 ${merged.todos} 条、日历 ${merged.calendars} 个、事件 ${merged.events} 条（新增 ${merged.added}、更新 ${merged.updated}）`
+            : `Merged: ${merged.todos} todos, ${merged.calendars} calendars, ${merged.events} events (added ${merged.added}, updated ${merged.updated})`
+        );
+      } catch (err: any) {
+        message.warning(
+          locale === 'zh'
+            ? '已连接但合并失败：本地数据保持不变，可稍后重试'
+            : 'Connected but merge failed; local data left unchanged'
+        );
+        console.warn('合并同步失败:', err);
+      }
+
       if (Capacitor.isNativePlatform()) {
         try { await ITDCWidgetPlugin.setServerUrl({ url: normalized }); } catch {}
         try { await setWidgetMode('server'); } catch {}
       }
-      message.success(t.settings.serverConnected + '：' + normalized);
       window.dispatchEvent(new CustomEvent('todo-data-changed'));
     } finally {
       setTestingServer(false);

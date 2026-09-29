@@ -52,6 +52,13 @@ CREATE TABLE IF NOT EXISTS settings (
   value TEXT NOT NULL
 );
 
+-- 删除墓碑：某端删掉的记录，靠它防止被另一端的旧数据又带回来
+CREATE TABLE IF NOT EXISTS sync_tombstone (
+  uid TEXT PRIMARY KEY,
+  table_name TEXT NOT NULL,
+  deleted_at DATETIME NOT NULL
+);
+
 -- 默认日历（仅首次建表时插入）
 INSERT OR IGNORE INTO calendars (id, name, color, source)
 VALUES (1, '我的日历', '#1890ff', 'manual');

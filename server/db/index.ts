@@ -73,6 +73,47 @@ class Database {
           this.markDirty();
         }
       }
+
+      // ---- 合并同步所需字段 ----
+      // uid: 跨设备稳定标识。各端自增 id 空间不一致（本机是时间戳派生的大数字，
+      //      服务端从 1 开始），按 id 对齐会张冠李戴，因此合并一律按 uid 匹配。
+      // updated_at: 同一条 uid 内容不同时用它决胜（新的赢）。
+      const syncTables = ['todos', 'calendars', 'events'];
+      for (const tbl of syncTables) {
+        const info = this.db.exec("PRAGMA table_info(" + tbl + ")");
+        if (info.length === 0) continue;
+        const cols = info[0].values.map((row: any[]) => row[1]);
+        // events 表已有 uid 列（存 iCal 的 UID），语义不同不能复用，
+        // 因此同步标识统一用 sync_uid 列名。
+        if (!cols.includes('sync_uid')) {
+          this.db.exec("ALTER TABLE " + tbl + " ADD COLUMN sync_uid TEXT");
+          this.markDirty();
+        }
+        if (!cols.includes('updated_at')) {
+          this.db.exec("ALTER TABLE " + tbl + " ADD COLUMN updated_at DATETIME");
+          this.markDirty();
+        }
+      }
+
+      // 历史数据补 uid，保证每条记录都能参与合并
+      for (const tbl of syncTables) {
+        const missing = this.db.exec("SELECT id FROM " + tbl + " WHERE sync_uid IS NULL OR sync_uid = ''");
+        if (missing.length > 0) {
+          const ids = missing[0].values.map((r: any[]) => r[0]);
+          for (const id of ids) {
+            const u = tbl + '-' + id + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+            this.db.exec("UPDATE " + tbl + " SET sync_uid = '" + u + "' WHERE id = " + id);
+          }
+          this.markDirty();
+        }
+      }
+
+      // sync_uid 唯一索引：合并时靠它识别同一条数据
+      for (const tbl of syncTables) {
+        try {
+          this.db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_" + tbl + "_sync_uid ON " + tbl + "(sync_uid)");
+        } catch { /* 历史数据存在重复 uid 时跳过，不影响运行 */ }
+      }
     } catch (err) {
       console.error('Migration error:', err);
     }

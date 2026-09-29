@@ -170,10 +170,56 @@ export async function saveEventCache(events: CalendarEvent[]): Promise<void> {
   try { await set('events', events); } catch {}
 }
 
+// ---------- 删除墓碑 ----------
+// 本地删掉的记录要留个标记：否则下次与服务器合并时，
+// 服务端那条还在，会被当成"只有服务器有"又同步回来。
+export interface Tombstone {
+  uid: string;
+  table: 'todos' | 'calendars' | 'events';
+  ts: number;
+}
+
+export async function getTombstones(): Promise<Tombstone[]> {
+  try {
+    return asArray<Tombstone>(await get<Tombstone[]>('tombstones'));
+  } catch {
+    return [];
+  }
+}
+
+export async function addTombstone(table: Tombstone['table'], uid: string | undefined): Promise<void> {
+  if (!uid) return;
+  try {
+    const list = await getTombstones();
+    if (!list.some((t) => t.uid === uid && t.table === table)) {
+      list.push({ uid, table, ts: Date.now() });
+      await set('tombstones', list);
+    }
+  } catch { /* 墓碑写入失败只影响下次合并，不阻断删除本身 */ }
+}
+
+export async function clearTombstones(): Promise<void> {
+  try { await set('tombstones', []); } catch {}
+}
+
 // ---------- 本地 ID（离线时生成临时 ID，同步后以服务器返回为准） ----------
 let localSeq = Date.now() % 1000000;
 function nextLocalId(): number {
   return ++localSeq;
+}
+
+/**
+ * 生成跨设备稳定标识。
+ * 合并同步靠它匹配同一条记录 —— 自增 id 在各端空间不一致
+ * （本机是时间戳派生的大数字，服务端从 1 开始），按 id 对齐会张冠李戴。
+ */
+export function makeSyncUid(prefix: string): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return prefix + '-' + crypto.randomUUID();
+    }
+  } catch { /* 降级到下面的随机串 */ }
+  return prefix + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
 }
 
 // ---------- 待办本地模拟 ----------
@@ -187,6 +233,8 @@ export function localCreate(data: Partial<Todo>): Todo {
   else if (u >= 3) priority = 'urgent';
   const todo: Todo = {
     id: nextLocalId(),
+    sync_uid: data.sync_uid || makeSyncUid('todo'),
+    updated_at: now,
     title: data.title || '',
     description: data.description ?? null,
     estimated_minutes: data.estimated_minutes ?? 30,
@@ -208,6 +256,8 @@ export function localUpdate(todo: Todo, data: Partial<Todo>): Todo {
   const updated = { ...todo, ...data } as Todo;
   if (data.status === 'done') updated.completed_at = new Date().toISOString();
   else if (data.status) updated.completed_at = null;
+  // 每次修改刷新 updated_at：合并时用它判断哪一端更新
+  updated.updated_at = new Date().toISOString();
   return updated;
 }
 
@@ -239,6 +289,8 @@ export function localCreateCalendar(data: Partial<Calendar>): Calendar {
   const now = new Date().toISOString();
   return {
     id: nextLocalId(),
+    sync_uid: data.sync_uid || makeSyncUid('cal'),
+    updated_at: now,
     name: data.name || 'New calendar',
     color: data.color || '#1890ff',
     source: 'manual',
@@ -257,6 +309,8 @@ export function localCreateEvent(data: Partial<CalendarEvent>): CalendarEvent {
   const now = new Date().toISOString();
   return {
     id: nextLocalId(),
+    sync_uid: data.sync_uid || makeSyncUid('evt'),
+    updated_at: now,
     calendar_id: data.calendar_id ?? 0,
     title: data.title || 'Untitled',
     description: data.description ?? null,

@@ -166,11 +166,10 @@ export const todoApi = {
     if (isSyncEnabled() && offline.isOnline()) {
       try {
         todos = await serverApi.todos.getAll(params);
-        // 仅在无过滤条件时缓存全量，避免过滤结果污染本地数据
-        if (!params?.status && !params?.priority) {
-          await offline.saveCachedTodos(todos);
-          setOfflineMode(false);
-        }
+        // 注意：这里**不再**用服务器数据覆盖本地缓存。
+        // 否则本机独有的待办会在连上服务器的瞬间消失（各端数据无法合并）。
+        // 两端的合并统一由 mergeWithServer() 负责，这里只做只读展示。
+        if (!params?.status && !params?.priority) setOfflineMode(false);
       } catch (err) {
         if (!isNetworkError(err)) throw err;
         setOfflineMode(true);
@@ -251,6 +250,10 @@ export const todoApi = {
     }
 
     const todos = await offline.getCachedTodos();
+    // 先记墓碑再删：否则下次与服务器合并时，服务端那条还在，
+    // 会被当成"只有服务器有"又同步回来
+    const removed = todos.find((t) => t.id === id);
+    await offline.addTombstone('todos', removed?.sync_uid);
     await offline.saveCachedTodos(offline.localDelete(todos, id));
     notifyDataChanged();
     return { success: true };
@@ -293,7 +296,7 @@ export const calendarApi = {
     if (isSyncEnabled() && offline.isOnline()) {
       try {
         const data = await serverApi.calendars.getAll();
-        await offline.saveCalendarCache(data);
+        // 不用服务器数据覆盖本地：合并交给 mergeWithServer()，否则本机独有的日历会消失
         setOfflineMode(false);
         return data;
       } catch (err) {
@@ -349,7 +352,7 @@ export const calendarApi = {
     if (isSyncEnabled() && offline.isOnline()) {
       try {
         const data = await serverApi.events.getAll();
-        await offline.saveEventCache(data);
+        // 同上：不覆盖本地，避免本机独有的事件在连接服务器后消失
         setOfflineMode(false);
         return data;
       } catch (err) {
@@ -413,6 +416,8 @@ export const calendarApi = {
     }
 
     const cached = await offline.getEventCache();
+    const removedEvt = cached.find((e) => e.id === id);
+    await offline.addTombstone('events', removedEvt?.sync_uid);
     await offline.saveEventCache(offline.localDeleteEvent(cached, id));
     notifyDataChanged();
     return { success: true };

@@ -33,7 +33,9 @@ router.post('/calendars', (req: Request, res: Response) => {
   if (!name || typeof name !== 'string') {
     return res.status(400).json({ error: '日历名称不能为空' });
   }
-  const result = db.prepare('INSERT INTO calendars (name, color) VALUES (?, ?)').run(name, color || '#1890ff');
+  const uid = (req.body.uid as string) || ('cal-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10));
+  const result = db.prepare('INSERT INTO calendars (name, color, sync_uid, updated_at) VALUES (?, ?, ?, ?)')
+    .run(name, color || '#1890ff', uid, new Date().toISOString());
   const calendar = db.prepare('SELECT * FROM calendars WHERE id = ?').get(result.lastInsertRowid);
   res.json(calendar);
 });
@@ -78,9 +80,11 @@ router.post('/events', (req: Request, res: Response) => {
   if (new Date(end_time) <= new Date(start_time)) {
     return res.status(400).json({ error: '结束时间必须晚于开始时间' });
   }
+  // 跨设备合并靠 uid（注意与 iCal 的 uid 不是一回事，这里存的是同步标识）
+  const syncUid = (req.body.sync_uid as string) || ('evt-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10));
   const result = db.prepare(
-    'INSERT INTO events (calendar_id, title, description, start_time, end_time, rrule, location) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).run(calendar_id, title, description || null, start_time, end_time, rrule || null, location || null);
+    'INSERT INTO events (calendar_id, title, description, start_time, end_time, rrule, location, sync_uid, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(calendar_id, title, description || null, start_time, end_time, rrule || null, location || null, syncUid, new Date().toISOString());
   const event = db.prepare('SELECT * FROM events WHERE id = ?').get(result.lastInsertRowid);
   res.json(event);
 });
