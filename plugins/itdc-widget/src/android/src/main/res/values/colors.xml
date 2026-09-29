@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 磨砂玻璃底色：半透明，让壁纸隐约透出 -->
+    <color name="widget_bg">#E8FFFFFF</color>
+    <!-- 顶栏分隔与列表分隔线 -->
+    <color name="widget_divider">#1F000000</color>
+    <color name="widget_text_primary">#FF1A1A1A</color>
+    <color name="widget_text_secondary">#FF6B6B6B</color>
+    <color name="widget_text_empty">#FF9E9E9E</color>
+    <color name="widget_section_label">#FF3D3D3D</color>
+</resources>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 磨砂玻璃底色（深色）：半透明深色，壁纸隐约透出 -->
+    <color name="widget_bg">#E61C1C20</color>
+    <color name="widget_divider">#26FFFFFF</color>
+    <color name="widget_text_primary">#FFECEFF4</color>
+    <color name="widget_text_secondary">#FFA8A8B3</color>
+    <color name="widget_text_empty">#FF7E7E8A</color>
+    <color name="widget_section_label">#FFD8D8E0</color>
+</resources>

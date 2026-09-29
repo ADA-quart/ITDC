@@ -10,7 +10,8 @@
     "build": "vite build",
     "start": "tsx server/index.ts",
     "test": "vitest run",
-    "android:sync": "npm run build && npx @capacitor/cli sync",
+    "build:native": "vite build && node scripts/native-sw-killswitch.mjs",
+    "android:sync": "npm run build:native && npx @capacitor/cli sync",
     "android:open": "npx @capacitor/cli open android",
     "test:watch": "vitest"
   },

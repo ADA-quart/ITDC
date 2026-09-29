@@ -2,10 +2,22 @@
 <resources>
     <string name="app_widget_label">ITDC 课表待办</string>
     <string name="app_widget_description">今日课表与待办事项，点按打开 ITDC</string>
+
     <string name="widget_empty">今日暂无安排\n点按打开 ITDC 添加日程</string>
     <string name="widget_missing_server">打开 ITDC 即可显示今日安排</string>
     <string name="widget_local_no_data">打开 ITDC 同步今日安排</string>
     <string name="widget_local_stale">打开 ITDC 刷新今日安排</string>
     <string name="widget_offline">连接不上服务器\n请检查地址与网络</string>
     <string name="widget_local_mode">打开 ITDC 同步今日安排</string>
+
+    <!-- 课表区 -->
+    <string name="widget_today">今天</string>
+    <string name="widget_tomorrow">明天</string>
+    <string name="widget_no_class_today">今天没有课</string>
+    <string name="widget_no_class_tomorrow">明天没有课啦</string>
+    <string name="widget_no_todo">暂无待办</string>
+    <string name="widget_due_prefix">截止 </string>
+    <string name="widget_week_prefix">第</string>
+    <string name="widget_week_suffix">周</string>
+    <string name="widget_todo_header">待办</string>
 </resources>
