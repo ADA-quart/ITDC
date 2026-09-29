@@ -22,6 +22,11 @@
 
 - 清理本地优先改造后失效的死代码（离线队列机制、旧位图渲染器及其布局）
 - 新增 `.editorconfig` / `.gitattributes`，统一换行与缩进
+- **固定 APK 签名密钥**：GitHub Actions 的 runner 是临时的，此前每次构建都会新生成
+  debug 密钥，导致每个 Release 的签名都不同、用户无法覆盖升级。现改为使用仓库 Secret
+  中的固定密钥，CI 与本地构建产出可互相覆盖
+- 移除未使用的 `@capacitor/push-notifications` 依赖，Firebase 相关组件不再打进 APK
+- 删除死代码 `server/services/calendar.service.ts`
 
 ## [1.3.0] - 2026-09-29
 
