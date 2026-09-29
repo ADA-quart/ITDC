@@ -1,7 +1,7 @@
 apply plugin: "com.android.library"
 
 android {
-    namespace = "com.alpha.itdc.widget"
+    namespace = "io.github.adaquart.itdc.widget"
     compileSdk 36
     defaultConfig {
         minSdkVersion 24

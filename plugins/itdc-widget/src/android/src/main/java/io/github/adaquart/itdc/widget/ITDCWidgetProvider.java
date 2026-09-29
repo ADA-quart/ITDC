@@ -1,4 +1,4 @@
-package com.alpha.itdc.widget;
+package io.github.adaquart.itdc.widget;
 
 import android.app.AlarmManager;
 import android.app.PendingIntent;
@@ -47,7 +47,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
                     .substring(intent.getData().toString().lastIndexOf('/') + 1);
             try { refreshWidget(context, Integer.parseInt(widgetIdStr)); }
             catch (NumberFormatException e) { Log.e(TAG, "bad widget id", e); }
-        } else if ("com.alpha.itdc.WIDGET_REFRESH".equals(intent.getAction())) {
+        } else if ("io.github.adaquart.itdc.WIDGET_REFRESH".equals(intent.getAction())) {
             refreshAll(context);
         }
     }
@@ -71,7 +71,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         try {
             AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
             Intent it = new Intent(context, ITDCWidgetProvider.class);
-            it.setAction("com.alpha.itdc.WIDGET_REFRESH");
+            it.setAction("io.github.adaquart.itdc.WIDGET_REFRESH");
             int flags = PendingIntent.FLAG_UPDATE_CURRENT;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
             PendingIntent pi = PendingIntent.getBroadcast(context, 0, it, flags);
@@ -94,7 +94,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             // 主要刷新时机是：App 推送快照、系统 updatePeriodMillis、App 回前台。
             AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
             Intent it = new Intent(context, ITDCWidgetProvider.class);
-            it.setAction("com.alpha.itdc.WIDGET_REFRESH");
+            it.setAction("io.github.adaquart.itdc.WIDGET_REFRESH");
             int flags = PendingIntent.FLAG_UPDATE_CURRENT;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
             PendingIntent pi = PendingIntent.getBroadcast(context, 0, it, flags);

@@ -1,4 +1,4 @@
-package com.alpha.itdc.widget;
+package io.github.adaquart.itdc.widget;
 
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
@@ -22,8 +22,8 @@ public class ITDCWidgetActionReceiver extends BroadcastReceiver {
 
     private static final String TAG = "ITDCWidgetAction";
 
-    public static final String ACTION_TOGGLE_DONE = "com.alpha.itdc.WIDGET_TOGGLE_DONE";
-    public static final String ACTION_ALL_DONE = "com.alpha.itdc.WIDGET_ALL_DONE";
+    public static final String ACTION_TOGGLE_DONE = "io.github.adaquart.itdc.WIDGET_TOGGLE_DONE";
+    public static final String ACTION_ALL_DONE = "io.github.adaquart.itdc.WIDGET_ALL_DONE";
     public static final String EXTRA_TODO_ID = "todo_id";
     public static final String EXTRA_TARGET_DONE = "target_done";
 

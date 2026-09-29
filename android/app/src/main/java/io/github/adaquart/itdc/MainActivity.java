@@ -1,4 +1,4 @@
-package com.alpha.itdc;
+package io.github.adaquart.itdc;
 
 import android.os.Bundle;
 import android.view.View;

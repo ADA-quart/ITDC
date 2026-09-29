@@ -13,7 +13,7 @@ def customKeystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: "andr
 def customKeyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: "androiddebugkey"
 
 android {
-    namespace = "com.alpha.itdc"
+    namespace = "io.github.adaquart.itdc"
     compileSdk = rootProject.ext.compileSdkVersion
     signingConfigs {
         if (customKeystorePath != null) {
@@ -26,11 +26,11 @@ android {
         }
     }
     defaultConfig {
-        applicationId "com.alpha.itdc"
+        applicationId "io.github.adaquart.itdc"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 10
-        versionName "1.4.0"
+        versionCode 11
+        versionName "1.5.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

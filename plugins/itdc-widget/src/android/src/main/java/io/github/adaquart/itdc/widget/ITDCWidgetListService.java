@@ -1,4 +1,4 @@
-package com.alpha.itdc.widget;
+package io.github.adaquart.itdc.widget;
 
 import android.appwidget.AppWidgetManager;
 import android.content.Context;

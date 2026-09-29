@@ -3,6 +3,24 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.5.0] - 2026-09-30
+
+### ⚠️ 破坏性变更
+
+- **应用包名从 `com.alpha.itdc` 改为 `io.github.adaquart.itdc`**
+
+  Android 会把它们当作两个不同的应用，因此**升级时必须先卸载旧版本**，本地数据（IndexedDB）会一并清除。
+  建议先在新旧版本中任一处执行「导出 iCal」备份，装好新版后再导入。
+
+  改名的原因：旧包名里的 `alpha` 与开发机的 Windows 用户名一致，属于可避免的隐私暴露。
+
+### 变更
+
+- 小组件的广播 action 前缀同步更新为新包名（`io.github.adaquart.itdc.WIDGET_*`）
+- 版本号升至 1.5.0（versionCode 11）
+
+---
+
 ## [1.4.0] - 2026-09-30
 
 ### 新增
@@ -115,6 +133,7 @@
 - 深色模式、中英文切换
 - Android 桌面小组件（初版，静态位图）
 
+[1.5.0]: https://github.com/ADA-quart/ITDC/releases/tag/v1.5.0
 [1.4.0]: https://github.com/ADA-quart/ITDC/releases/tag/v1.4.0
 [1.3.0]: https://github.com/ADA-quart/ITDC/releases/tag/v1.3.0
 [1.2.1]: https://github.com/ADA-quart/ITDC/releases/tag/v1.2.1
