@@ -20,6 +20,8 @@ Turn on sync when you want your phone and PC to share data. Both sides merge; ne
   <img alt="Platform" src="https://img.shields.io/badge/platform-Web%20%7C%20Android-informational">
 </p>
 
+<img src="docs/images/app-calendar.png" alt="ITDC calendar view" width="880">
+
 </div>
 
 ## Features
@@ -37,9 +39,20 @@ Turn on sync when you want your phone and PC to share data. Both sides merge; ne
 - 🌍&nbsp;Simplified Chinese and English
 - 📴&nbsp;Works offline — reads and writes are unaffected
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/images/app-todos.png" alt="Todo management with Eisenhower matrix" width="440">
+  <img src="docs/images/app-review.png" alt="Daily review with stats and trends" width="440">
+</p>
+
 ## Home Screen Widget
 
 The Android widget is interactive, not a static image:
+
+<p align="center">
+  <img src="docs/images/widget.png" alt="Android home screen widget" width="400">
+</p>
 
 - 🗓️&nbsp;**Today / Tomorrow** columns with color markers, class name, location, and time
 - ☑️&nbsp;Scrollable todo list — tap a checkbox to complete; done items get strikethrough and sink to the bottom

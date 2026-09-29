@@ -20,6 +20,8 @@
   <img alt="Platform" src="https://img.shields.io/badge/platform-Web%20%7C%20Android-informational">
 </p>
 
+<img src="docs/images/app-calendar.png" alt="ITDC 日历视图" width="880">
+
 </div>
 
 ## 功能
@@ -37,9 +39,20 @@
 - 🌍&nbsp;简体中文 / English
 - 📴&nbsp;离线可用，断网时读写不受影响
 
+## 界面
+
+<p align="center">
+  <img src="docs/images/app-todos.png" alt="待办管理：四象限分级" width="440">
+  <img src="docs/images/app-review.png" alt="今日回顾：统计与趋势" width="440">
+</p>
+
 ## 桌面小组件
 
 Android 小组件不是静态截图，可以交互：
+
+<p align="center">
+  <img src="docs/images/widget.png" alt="Android 桌面小组件" width="400">
+</p>
 
 - 🗓️&nbsp;**今天 / 明天**双栏课表，含彩色标记、课程名、地点、时间
 - ☑️&nbsp;待办清单可滚动，点复选框直接完成，已完成的显示删除线并沉底
