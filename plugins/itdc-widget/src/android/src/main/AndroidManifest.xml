@@ -19,12 +19,18 @@
                 android:resource="@xml/app_widget_itdc" />
         </receiver>
 
-        <!-- 集合型小组件的数据源：为今天/明天/待办三个列表提供条目，
-             没有它列表无法滚动 -->
+        <!-- 集合型小组件的数据源：为今天/明天/待办三个列表提供条目，没有它列表无法滚动 -->
         <service
             android:name=".ITDCWidgetListService"
             android:exported="false"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+        <!-- 小组件内的交互（点按待办复选框 / 全部完成）。
+             不挂 BIND_APPWIDGET：PendingIntent 走显式组件投递，
+             不该受 provider 自身权限约束。 -->
+        <receiver
+            android:name=".ITDCWidgetActionReceiver"
+            android:exported="false" />
 
         <!-- 时间/日期变化单独用一个 receiver：不挂 BIND_APPWIDGET 权限，
              避免与系统广播的发送方权限产生耦合导致收不到 -->

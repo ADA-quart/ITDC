@@ -21,7 +21,7 @@ import DailyReview from './components/DailyReview';
 import SettingsModal from './components/SettingsModal';
 import { Capacitor } from '@capacitor/core';
 import { ITDCWidgetPlugin } from './capacitor/itdc-widget';
-import { pushWidgetSnapshot } from './api/widget-sync';
+import { pushWidgetSnapshot, consumeWidgetDoneQueue } from './api/widget-sync';
 import { useI18n } from './i18n';
 import { useTheme } from './contexts/ThemeContext';
 import { useIsMobile } from './hooks/useIsMobile';
@@ -79,14 +79,26 @@ const App: React.FC = () => {
   // 仅本机模式下小组件读不到 WebView 的 IndexedDB，只能靠这条通道拿到数据。
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
-    void pushWidgetSnapshot();
+
+    // 先消费桌面上的打勾操作（写回数据库），再推送快照，避免把过期状态又推回桌面
+    const syncWidget = async () => {
+      const changed = await consumeWidgetDoneQueue();
+      if (changed > 0) window.dispatchEvent(new CustomEvent('todo-data-changed'));
+      await pushWidgetSnapshot();
+    };
+
+    void syncWidget();
     const handler = () => { void pushWidgetSnapshot(); };
     // 同时监听两类事件：数据层变更（itdc-widget-sync）与视图级刷新（todo-data-changed）
     window.addEventListener('itdc-widget-sync', handler);
     window.addEventListener('todo-data-changed', handler);
-    // App 回到前台时补推一次：覆盖"昨天打开过、今天再进来"的跨天场景
-    const onVisible = () => { if (document.visibilityState === 'visible') void pushWidgetSnapshot(); };
+
+    // 回到前台时：消费桌面的打勾 + 补推快照（覆盖跨天场景）
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void syncWidget();
+    };
     document.addEventListener('visibilitychange', onVisible);
+
     return () => {
       window.removeEventListener('itdc-widget-sync', handler);
       window.removeEventListener('todo-data-changed', handler);

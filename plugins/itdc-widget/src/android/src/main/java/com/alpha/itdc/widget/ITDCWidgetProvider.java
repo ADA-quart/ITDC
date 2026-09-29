@@ -187,13 +187,22 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
                     TextUtils.isEmpty(boardTitle) ? context.getString(R.string.app_widget_label) : boardTitle);
             rv.setTextViewText(R.id.widget_date, dateText);
             rv.setTextViewText(R.id.widget_todo_header, context.getString(R.string.widget_todo_header));
+            // 「全部完成」：一键把当前展示的待办全部标记完成
+            rv.setOnClickPendingIntent(R.id.widget_todo_all_done,
+                    ITDCWidgetActionReceiver.allDonePendingIntent(context));
 
             // 三个列表都通过 RemoteViewsService 提供数据 → 均可上下滑动
             bindList(context, rv, R.id.widget_today_list, appWidgetId, ITDCWidgetListService.LIST_TODAY);
             bindList(context, rv, R.id.widget_tomorrow_list, appWidgetId, ITDCWidgetListService.LIST_TOMORROW);
             bindList(context, rv, R.id.widget_todo_list, appWidgetId, ITDCWidgetListService.LIST_TODO);
 
-            rv.setOnClickPendingIntent(R.id.widget_root, openAppIntent(context));
+            // 集合里的子项点击走 fill-in 模板（见 ITDCWidgetActionReceiver）
+            rv.setPendingIntentTemplate(R.id.widget_todo_list,
+                    ITDCWidgetActionReceiver.todoTemplatePendingIntent(context));
+
+            // 打开 App：绑在标题与日期上，避免整块背景抢走列表的滚动手势
+            rv.setOnClickPendingIntent(R.id.widget_board_title, openAppIntent(context));
+            rv.setOnClickPendingIntent(R.id.widget_date, openAppIntent(context));
 
             AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
             awm.updateAppWidget(appWidgetId, rv);

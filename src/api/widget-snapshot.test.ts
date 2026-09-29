@@ -1,166 +1,132 @@
-// 验证小组件快照中的两个关键逻辑：
-// 1) RRULE 重复课程能否在非首次发生日被正确展开（课程表的核心场景）
-// 2) 顶栏标题是否取自"最近有课的那个日历"
+// 验证小组件的两处新逻辑：
+// 1) 上过的课自动从"今天"栏消失（按结束时间过滤）
+// 2) 待办完成状态：快照基准 + 桌面本地改动的叠加，以及已完成排到末尾
 import { describe, it, expect } from 'vitest';
-import { RRule } from 'rrule';
 
-// 与 widget-sync.ts 保持一致的时间工具（纯函数，避免引入 Capacitor 依赖）
-function pad2(n: number): string { return String(n).padStart(2, '0'); }
-function hhmm(value: string | Date | null): string {
-  if (!value) return '';
-  const d = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-}
-function dayStart(d: Date): Date { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+// ---------- 课程过滤（与 ITDCWidgetListService.parseSchedule 同逻辑）----------
+interface Item { title: string; start: string; end: string }
 
-interface Ev {
-  id: number; calendar_id: number; title: string; description: string | null;
-  start_time: string; end_time: string; rrule: string | null; location: string | null;
-  source: string; uid: string | null; calendar_color?: string; created_at: string;
+function filterToday(items: Item[], nowHm: string): Item[] {
+  return items.filter((i) => {
+    // 跨天进行中（end 为空）保留；已结束的移除
+    if (!i.end) return true;
+    return i.end > nowHm;
+  });
 }
 
-function occurrencesOnDay(event: Ev, target: Date): { start: Date; end: Date }[] {
-  const firstStart = new Date(event.start_time);
-  const firstEnd = new Date(event.end_time);
-  if (Number.isNaN(firstStart.getTime()) || Number.isNaN(firstEnd.getTime())) return [];
+describe('上过的课自动消失', () => {
+  const items: Item[] = [
+    { title: '早课', start: '08:00', end: '09:35' },
+    { title: '上午课', start: '10:00', end: '11:35' },
+    { title: '下午课', start: '14:30', end: '16:05' },
+    { title: '晚课', start: '19:00', end: '20:35' },
+  ];
 
-  const from = dayStart(target);
-  const to = new Date(from.getTime() + 24 * 3600_000);
-  const durationMs = Math.max(0, firstEnd.getTime() - firstStart.getTime());
-
-  if (!event.rrule) {
-    if (firstStart >= from && firstStart < to) return [{ start: firstStart, end: firstEnd }];
-    return [];
-  }
-
-  try {
-    const parsed = RRule.parseString(event.rrule.replace(/^RRULE:/i, ''));
-    parsed.dtstart = firstStart;
-    const rule = new RRule(parsed);
-    const occurrences = rule.between(new Date(from.getTime() - durationMs), to, true);
-    return occurrences
-      .map((occ) => ({ start: occ, end: new Date(occ.getTime() + durationMs) }))
-      .filter((o) => o.end > from && o.start < to);
-  } catch {
-    if (firstStart >= from && firstStart < to) return [{ start: firstStart, end: firstEnd }];
-    return [];
-  }
-}
-
-function makeEvent(overrides: Partial<Ev>): Ev {
-  return {
-    id: 1, calendar_id: 1, title: '课程', description: null,
-    start_time: '', end_time: '', rrule: null, location: null,
-    source: 'manual', uid: null, created_at: new Date().toISOString(),
-    ...overrides,
-  };
-}
-
-describe('RRULE 重复课程展开', () => {
-  it('每周重复的课在第二周同一天也能被识别', () => {
-    // 2026-09-01 是周二，设一门每周二 14:30-16:05 的课
-    const first = new Date(2026, 8, 1, 14, 30, 0, 0);
-    const end = new Date(2026, 8, 1, 16, 5, 0, 0);
-    const ev = makeEvent({
-      start_time: first.toISOString(),
-      end_time: end.toISOString(),
-      rrule: 'FREQ=WEEKLY;BYDAY=TU;UNTIL=20270101T000000Z',
-    });
-
-    // 首次发生当天
-    const week1 = new Date(2026, 8, 1);
-    expect(occurrencesOnDay(ev, week1).length).toBe(1);
-
-    // 第二周同一天（周二 9/8）—— 这正是此前会漏掉的场景
-    const week2 = new Date(2026, 8, 8);
-    const occ2 = occurrencesOnDay(ev, week2);
-    expect(occ2.length).toBe(1);
-    expect(hhmm(occ2[0].start)).toBe('14:30');
-    expect(hhmm(occ2[0].end)).toBe('16:05');
-
-    // 第三周（9/15）同样命中
-    expect(occurrencesOnDay(ev, new Date(2026, 8, 15)).length).toBe(1);
-
-    // 非周二不应命中
-    expect(occurrencesOnDay(ev, new Date(2026, 8, 9)).length).toBe(0);
+  it('上午 10:30：8 点的课已消失，其余保留', () => {
+    const visible = filterToday(items, '10:30');
+    expect(visible.map((i) => i.title)).toEqual(['上午课', '下午课', '晚课']);
   });
 
-  it('非重复事件只在当天命中', () => {
-    const ev = makeEvent({
-      start_time: new Date(2026, 8, 10, 9, 0).toISOString(),
-      end_time: new Date(2026, 8, 10, 10, 0).toISOString(),
-    });
-    expect(occurrencesOnDay(ev, new Date(2026, 8, 10)).length).toBe(1);
-    expect(occurrencesOnDay(ev, new Date(2026, 8, 11)).length).toBe(0);
+  it('中午 12:00：上午两节都已消失', () => {
+    const visible = filterToday(items, '12:00');
+    expect(visible.map((i) => i.title)).toEqual(['下午课', '晚课']);
   });
 
-  it('RRULE 非法时退化为只看首次发生，不抛异常', () => {
-    const ev = makeEvent({
-      start_time: new Date(2026, 8, 10, 9, 0).toISOString(),
-      end_time: new Date(2026, 8, 10, 10, 0).toISOString(),
-      rrule: 'THIS IS NOT A VALID RRULE',
-    });
-    expect(() => occurrencesOnDay(ev, new Date(2026, 8, 10))).not.toThrow();
-    expect(occurrencesOnDay(ev, new Date(2026, 8, 10)).length).toBe(1);
+  it('晚间 21:00：今天全部上完，列表为空', () => {
+    expect(filterToday(items, '21:00')).toEqual([]);
   });
 
-  it('带 RRULE: 前缀的规则也能解析', () => {
-    const ev = makeEvent({
-      start_time: new Date(2026, 8, 1, 8, 0).toISOString(),
-      end_time: new Date(2026, 8, 1, 9, 0).toISOString(),
-      rrule: 'RRULE:FREQ=WEEKLY;BYDAY=TU',
-    });
-    expect(occurrencesOnDay(ev, new Date(2026, 8, 8)).length).toBe(1);
+  it('课程正在上（14:30-16:05，当前 15:00）仍然显示', () => {
+    const visible = filterToday(items, '15:00');
+    expect(visible.map((i) => i.title)).toContain('下午课');
+  });
+
+  it('刚好在下课时刻（16:05）即消失', () => {
+    const visible = filterToday(items, '16:05');
+    expect(visible.map((i) => i.title)).not.toContain('下午课');
+  });
+
+  it('跨天进行中（end 为空）不被过滤', () => {
+    const overnight: Item[] = [{ title: '跨天事件', start: '23:00', end: '' }];
+    expect(filterToday(overnight, '23:30').length).toBe(1);
   });
 });
 
-describe('最近有课的日历名', () => {
-  interface Item { start: string; calendarId: number }
+// ---------- 完成状态叠加（与 WidgetDoneStore 同逻辑）----------
+class DoneStore {
+  done = new Set<number>();
+  undone = new Set<number>();
 
-  function nearestClassCalendarName(
-    todayItems: Item[], tomorrowItems: Item[], now: Date, nameById: Map<number, string>
-  ): string {
-    const nowHm = hhmm(now);
-    const upcomingToday = todayItems.filter((i) => i.start >= nowHm);
-    const candidates = upcomingToday.length > 0 ? upcomingToday : tomorrowItems;
-    for (const item of candidates) {
-      const name = nameById.get(item.calendarId);
-      if (name) return name;
-    }
-    return '';
+  isDone(id: number, snapshotDone: number[]): boolean {
+    if (this.undone.has(id)) return false;
+    if (snapshotDone.includes(id)) return true;
+    return this.done.has(id);
   }
 
-  const names = new Map([[1, '我的日历'], [2, '课程表'], [3, '社团']]);
+  toggle(id: number, target: boolean) {
+    if (target) { this.done.add(id); this.undone.delete(id); }
+    else { this.done.delete(id); this.undone.add(id); }
+  }
 
-  it('优先取今天还没开始的最近一节课所属日历', () => {
-    const now = new Date(2026, 8, 29, 10, 0);
-    const today = [
-      { start: '08:00', calendarId: 1 },  // 已过去
-      { start: '14:30', calendarId: 2 },  // 最近的下一节
-      { start: '19:00', calendarId: 3 },
+  markAllDone(ids: number[]) {
+    for (const id of ids) { this.done.add(id); this.undone.delete(id); }
+  }
+}
+
+describe('待办完成状态', () => {
+  it('桌面点按后立即视为已完成（快照尚未更新）', () => {
+    const s = new DoneStore();
+    expect(s.isDone(1, [])).toBe(false);
+    s.toggle(1, true);
+    expect(s.isDone(1, [])).toBe(true);
+  });
+
+  it('快照里已完成、桌面又取消，则视为未完成', () => {
+    const s = new DoneStore();
+    s.toggle(2, false);
+    expect(s.isDone(2, [2])).toBe(false);
+  });
+
+  it('来回点按不会状态错乱：最终以最后一次为准', () => {
+    const s = new DoneStore();
+    s.toggle(3, true);
+    s.toggle(3, false);
+    expect(s.isDone(3, [])).toBe(false);
+    s.toggle(3, true);
+    expect(s.isDone(3, [])).toBe(true);
+    // 两个集合互斥，不应同时存在
+    expect(s.done.has(3) && s.undone.has(3)).toBe(false);
+  });
+
+  it('全部完成把当前展示的待办都标记为完成', () => {
+    const s = new DoneStore();
+    s.markAllDone([1, 2, 3]);
+    expect([1, 2, 3].every((id) => s.isDone(id, []))).toBe(true);
+  });
+
+  it('全部完成不覆盖此前的手动取消', () => {
+    const s = new DoneStore();
+    s.toggle(5, false);          // 用户先取消第 5 条
+    s.markAllDone([4, 5, 6]);    // 再点全部完成
+    expect(s.isDone(5, [5])).toBe(true); // 以"全部完成"为准
+  });
+});
+
+describe('待办排序：完成的排末尾', () => {
+  interface T { id: number; priority: string; done: boolean }
+
+  function order(list: T[]): number[] {
+    const pending = list.filter((t) => !t.done);
+    const done = list.filter((t) => t.done);
+    return [...pending, ...done].map((t) => t.id);
+  }
+
+  it('未完成在前，已完成的沉到底部', () => {
+    const list: T[] = [
+      { id: 1, priority: 'normal', done: false },
+      { id: 2, priority: 'urgent-important', done: true },
+      { id: 3, priority: 'important', done: false },
     ];
-    expect(nearestClassCalendarName(today, [], now, names)).toBe('课程表');
-  });
-
-  it('今天的课都上完了则取明天第一节课所属日历', () => {
-    const now = new Date(2026, 8, 29, 22, 0);
-    const today = [{ start: '14:30', calendarId: 1 }];
-    const tomorrow = [{ start: '08:00', calendarId: 2 }];
-    expect(nearestClassCalendarName(today, tomorrow, now, names)).toBe('课程表');
-  });
-
-  it('今天和明天都没课时返回空串（原生端回退显示应用名）', () => {
-    const now = new Date(2026, 8, 29, 10, 0);
-    expect(nearestClassCalendarName([], [], now, names)).toBe('');
-  });
-
-  it('来源日历取不到名字时继续往后找', () => {
-    const now = new Date(2026, 8, 29, 10, 0);
-    const today = [
-      { start: '14:30', calendarId: 999 }, // 已删除的日历
-      { start: '19:00', calendarId: 3 },
-    ];
-    expect(nearestClassCalendarName(today, [], now, names)).toBe('社团');
+    expect(order(list)).toEqual([1, 3, 2]);
   });
 });

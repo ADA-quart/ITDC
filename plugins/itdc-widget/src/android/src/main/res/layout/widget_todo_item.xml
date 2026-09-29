@@ -4,16 +4,17 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingTop="4dp"
-    android:paddingBottom="4dp">
+    android:paddingTop="5dp"
+    android:paddingBottom="5dp">
 
-    <TextView
-        android:id="@+id/todo_dot"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="6dp"
-        android:textSize="12sp"
-        android:textColor="#FF4C9AFF" />
+    <!-- 复选框：点按可直接完成待办 -->
+    <ImageView
+        android:id="@+id/todo_check"
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:layout_marginEnd="9dp"
+        android:src="@drawable/ic_todo_unchecked"
+        android:contentDescription="@string/widget_toggle_done" />
 
     <TextView
         android:id="@+id/todo_title"

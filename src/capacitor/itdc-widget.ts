@@ -8,6 +8,10 @@ export interface ItdcWidgetPluginInterface {
   isIgnoringBatteryOptimizations(): Promise<{ ignoring: boolean }>;
   /** 打开系统电池优化设置页 */
   openBatterySettings(): Promise<void>;
+  /** 读取桌面上"打勾完成"的操作队列（待 App 写回数据库） */
+  getDoneQueue(): Promise<{ done: number[]; undone: number[] }>;
+  /** 写回成功后清空队列 */
+  clearDoneQueue(): Promise<void>;
 }
 
 export const ITDCWidgetPlugin = registerPlugin<ItdcWidgetPluginInterface>("itdc-widget");

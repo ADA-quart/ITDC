@@ -54,6 +54,30 @@ public class ITDCWidgetPlugin extends Plugin {
         call.resolve();
     }
 
+    /**
+     * App 侧读取桌面上"打勾完成"的操作队列。
+     * App 拿到后写回本地数据库，成功则调用 clearDoneQueue 清空。
+     */
+    @PluginMethod
+    public void getDoneQueue(PluginCall call) {
+        try {
+            call.resolve(JSObject.fromJSONObject(WidgetDoneStore.readQueue(getContext())));
+        } catch (Exception e) {
+            call.reject("read queue failed: " + e.getMessage());
+        }
+    }
+
+    /** App 写回成功后清空队列 */
+    @PluginMethod
+    public void clearDoneQueue(PluginCall call) {
+        try {
+            WidgetDoneStore.clear(getContext());
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("clear queue failed: " + e.getMessage());
+        }
+    }
+
     /** 查询本应用是否已被系统排除在电池优化之外（澎湃 OS / MIUI 会冻结后台导致小组件不刷新） */
     @PluginMethod
     public void isIgnoringBatteryOptimizations(PluginCall call) {

@@ -108,15 +108,35 @@
         android:background="@color/widget_divider"
         android:contentDescription="@null" />
 
-    <!-- 待办区标题 -->
-    <TextView
-        android:id="@+id/widget_todo_header"
+    <!-- 待办区标题 + 全部完成按钮 -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:layout_marginTop="6dp"
-        android:layout_marginBottom="2dp"
-        android:textSize="13sp"
-        android:textColor="@color/widget_section_label" />
+        android:layout_marginBottom="2dp">
+
+        <TextView
+            android:id="@+id/widget_todo_header"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="13sp"
+            android:textColor="@color/widget_section_label" />
+
+        <TextView
+            android:id="@+id/widget_todo_all_done"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingStart="8dp"
+            android:paddingEnd="2dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp"
+            android:textSize="12sp"
+            android:textColor="#FF4C9AFF"
+            android:text="@string/widget_all_done" />
+    </LinearLayout>
 
     <!-- 待办列表：独立滚动 -->
     <ListView

@@ -13,11 +13,13 @@
     <!-- 课表区 -->
     <string name="widget_today">今天</string>
     <string name="widget_tomorrow">明天</string>
-    <string name="widget_no_class_today">今天没有课</string>
+    <string name="widget_no_class_today">今天没有课啦</string>
     <string name="widget_no_class_tomorrow">明天没有课啦</string>
     <string name="widget_no_todo">暂无待办</string>
     <string name="widget_due_prefix">截止 </string>
     <string name="widget_week_prefix">第</string>
     <string name="widget_week_suffix">周</string>
     <string name="widget_todo_header">待办</string>
+    <string name="widget_all_done">全部完成</string>
+    <string name="widget_toggle_done">标记完成</string>
 </resources>

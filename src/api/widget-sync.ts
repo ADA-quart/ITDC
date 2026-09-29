@@ -31,6 +31,8 @@ export interface WidgetTodoItem {
   deadline: string;
   /** 已排期时段（HH:mm-HH:mm），未排程为空 */
   slot: string;
+  /** 是否已完成：原生端据此显示复选框与划线 */
+  done: boolean;
 }
 
 export interface WidgetSnapshot {
@@ -218,18 +220,27 @@ export async function buildWidgetSnapshot(): Promise<WidgetSnapshot> {
   const schedule = scheduleForDay(todayDate, events, todos, calendarColorById);
   const tomorrowItems = scheduleForDay(tomorrowDate, events, todos, calendarColorById);
 
-  // 待办：未完成，按四象限优先级 + 截止时间排序；取 8 条供列表滚动
-  const pending: Todo[] = todos
-    .filter((t) => t.status !== 'done' && !t.completed_at)
-    .sort((a, b) => {
-      const scoreA = a.urgency * 10 + a.importance;
-      const scoreB = b.urgency * 10 + b.importance;
-      if (scoreA !== scoreB) return scoreB - scoreA;
-      const da = a.deadline || '9999-12-31';
-      const db = b.deadline || '9999-12-31';
-      return da.localeCompare(db);
-    })
-    .slice(0, 8);
+  // 待办：未完成优先，今天刚完成的排在末尾（保留划线效果到当天结束），
+  // 隔天不再展示。整体按四象限优先级 + 截止时间排序。
+  const isDone = (t: Todo) => t.status === 'done' || !!t.completed_at;
+  const doneToday = (t: Todo) => {
+    if (!t.completed_at) return false;
+    return dayKey(t.completed_at) === dayKey(now);
+  };
+
+  const sortedTodos = [...todos].sort((a, b) => {
+    const scoreA = a.urgency * 10 + a.importance;
+    const scoreB = b.urgency * 10 + b.importance;
+    if (scoreA !== scoreB) return scoreB - scoreA;
+    const da = a.deadline || '9999-12-31';
+    const db = b.deadline || '9999-12-31';
+    return da.localeCompare(db);
+  });
+
+  const pending = [
+    ...sortedTodos.filter((t) => !isDone(t)),
+    ...sortedTodos.filter((t) => isDone(t) && doneToday(t)),
+  ].slice(0, 10);
 
   const week = teachingWeek(now);
 
@@ -246,6 +257,7 @@ export async function buildWidgetSnapshot(): Promise<WidgetSnapshot> {
       urgency: t.urgency,
       importance: t.importance,
       priority: t.priority,
+      done: t.status === 'done' || !!t.completed_at,
       deadline: t.deadline ? `${new Date(t.deadline).getMonth() + 1}/${new Date(t.deadline).getDate()}` : '',
       slot: t.scheduled_start && t.scheduled_end
         ? `${hhmm(t.scheduled_start)}-${hhmm(t.scheduled_end)}`
@@ -282,5 +294,59 @@ export async function setWidgetMode(mode: 'local' | 'server'): Promise<void> {
     await ITDCWidgetPlugin.pushSnapshot({ json: JSON.stringify(snapshot), mode });
   } catch (err) {
     console.warn('小组件模式切换失败:', err);
+  }
+}
+
+/**
+ * 消费桌面上的"打勾完成"操作，写回本地数据库。
+ *
+ * 小组件读不到 WebView 的 IndexedDB，所以在桌面打勾只能先记在原生侧的队列里：
+ * 桌面立刻显示划线，App 下次启动/回到前台时把队列合并进数据库，再清空。
+ * 写回失败时保留队列，下次重试，避免桌面状态与数据库永久不一致。
+ *
+ * @returns 实际写回的条数（0 表示没有待处理的操作）
+ */
+export async function consumeWidgetDoneQueue(): Promise<number> {
+  if (!Capacitor.isNativePlatform()) return 0;
+
+  let queue: { done: number[]; undone: number[] };
+  try {
+    queue = await ITDCWidgetPlugin.getDoneQueue();
+  } catch {
+    return 0;
+  }
+
+  const doneIds = Array.isArray(queue?.done) ? queue.done : [];
+  const undoneIds = Array.isArray(queue?.undone) ? queue.undone : [];
+  if (doneIds.length === 0 && undoneIds.length === 0) return 0;
+
+  try {
+    const todos = await offline.getCachedTodos();
+    const nowIso = new Date().toISOString();
+    let changed = 0;
+
+    const next = todos.map((t) => {
+      if (doneIds.includes(t.id) && t.status !== 'done') {
+        changed++;
+        return { ...t, status: 'done' as const, completed_at: nowIso };
+      }
+      if (undoneIds.includes(t.id) && (t.status === 'done' || t.completed_at)) {
+        changed++;
+        return { ...t, status: 'pending' as const, completed_at: null };
+      }
+      return t;
+    });
+
+    if (changed > 0) {
+      await offline.saveCachedTodos(next);
+      window.dispatchEvent(new CustomEvent('itdc-widget-sync'));
+    }
+
+    // 即使某条 id 已不存在（被别处删除），也算处理完毕：继续留在队列只会无限重试
+    await ITDCWidgetPlugin.clearDoneQueue();
+    return changed;
+  } catch (err) {
+    console.warn('小组件完成状态回写失败，保留队列待下次重试:', err);
+    return 0;
   }
 }
