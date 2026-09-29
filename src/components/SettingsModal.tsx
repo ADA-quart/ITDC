@@ -3,6 +3,7 @@ import { Modal, Form, Input, Select, Button, Table, Tag, message, Space, Popconf
 import { llmConfigApi, promptTemplateApi, settingsApi, api, setApiBase, getApiBase, isSyncEnabled } from '../api/client';
 import { Capacitor } from '@capacitor/core';
 import { ITDCWidgetPlugin } from '../capacitor/itdc-widget';
+import { pushWidgetSnapshot, setWidgetMode } from '../api/widget-sync';
 import { scheduleApi } from '../api/client';
 import type { LLMConfig } from '../types';
 import { useI18n } from '../i18n';
@@ -126,6 +127,7 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
       setSyncOn(true);
       if (Capacitor.isNativePlatform()) {
         try { await ITDCWidgetPlugin.setServerUrl({ url: normalized }); } catch {}
+        try { await setWidgetMode('server'); } catch {}
       }
       message.success(t.settings.serverConnected + '：' + normalized);
       window.dispatchEvent(new CustomEvent('todo-data-changed'));
@@ -140,6 +142,7 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
     setSyncOn(false);
     if (Capacitor.isNativePlatform()) {
       void ITDCWidgetPlugin.setServerUrl({ url: '__local__' }).catch(() => {});
+      void setWidgetMode('local').catch(() => {});
     }
     message.success(t.settings.serverReset);
     window.dispatchEvent(new CustomEvent('todo-data-changed'));

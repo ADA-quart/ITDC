@@ -21,6 +21,7 @@ import DailyReview from './components/DailyReview';
 import SettingsModal from './components/SettingsModal';
 import { Capacitor } from '@capacitor/core';
 import { ITDCWidgetPlugin } from './capacitor/itdc-widget';
+import { pushWidgetSnapshot } from './api/widget-sync';
 import { useI18n } from './i18n';
 import { useTheme } from './contexts/ThemeContext';
 import { useIsMobile } from './hooks/useIsMobile';
@@ -65,13 +66,32 @@ const App: React.FC = () => {
     return () => { if (unsub) unsub(); window.removeEventListener('todo-offline-mode', handleOfflineMode); };
   }, []);
 
-  // 启动探测：确认服务器是否可用。
+    // 启动探测：确认服务器是否可用。
   // 不可达时整场会话退化为本机模式，后续请求不再白等超时——这是"本地优先"的关键一步。
   useEffect(() => {
     void probeSync().then((reachable) => {
       if (reachable) window.dispatchEvent(new CustomEvent('todo-data-changed'));
       else setIsOffline(false); // 本机模式不是异常状态，不显示离线警告
     });
+  }, []);
+
+  // 桌面小组件数据桥：启动时与每次数据变更后，把最新快照推给原生侧。
+  // 仅本机模式下小组件读不到 WebView 的 IndexedDB，只能靠这条通道拿到数据。
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    void pushWidgetSnapshot();
+    const handler = () => { void pushWidgetSnapshot(); };
+    // 同时监听两类事件：数据层变更（itdc-widget-sync）与视图级刷新（todo-data-changed）
+    window.addEventListener('itdc-widget-sync', handler);
+    window.addEventListener('todo-data-changed', handler);
+    // App 回到前台时补推一次：覆盖"昨天打开过、今天再进来"的跨天场景
+    const onVisible = () => { if (document.visibilityState === 'visible') void pushWidgetSnapshot(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('itdc-widget-sync', handler);
+      window.removeEventListener('todo-data-changed', handler);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
 
   // 视图（如日历加载失败）可发此事件引导用户直接打开设置

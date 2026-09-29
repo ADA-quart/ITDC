@@ -138,6 +138,16 @@ function isNetworkError(err: any): boolean {
   return !err?.response || offline.isMalformedResponseError(err);
 }
 
+/**
+ * 数据已变更的通知。
+ * 独立事件名：只用于驱动桌面小组件快照刷新，不干扰各视图自身的重载逻辑。
+ */
+function notifyDataChanged(): void {
+  try {
+    window.dispatchEvent(new CustomEvent('itdc-widget-sync'));
+  } catch { /* 非浏览器环境忽略 */ }
+}
+
 // ---------- 本地 ID 分配：取现有数据最大 id + 1，避免与服务器 id 冲突 ----------
 function nextIdFrom<T extends { id: number }>(rows: T[]): number {
   return rows.reduce((max, r) => Math.max(max, r.id), 0) + 1;
@@ -189,6 +199,7 @@ export const todoApi = {
         const created = await serverApi.todos.create(data);
         await offline.saveCachedTodos([...todos, created]);
         setOfflineMode(false);
+        notifyDataChanged();
         return created;
       } catch (err) {
         if (!isNetworkError(err)) throw err;
@@ -197,6 +208,7 @@ export const todoApi = {
     }
 
     await offline.saveCachedTodos([...todos, local]);
+    notifyDataChanged();
     return local;
   },
 
@@ -213,6 +225,7 @@ export const todoApi = {
           : [...todos, updated];
         await offline.saveCachedTodos(merged);
         setOfflineMode(false);
+        notifyDataChanged();
         return updated;
       } catch (err) {
         if (!isNetworkError(err)) throw err;
@@ -222,6 +235,7 @@ export const todoApi = {
 
     if (!updatedLocal) throw new Error('待办不存在');
     await offline.saveCachedTodos(todos.map((t) => (t.id === id ? updatedLocal : t)));
+    notifyDataChanged();
     return updatedLocal;
   },
 
@@ -238,6 +252,7 @@ export const todoApi = {
 
     const todos = await offline.getCachedTodos();
     await offline.saveCachedTodos(offline.localDelete(todos, id));
+    notifyDataChanged();
     return { success: true };
   },
 
@@ -259,6 +274,7 @@ export const todoApi = {
     const replaced = offline.localSplit(todos[idx], segments);
     todos.splice(idx, 1, ...replaced);
     await offline.saveCachedTodos(todos);
+    notifyDataChanged();
     return replaced[0];
   },
 
@@ -325,6 +341,7 @@ export const calendarApi = {
     const { calendars, events } = offline.localDeleteCalendar(calC, evC, id);
     await offline.saveCalendarCache(calendars);
     await offline.saveEventCache(events);
+    notifyDataChanged();
     return { success: true };
   },
 
@@ -397,6 +414,7 @@ export const calendarApi = {
 
     const cached = await offline.getEventCache();
     await offline.saveEventCache(offline.localDeleteEvent(cached, id));
+    notifyDataChanged();
     return { success: true };
   },
 
@@ -587,6 +605,7 @@ export const scheduleApi = {
 
     await offline.saveCachedTodos(todos);
     void events;
+    notifyDataChanged();
     return { success: true, applied_count: schedule.length };
   },
 };
