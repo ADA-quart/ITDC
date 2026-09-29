@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, Select, Button, Table, Tag, message, Space, Popconfirm, Tabs, Spin } from 'antd';
-import { llmConfigApi, promptTemplateApi, settingsApi, api, setApiBase, getApiBase } from '../api/client';
+import { Modal, Form, Input, Select, Button, Table, Tag, message, Space, Popconfirm, Tabs, Spin, Alert } from 'antd';
+import { llmConfigApi, promptTemplateApi, settingsApi, api, setApiBase, getApiBase, isSyncEnabled } from '../api/client';
 import { Capacitor } from '@capacitor/core';
 import { ITDCWidgetPlugin } from '../capacitor/itdc-widget';
 import { scheduleApi } from '../api/client';
@@ -62,6 +62,7 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
   const [promptSaving, setPromptSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('llm');
   const [serverUrl, setServerUrl] = useState(getApiBase());
+  const [syncOn, setSyncOn] = useState(isSyncEnabled());
   const [testingServer, setTestingServer] = useState(false);
   const [debugLog, setDebugLog] = useState('');
 
@@ -122,6 +123,7 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
       }
       setApiBase(normalized);
       setServerUrl(normalized);
+      setSyncOn(true);
       if (Capacitor.isNativePlatform()) {
         try { await ITDCWidgetPlugin.setServerUrl({ url: normalized }); } catch {}
       }
@@ -133,8 +135,12 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
   };
 
   const handleResetServer = () => {
-    setApiBase('/api');
-    setServerUrl('/api');
+    setApiBase(null);
+    setServerUrl('');
+    setSyncOn(false);
+    if (Capacitor.isNativePlatform()) {
+      void ITDCWidgetPlugin.setServerUrl({ url: '__local__' }).catch(() => {});
+    }
     message.success(t.settings.serverReset);
     window.dispatchEvent(new CustomEvent('todo-data-changed'));
   };
@@ -396,20 +402,57 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
             />
           </div>
           <div>
-            <h4>{locale === 'zh' ? '服务器地址' : 'Server Address'}</h4>
-            <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 8 }}>
-              {locale === 'zh'
-                ? '手机/电脑连同一个服务即可云端同步。填公网地址：https://你的域名/api；家里局域网用：http://电脑IP:3000/api（浏览器同机访问默认 /api）'
-                : 'Point every device at one server to sync across networks. Public: https://your-domain/api. Home LAN: http://YOUR_PC_IP:3000/api (same-machine browser defaults to /api)'}
+            <h4>{t.settings.dataMode}</h4>
+            <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 12 }}>
+              {t.settings.dataModeHint}
             </p>
-            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, alignItems: isMobile ? 'stretch' : 'center', flexWrap: 'wrap' }}>
-              <Input value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder='http://192.168.x.x:3000/api' style={{ width: isMobile ? '100%' : 340 }} />
-              <Button type="primary" onClick={handleSaveServer} loading={testingServer} block={isMobile}>{locale === 'zh' ? '保存并测试' : 'Save & Test'}</Button>
-              <Button onClick={handleResetServer} block={isMobile}>{t.settings.serverReset}</Button>
-            </div>
-            <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 8 }}>
-              {t.settings.widgetHint}
-            </p>
+            <Tabs
+              size="small"
+              activeKey={syncOn ? 'sync' : 'local'}
+              onChange={(key) => {
+                if (key === 'local') {
+                  handleResetServer();
+                } else {
+                  setSyncOn(true);
+                }
+              }}
+              items={[
+                {
+                  key: 'local',
+                  label: locale === 'zh' ? '仅本机' : 'This device only',
+                  children: (
+                    <Alert
+                      type="success"
+                      showIcon
+                      message={locale === 'zh' ? '数据保存在本机，完全离线可用' : 'Data stays on this device; fully offline'}
+                      description={
+                        locale === 'zh'
+                          ? '日历、待办、排程、iCal 与 Excel 导入导出全部在本机完成。换设备需手动导出/导入。'
+                          : 'Calendar, todos, scheduling, iCal and Excel all run locally. Move data between devices via export/import.'
+                      }
+                    />
+                  ),
+                },
+                {
+                  key: 'sync',
+                  label: locale === 'zh' ? '跨设备同步' : 'Sync across devices',
+                  children: (
+                    <div>
+                      <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 8 }}>
+                        {t.settings.syncHint}
+                      </p>
+                      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, alignItems: isMobile ? 'stretch' : 'center', flexWrap: 'wrap' }}>
+                        <Input value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder='http://192.168.x.x:3000/api' style={{ width: isMobile ? '100%' : 320 }} />
+                        <Button type="primary" onClick={handleSaveServer} loading={testingServer} block={isMobile}>{locale === 'zh' ? '保存并测试' : 'Save & Test'}</Button>
+                      </div>
+                      <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginTop: 8 }}>
+                        {t.settings.widgetHint}
+                      </p>
+                    </div>
+                  ),
+                },
+              ]}
+            />
           </div>
           <div>
             <h4>{t.settings.theme}</h4>

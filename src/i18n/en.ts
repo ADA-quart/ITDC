@@ -4,7 +4,7 @@ const en: LocaleMessages = {
   app: {
     title: 'Smart Calendar',
     designBy: 'Designed by ADA-quart',
-    offline: 'Offline — todos are from local cache',
+    offline: 'Not connected to a server; data is stored on this device',
   },
   nav: {
     calendar: 'Calendar',
@@ -58,8 +58,8 @@ const en: LocaleMessages = {
     calendarDeleted: 'Calendar deleted',
     calendarDeleteFailed: 'Failed to delete calendar',
     dataLoadFailed: 'Failed to load data',
-    dataLoadFailedNative: 'Cannot reach the server. Make sure the phone and PC share the same Wi-Fi and start.bat is running, then set the server address in Settings',
-    dataLoadFailedDesktop: 'Cannot reach the server. Make sure start.bat is running and the backend is up',
+    dataLoadFailedNative: 'Failed to read local data. Check your data mode in Settings',
+    dataLoadFailedDesktop: 'Failed to read local data. Check your data mode in Settings',
     currentServer: 'Current server',
     gotoSettings: 'Open Settings',
     todoPrefix: '[Todo] ',
@@ -208,13 +208,16 @@ const en: LocaleMessages = {
     llmPromptHint: 'Use {{current_time}} as placeholder for current time',
     cancel: 'Cancel',
     general: 'General',
+    dataMode: 'Data mode',
+    dataModeHint: 'This device only by default: calendar, todos, scheduling and import/export work without a server. Turn on sync to share data between phone and PC.',
+    syncHint: 'Point both devices at the same server address to sync. Public: https://your-domain/api. Home LAN: http://YOUR_PC_IP:3000/api',
     widgetHint: "Saving will sync the server URL to your home widget for quick access to today's schedule and todos",
     widgetSynced: 'Server URL synced to home widget',
     serverConnected: 'Connected to server',
     serverUnreachable: 'Server unreachable: check the PC IP, port 3000 and same Wi-Fi',
     serverNotApi: 'Unexpected response: reachable but not an ITDC API endpoint',
     serverInvalidFormat: 'Invalid format, must start with http:// or https://',
-    serverReset: 'Reset to default /api'
+    serverReset: 'Switched to this-device-only mode'
   },
 };
 

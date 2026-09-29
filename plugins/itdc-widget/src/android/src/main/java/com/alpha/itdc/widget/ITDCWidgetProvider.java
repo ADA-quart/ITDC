@@ -21,6 +21,8 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
 
     private static final String TAG = "ITDCWidget";
     private static final long REFRESH_INTERVAL_MS = 30 * 60 * 1000L;
+    /** App 处于"仅本机"模式时写入的标记：数据在 App 内，桌面小组件无法直接读取 */
+    private static final String LOCAL_MODE = "__local__";
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -83,6 +85,8 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
 
     private void refreshWidget(Context context, int appWidgetId) {
         String serverUrl = getServerUrl(context);
+        // 仅本机模式：给出准确提示而不是"未配置服务器"，避免误导
+        if (LOCAL_MODE.equals(serverUrl)) { updateLocalMode(context, appWidgetId); return; }
         if (serverUrl == null || serverUrl.isEmpty()) { updateMissingServer(context, appWidgetId); return; }
         int[] size = widgetSize(context, appWidgetId);
         new Thread(() -> {
@@ -144,6 +148,18 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
                 rv.setOnClickPendingIntent(R.id.widget_container_error, openAppIntent(context));
                 awm.updateAppWidget(appWidgetId, rv);
             } catch (Exception e) { Log.e(TAG, "updateMissingServer failed", e); }
+        });
+    }
+
+    private void updateLocalMode(Context context, int appWidgetId) {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            try {
+                AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
+                RemoteViews rv = new RemoteViews(context.getPackageName(), R.layout.widget_today_error);
+                rv.setTextViewText(R.id.error_text, context.getString(R.string.widget_local_mode));
+                rv.setOnClickPendingIntent(R.id.widget_container_error, openAppIntent(context));
+                awm.updateAppWidget(appWidgetId, rv);
+            } catch (Exception e) { Log.e(TAG, "updateLocalMode failed", e); }
         });
     }
 

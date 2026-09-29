@@ -2,7 +2,7 @@ const zh = {
   app: {
     title: '智能日历规划',
     designBy: 'Designed by ADA-quart',
-    offline: '当前离线，待办数据为本地缓存',
+    offline: '未连接服务器，数据保存在本机',
   },
   nav: {
     calendar: '日历视图',
@@ -56,8 +56,8 @@ const zh = {
     calendarDeleted: '日历已删除',
     calendarDeleteFailed: '删除日历失败',
     dataLoadFailed: '加载数据失败',
-    dataLoadFailedNative: '连接不上服务器。请确认手机与电脑在同一 Wi-Fi，且电脑已在运行 start.bat，然后在设置中填写服务器地址',
-    dataLoadFailedDesktop: '连接不上服务器。请确认已运行 start.bat 且后端服务已启动',
+    dataLoadFailedNative: '读取本机数据出错。可在设置中查看数据模式',
+    dataLoadFailedDesktop: '读取本机数据出错。可在设置中查看数据模式',
     currentServer: '当前服务器',
     gotoSettings: '去设置',
     todoPrefix: '[待办] ',
@@ -212,7 +212,10 @@ const zh = {
     serverUnreachable: '服务器不可达：请检查电脑 IP、端口 3000 与同一 Wi-Fi',
     serverNotApi: '服务器响应异常：该地址可达但不是 ITDC API 端点',
     serverInvalidFormat: '地址格式有误，需以 http:// 或 https:// 开头',
-    serverReset: '已恢复默认地址 /api'
+    serverReset: '已切换为仅本机模式（不连接服务器）',
+    dataMode: '数据模式',
+    dataModeHint: '默认仅本机：不连服务器也能完整使用日历、待办、排程与导入导出。需要手机和电脑同步时，再开启跨设备同步。',
+    syncHint: '手机和电脑填同一个服务地址即可自动同步。公网：https://你的域名/api；家里局域网：http://电脑IP:3000/api'
   },
 };
 

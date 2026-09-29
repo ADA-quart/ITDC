@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as offline from './api/offline';
-import { todoApi, calendarApi } from './api/client';
+import { todoApi, calendarApi, probeSync } from './api/client';
 import { ConfigProvider, Layout, Menu, theme as antTheme, Button } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import enUS from 'antd/locale/en_US';
@@ -58,17 +58,20 @@ const App: React.FC = () => {
     let unsub: any;
     const setOfflineState = (online: boolean) => {
       setIsOffline(!online);
-      if (online) {
-        void offline
-          .flushQueue(todoApi, calendarApi)
-          .then((n) => { if (n > 0) window.dispatchEvent(new CustomEvent('todo-data-changed')); })
-          .catch((err) => console.warn('离线队列同步失败:', err));
-      }
     };
     unsub = offline.onOnlineChange(setOfflineState);
     const handleOfflineMode = (e: any) => setIsOffline(e.detail?.mode === true);
     window.addEventListener('todo-offline-mode', handleOfflineMode);
     return () => { if (unsub) unsub(); window.removeEventListener('todo-offline-mode', handleOfflineMode); };
+  }, []);
+
+  // 启动探测：确认服务器是否可用。
+  // 不可达时整场会话退化为本机模式，后续请求不再白等超时——这是"本地优先"的关键一步。
+  useEffect(() => {
+    void probeSync().then((reachable) => {
+      if (reachable) window.dispatchEvent(new CustomEvent('todo-data-changed'));
+      else setIsOffline(false); // 本机模式不是异常状态，不显示离线警告
+    });
   }, []);
 
   // 视图（如日历加载失败）可发此事件引导用户直接打开设置
@@ -78,22 +81,14 @@ const App: React.FC = () => {
     return () => window.removeEventListener('itdc-open-settings', handler);
   }, []);
 
-  // 移动端首次启动：未配置过服务器地址时自动打开设置，避免用户面对"加载数据失败"却无从下手
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-    try {
-      if (!localStorage.getItem('itdc_api_base')) { setSettingsTab('general'); setSettingsOpen(true); }
-    } catch {}
-  }, []);
-
-  // 已配置过地址的设备：启动时把当前地址推给桌面小组件，
-  // 避免用户升级 App 后小组件仍停留在"未配置服务器"状态。
+  // 启动时把当前服务器地址推给桌面小组件（仅同步模式；仅本机模式下小组件显示本机数据提示）
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     try {
       const base = localStorage.getItem('itdc_api_base');
-      if (!base) return;
-      void ITDCWidgetPlugin.setServerUrl({ url: base }).catch(() => {});
+      // 空字符串或 null 表示仅本机：推 __local__ 让小组件给出准确文案而不是"未配置服务器"
+      const url = base ? base : '__local__';
+      void ITDCWidgetPlugin.setServerUrl({ url }).catch(() => {});
     } catch {}
   }, []);
   const handleMenuClick = (key: string) => {
@@ -123,6 +118,7 @@ const App: React.FC = () => {
     { key: 'review', icon: <PieChartOutlined />, label: t.nav.review },
   ];
 
+  // 仅同步模式下的网络异常才提示；仅本机模式属于正常使用，不显示任何警告横幅
   const offlineBanner = isOffline ? (
     <div style={{ position: 'sticky', top: 0, zIndex: 200, background: '#faad14', color: '#8a5a00', padding: '6px 12px', fontSize: 12, textAlign: 'center' }}>
       {t.app.offline}

@@ -118,6 +118,19 @@ export function isMalformedResponseError(err: unknown): boolean {
   return (err as { malformedResponse?: boolean } | null | undefined)?.malformedResponse === true;
 }
 
+// 单实体响应校验：Post/Put 也可能被中间层替换成 HTML（200 + index.html），
+// 若不加校验会把字符串当成业务对象写进缓存，后续渲染时才崩。
+export function requireEntity<T>(value: unknown, what: string): T {
+  if (value && typeof value === 'object' && !Array.isArray(value) && typeof (value as { id?: unknown }).id === 'number') {
+    return value as T;
+  }
+  const head = typeof value === 'string'
+    ? value.slice(0, 30).split(String.fromCharCode(10)).join(' ')
+    : typeof value;
+  console.warn('[api] ' + what + ' 返回的不是有效对象（收到 ' + head + '），按网络故障处理');
+  throw malformedResponseError(what);
+}
+
 // ---------- 待办缓存读写 ----------
 export async function getCachedTodos(): Promise<Todo[]> {
   try {

@@ -108,12 +108,7 @@ const CalendarView: React.FC = () => {
       message.error(t.calendar.dataLoadFailed);
       const base = getApiBase();
       const hint = Capacitor.isNativePlatform() ? t.calendar.dataLoadFailedNative : t.calendar.dataLoadFailedDesktop;
-      setLoadError(`${hint}（${t.calendar.currentServer}: ${base}）`);
-      // 移动端首次失败自动打开设置引导配置；桌面端只常驻提示，避免打断使用
-      if (Capacitor.isNativePlatform() && !settingsPromptedRef.current) {
-        settingsPromptedRef.current = true;
-        window.dispatchEvent(new CustomEvent('itdc-open-settings'));
-      }
+      setLoadError(base ? `${hint}（${t.calendar.currentServer}: ${base}）` : hint);
     }
   }, [buildEvents]);
 
@@ -261,7 +256,7 @@ const CalendarView: React.FC = () => {
   const handleExportWeek = async () => {
     try {
       setExporting(true);
-      await calendarApi.exportWeek();
+      await calendarApi.exportWeek(locale);
       message.success(t.calendar.weekExported);
     } catch {
       message.error(t.calendar.exportFailed);
@@ -273,7 +268,7 @@ const CalendarView: React.FC = () => {
   const handleExportIcal = async () => {
     try {
       setExportingIcal(true);
-      await calendarApi.exportIcal();
+      await calendarApi.exportIcal(locale);
       message.success(t.calendar.icalExported);
     } catch {
       message.error(t.calendar.exportFailed);

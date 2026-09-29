@@ -6,6 +6,7 @@ import { todoApi, scheduleApi } from '../api/client';
 import type { Todo, Priority, TodoStatus } from '../types';
 import { PRIORITY_LABELS, PRIORITY_COLORS, TODO_PALETTE } from '../types';
 import { getDeadlineCountdown } from '../utils/priority';
+import { syncAllReminders } from '../api/reminders';
 import TodoForm from './TodoForm';
 import TodoSplitModal from './TodoSplitModal';
 import { useI18n } from '../i18n';
@@ -51,6 +52,8 @@ const TodoList: React.FC = () => {
       if (filterStatus) params.status = filterStatus;
       const data = await todoApi.getAll(params);
       setTodos(data);
+      // 本地通知排程：Android 端按最新数据重排提醒（不依赖服务器）
+      void syncAllReminders(data);
     } catch {
       message.error(t.todo.loadFailed);
     } finally {

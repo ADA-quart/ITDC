@@ -5,4 +5,5 @@
     <string name="widget_empty">今日暂无安排\n点按打开 ITDC 添加日程</string>
     <string name="widget_missing_server">未配置服务器\n请在 ITDC 设置中填写地址</string>
     <string name="widget_offline">连接不上服务器\n请检查地址与网络</string>
+    <string name="widget_local_mode">仅本机模式\n打开 ITDC 查看今日安排</string>
 </resources>
