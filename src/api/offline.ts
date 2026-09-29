@@ -99,6 +99,7 @@ export function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
 
+// 服务器或中间层可能返回非数组：典型场景是 Capacitor 本地服务器把未命中的 /api/* 回退成 index.html
 export function malformedResponseError(what: string): Error {
   const err = new Error('接口返回格式异常：' + what + ' 不是数组') as Error & { malformedResponse?: boolean };
   err.malformedResponse = true;
@@ -167,30 +168,6 @@ export async function getEventCache(): Promise<CalendarEvent[]> {
 
 export async function saveEventCache(events: CalendarEvent[]): Promise<void> {
   try { await set('events', events); } catch {}
-}
-
-// ---------- 队列 ----------
-async function getQueue(): Promise<OfflineOp[]> {
-  try {
-    return asArray<OfflineOp>(await get<OfflineOp[]>('queue'));
-  } catch {
-    return [];
-  }
-}
-
-export async function enqueue(op: OfflineOp): Promise<void> {
-  try {
-    const q = await getQueue();
-    q.push(op);
-    await set('queue', q);
-  } catch (err) {
-    // 入队失败只影响后续同步，本地数据此前已写入缓存；此处吞掉，避免冒泡成未处理拒绝
-    console.warn('离线队列写入失败:', err);
-  }
-}
-
-export async function clearQueue(): Promise<void> {
-  try { await set('queue', []); } catch {}
 }
 
 // ---------- 本地 ID（离线时生成临时 ID，同步后以服务器返回为准） ----------
@@ -268,11 +245,6 @@ export function localCreateCalendar(data: Partial<Calendar>): Calendar {
     created_at: now,
   };
 }
-
-export function localUpdateCalendar(calendars: Calendar[], id: number, data: Partial<Calendar>): Calendar[] {
-  return calendars.map(c => (c.id === id ? { ...c, ...data } : c));
-}
-
 // 删除日历：连带删掉它的事件（本地）
 export function localDeleteCalendar(calendars: Calendar[], events: CalendarEvent[], id: number): { calendars: Calendar[]; events: CalendarEvent[] } {
   return {
@@ -329,84 +301,4 @@ export function isOnline(): boolean {
 export function onOnlineChange(cb: OnlineListener): void {
   listeners.push(cb);
   cb(navigator?.onLine ?? true);
-}
-
-// ---------- flush：把队列里的操作按顺序发到服务器 ----------
-export interface TodoApiLike {
-  getAll: (params?: any) => Promise<Todo[]>;
-  create: (data: Partial<Todo>) => Promise<Todo>;
-  update: (id: number, data: Partial<Todo>) => Promise<Todo>;
-  delete: (id: number) => Promise<{ success: boolean }>;
-  split: (id: number, segments: { start: string; end: string }[]) => Promise<Todo>;
-  parseNL: (text: string) => Promise<Todo>;
-}
-
-export interface CalendarApiLike {
-  getAll: () => Promise<Calendar[]>;
-  create: (data: Partial<Calendar>) => Promise<Calendar>;
-  delete: (id: number) => Promise<any>;
-  getEvents: () => Promise<CalendarEvent[]>;
-  createEvent: (data: Partial<CalendarEvent>) => Promise<CalendarEvent>;
-  updateEvent: (id: number, data: Partial<CalendarEvent>) => Promise<CalendarEvent>;
-  deleteEvent: (id: number) => Promise<any>;
-}
-
-// 服务器 404：目标资源已不存在（例如离线期间被别处删除），该操作已失去意义
-export function isStaleOperationError(err: any): boolean {
-  return err?.response?.status === 404;
-}
-
-// 返回本次真正同步掉的队列条数；返回 0 表示队列本为空（调用方据此避免无意义的刷新）
-export async function flushQueue(todoApi: TodoApiLike, calendarApi?: CalendarApiLike): Promise<number> {
-  const queue = await getQueue();
-  if (queue.length === 0) return 0;
-  let processed = 0;
-  for (const op of queue) {
-    try {
-      switch (op.op) {
-        // ---- todo ----
-        case 'create':
-          await todoApi.create(op.data!);
-          break;
-        case 'update':
-          await todoApi.update(op.id!, op.data!);
-          break;
-        case 'delete':
-          await todoApi.delete(op.id!);
-          break;
-        case 'split':
-          // 离线 split 的本地 ID 与服务器不匹配，跳过；重新拉取即可
-          break;
-        // ---- calendar ----
-        case 'create-calendar':
-          if (calendarApi) { await calendarApi.create(op.data!); } else { throw new Error('no calendar api'); }
-          break;
-        case 'update-calendar':
-          // 服务器端无 update-calendar API，跳过；重新拉取即可
-          break;
-        case 'delete-calendar':
-          if (calendarApi) { await calendarApi.delete(op.id!); } else { throw new Error('no calendar api'); }
-          break;
-        case 'create-event':
-          if (calendarApi) { await calendarApi.createEvent(op.data!); } else { throw new Error('no calendar api'); }
-          break;
-        case 'update-event':
-          // 服务器端 update 需要真实 ID；离线生成的临时 ID 不匹配 → 跳过，重新拉取即可
-          break;
-        case 'delete-event':
-          if (calendarApi) { await calendarApi.deleteEvent(op.id!); } else { throw new Error('no calendar api'); }
-          break;
-      }
-    } catch (err) {
-      // 目标已不存在：丢弃该操作继续同步，避免整个队列被一条失效操作永久卡住
-      if (isStaleOperationError(err)) continue;
-      // 其它失败：保留它和后面的队列，下次再试
-      const idx = queue.indexOf(op);
-      await set('queue', [op, ...queue.slice(idx + 1)]);
-      return processed;
-    }
-    processed++;
-  }
-  await clearQueue();
-  return processed;
 }
