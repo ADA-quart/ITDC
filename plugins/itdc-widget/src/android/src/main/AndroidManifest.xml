@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 网络状态：判断是否需要回退到本机快照 -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
     <application>
         <receiver
@@ -15,6 +17,18 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/app_widget_itdc" />
+        </receiver>
+
+        <!-- 时间/日期变化单独用一个 receiver：不挂 BIND_APPWIDGET 权限，
+             避免与系统广播的发送方权限产生耦合导致收不到 -->
+        <receiver
+            android:name=".ITDCWidgetTimeChangeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.TIME_SET"/>
+                <action android:name="android.intent.action.TIMEZONE_CHANGED"/>
+                <action android:name="android.intent.action.DATE_CHANGED"/>
+            </intent-filter>
         </receiver>
     </application>
 

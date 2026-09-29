@@ -64,6 +64,7 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
   const [activeTab, setActiveTab] = useState('llm');
   const [serverUrl, setServerUrl] = useState(getApiBase());
   const [syncOn, setSyncOn] = useState(isSyncEnabled());
+  const [batteryIgnoring, setBatteryIgnoring] = useState<boolean | null>(null);
   const [testingServer, setTestingServer] = useState(false);
   const [debugLog, setDebugLog] = useState('');
 
@@ -98,6 +99,14 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
   useEffect(() => {
     if (open && initialTab) setActiveTab(initialTab);
   }, [open, initialTab]);
+
+  // 打开设置时查询电池优化状态：澎湃 OS / MIUI 默认冻结后台，会导致小组件不刷新
+  useEffect(() => {
+    if (!open || !Capacitor.isNativePlatform()) return;
+    void ITDCWidgetPlugin.isIgnoringBatteryOptimizations()
+      .then((r) => setBatteryIgnoring(r.ignoring))
+      .catch(() => setBatteryIgnoring(null));
+  }, [open]);
 
   const handleSaveServer = async () => {
     const raw = (serverUrl || '').trim().replace(/\/+$/, '');
@@ -470,6 +479,32 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
               ]}
             />
           </div>
+
+          {Capacitor.isNativePlatform() && (
+            <div>
+              <h4>{t.settings.widgetSection}</h4>
+              <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 8 }}>
+                {t.settings.widgetLocalHint}
+              </p>
+              {batteryIgnoring === false && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  style={{ marginBottom: 8 }}
+                  message={t.settings.batteryTitle}
+                  description={t.settings.batteryNeeded}
+                  action={
+                    <Button size="small" onClick={() => { void ITDCWidgetPlugin.openBatterySettings().catch(() => {}); }}>
+                      {t.settings.batteryAction}
+                    </Button>
+                  }
+                />
+              )}
+              {batteryIgnoring === true && (
+                <p style={{ fontSize: 12, color: '#52c41a', margin: 0 }}>{t.settings.batteryOk}</p>
+              )}
+            </div>
+          )}
           <div>
             <h4>{locale === 'zh' ? '调试日志' : 'Debug Log'}</h4>
             <Space style={{ marginBottom: 8 }}>

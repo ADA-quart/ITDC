@@ -215,7 +215,13 @@ const zh = {
     serverReset: '已切换为仅本机模式（不连接服务器）',
     dataMode: '数据模式',
     dataModeHint: '默认仅本机：不连服务器也能完整使用日历、待办、排程与导入导出。需要手机和电脑同步时，再开启跨设备同步。',
-    syncHint: '手机和电脑填同一个服务地址即可自动同步。公网：https://你的域名/api；家里局域网：http://电脑IP:3000/api'
+    syncHint: '手机和电脑填同一个服务地址即可自动同步。公网：https://你的域名/api；家里局域网：http://电脑IP:3000/api',
+    widgetSection: '桌面小组件',
+    widgetLocalHint: '小组件已支持仅本机模式：打开 App 后会推送今日安排，无需连接服务器。',
+    batteryTitle: '保持小组件刷新',
+    batteryOk: '已允许后台运行，小组件可正常刷新',
+    batteryNeeded: '系统当前限制了应用后台运行，小组件可能不自动刷新。建议把省电策略设为「无限制」。',
+    batteryAction: '去设置'
   },
 };
 

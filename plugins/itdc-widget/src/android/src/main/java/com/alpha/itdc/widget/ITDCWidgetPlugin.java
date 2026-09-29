@@ -1,5 +1,12 @@
 package com.alpha.itdc.widget;
 
+import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.PowerManager;
+import android.provider.Settings;
+
+import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
@@ -44,6 +51,47 @@ public class ITDCWidgetPlugin extends Plugin {
             ITDCWidgetProvider.setMode(getContext(), mode);
         }
         ITDCWidgetProvider.requestRefresh(getContext());
+        call.resolve();
+    }
+
+    /** 查询本应用是否已被系统排除在电池优化之外（澎湃 OS / MIUI 会冻结后台导致小组件不刷新） */
+    @PluginMethod
+    public void isIgnoringBatteryOptimizations(PluginCall call) {
+        boolean ignoring = false;
+        try {
+            Context ctx = getContext();
+            PowerManager pm = (PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
+            if (pm != null) {
+                ignoring = pm.isIgnoringBatteryOptimizations(ctx.getPackageName());
+            }
+        } catch (Exception e) {
+            call.reject("query failed: " + e.getMessage());
+            return;
+        }
+        JSObject ret = new JSObject();
+        ret.put("ignoring", ignoring);
+        call.resolve(ret);
+    }
+
+    /** 打开电池优化设置页，便于用户把本应用设为不受限 */
+    @PluginMethod
+    public void openBatterySettings(PluginCall call) {
+        Context ctx = getContext();
+        Intent intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            ctx.startActivity(intent);
+        } catch (Exception e) {
+            try {
+                Intent fallback = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                fallback.setData(Uri.parse("package:" + ctx.getPackageName()));
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx.startActivity(fallback);
+            } catch (Exception e2) {
+                call.reject("cannot open settings: " + e2.getMessage());
+                return;
+            }
+        }
         call.resolve();
     }
 }

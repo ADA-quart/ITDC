@@ -75,13 +75,25 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
 
     private void scheduleRefresh(Context context) {
         try {
+            // Android 15+ 起 setInexactRepeating 的最短周期被抬到 1 小时以上，
+            // Android 16 更是在 Doze 下直接跳过；同时澎湃 OS 会冻结后台进程。
+            // 因此这里只作为兜底，主刷新时机改为：
+            //   1) App 推送快照时主动触发（数据变更即时可见）
+            //   2) appwidget-provider 的 updatePeriodMillis（系统托管，不受进程冻结影响）
+            //   3) App 回到前台时补推
             AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
             Intent it = new Intent(context, ITDCWidgetProvider.class);
             it.setAction("com.alpha.itdc.WIDGET_REFRESH");
             int flags = PendingIntent.FLAG_UPDATE_CURRENT;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
             PendingIntent pi = PendingIntent.getBroadcast(context, 0, it, flags);
-            am.setInexactRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + REFRESH_INTERVAL_MS, REFRESH_INTERVAL_MS, pi);
+            // 用 setAndAllowWhileIdle：Doze 下仍能触发，适合"每小时校准一次"的兜底刷新
+            long trigger = System.currentTimeMillis() + REFRESH_INTERVAL_MS;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi);
+            } else {
+                am.set(AlarmManager.RTC_WAKEUP, trigger, pi);
+            }
         } catch (Exception e) { Log.e(TAG, "scheduleRefresh failed", e); }
     }
 
@@ -92,9 +104,9 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
      */
     private void refreshWidget(Context context, int appWidgetId) {
         String mode = getMode(context);
+        final String snapshot = getLocalSnapshot(context);
 
         if (MODE_LOCAL.equals(mode)) {
-            String snapshot = getLocalSnapshot(context);
             if (snapshot == null || snapshot.isEmpty()) {
                 updateHint(context, appWidgetId, context.getString(R.string.widget_local_no_data));
                 return;
@@ -108,10 +120,14 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             return;
         }
 
+        // 同步模式：先用本机快照立即出图，避免等待网络期间桌面空白
+        if (snapshot != null && !snapshot.isEmpty() && isSnapshotForToday(snapshot)) {
+            renderJson(context, appWidgetId, snapshot);
+        }
+
         String serverUrl = getServerUrl(context);
         if (serverUrl == null || serverUrl.isEmpty()) {
             // 未显式配置：若已有本机快照则优先展示，避免空窗
-            String snapshot = getLocalSnapshot(context);
             if (snapshot != null && !snapshot.isEmpty()) { renderJson(context, appWidgetId, snapshot); return; }
             updateHint(context, appWidgetId, context.getString(R.string.widget_missing_server));
             return;
@@ -123,7 +139,6 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             String json = fetchJson(baseUrl + "/api/widget/today");
             if (json == null) {
                 // 服务器不可达：回退到本机快照，而不是只显示错误
-                String snapshot = getLocalSnapshot(context);
                 if (snapshot != null && !snapshot.isEmpty()) { renderJson(context, appWidgetId, snapshot); return; }
                 updateHint(context, appWidgetId, context.getString(R.string.widget_offline));
                 return;
@@ -236,12 +251,10 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
     public static String getMode(Context context) {
         String stored = prefs(context).getString("mode", null);
         if (stored != null) return stored;
-        // 老版本升级上来的数据没有 mode 字段：
-        // 已配置过真实服务器地址的按同步模式处理，否则视为本机模式。
-        String legacyUrl = prefs(context).getString("server_url", null);
-        if (legacyUrl != null && !legacyUrl.isEmpty() && !legacyUrl.startsWith("__local__")) {
-            return MODE_SERVER;
-        }
+        // 没有 mode 字段时一律按本机模式。
+        // 不能用"存过服务器地址"来推断：旧版本留下的局域网地址会一直生效，
+        // 导致小组件在 App 推送快照之前就先去连一个早已失效的地址。
+        // 只有 App 明确写入 MODE_SERVER 才走同步路径。
         return MODE_LOCAL;
     }
 
