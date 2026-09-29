@@ -1,9 +1,16 @@
-name: Android APK Build
+name: Android APK
 
 on:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
+
+permissions:
+  contents: write
+
+# 本项目的 APK 用 debug 密钥签名，适合个人使用与测试，不适合上架应用商店。
+# 若要正式分发，请配置 release 签名并改用 assembleRelease。
 
 jobs:
   android-apk:
@@ -32,6 +39,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Type check and test
+        run: |
+          npx tsc --noEmit
+          npx vitest run
+
       - name: Build web app + sync to android
         run: npm run android:sync
 
@@ -39,9 +51,34 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK artifact
+      - name: Collect APK
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk "out/itdc-${GITHUB_REF_NAME//\//-}.apk"
+          ls -lh out
+
+      - name: Upload as build artifact
         uses: actions/upload-artifact@v4
         with:
           name: itdc-android-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: out/*.apk
           retention-days: 7
+
+      # 打 tag（如 v1.4.0）时自动创建 Release 并附上 APK
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*.apk
+          generate_release_notes: true
+          body: |
+            > APK 使用 **debug 签名**，适合个人使用与测试，不适合上架应用商店。
+
+            **安装提示**
+
+            - 首次安装需允许「未知来源」
+            - 覆盖安装即可保留本地数据
+            - 小组件不自动刷新时：进「设置 → 应用 → ITDC → 省电策略」改为**无限制**
+              （澎湃 OS / MIUI 等国产 ROM 默认限制后台）
+
+            完整变更见 [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)。
