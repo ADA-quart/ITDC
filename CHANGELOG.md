@@ -3,6 +3,16 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 修复
+
+- **小组件里点勾，方框不显示勾**。划线与排序会立刻更新，但复选框要等打开 App 才变色。
+  原因是集合型子项在 `notifyAppWidgetViewDataChanged` 之后重绘时，启动器会跳过
+  `setImageViewBitmap`（同一批动作里的划线、文字色都正常）。
+  现在复选框改为「空心框 / 实心框 / 对勾」三层矢量资源 + `setColorFilter` 着色，
+  仍然跟随用户自定义主题色，同时删掉了不再需要的两个旧图标与位图绘制代码
+
 ## [1.7.1] - 2026-09-30
 
 ### 修复

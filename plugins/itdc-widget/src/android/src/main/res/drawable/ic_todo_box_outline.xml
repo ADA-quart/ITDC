@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 未完成：空心方框。纯白描边，实际颜色由 RemoteViews 的 setColorFilter 决定 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="22dp"
     android:height="22dp"
@@ -6,7 +7,7 @@
     android:viewportHeight="24">
     <path
         android:pathData="M6,2.6 h12 a3.4,3.4 0 0 1 3.4,3.4 v12 a3.4,3.4 0 0 1 -3.4,3.4 h-12 a3.4,3.4 0 0 1 -3.4,-3.4 v-12 a3.4,3.4 0 0 1 3.4,-3.4 z"
-        android:strokeColor="#9AA0A6"
+        android:strokeColor="#FFFFFFFF"
         android:strokeWidth="1.8"
         android:fillColor="#00000000" />
 </vector>

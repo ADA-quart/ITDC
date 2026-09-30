@@ -365,46 +365,4 @@ final class WidgetAppearance {
         }
     }
 
-    /**
-     * 待办复选框图标。
-     *
-     * 自绘而不用 @drawable/ic_todo_checked：矢量图里的强调色写死在资源里，
-     * 无法跟随用户主题色，而 RemoteViews 又没有「只染一层路径」的能力。
-     * 位图很小（约 60×60），开销可以忽略。
-     */
-    static Bitmap todoIcon(Context context, boolean done) {
-        int size = Math.min(72, Math.max(40,
-                Math.round(22 * context.getResources().getDisplayMetrics().density)));
-        Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bitmap);
-        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-
-        float inset = size * 0.06f;
-        // 0.22 与资源里的矢量图标比例接近，再大就圆得像单选框了
-        float radius = size * 0.22f;
-        RectF box = new RectF(inset, inset, size - inset, size - inset);
-
-        if (done) {
-            paint.setStyle(Paint.Style.FILL);
-            paint.setColor(accent(context));
-            canvas.drawRoundRect(box, radius, radius, paint);
-
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(size * 0.11f);
-            paint.setStrokeCap(Paint.Cap.ROUND);
-            paint.setStrokeJoin(Paint.Join.ROUND);
-            paint.setColor(Color.WHITE);
-            Path check = new Path();
-            check.moveTo(size * 0.28f, size * 0.52f);
-            check.lineTo(size * 0.44f, size * 0.68f);
-            check.lineTo(size * 0.74f, size * 0.34f);
-            canvas.drawPath(check, paint);
-        } else {
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(size * 0.09f);
-            paint.setColor(textSecondary(context));
-            canvas.drawRoundRect(box, radius, radius, paint);
-        }
-        return bitmap;
-    }
 }

@@ -71,8 +71,9 @@ RemoteViews 重新渲染
   160k 像素（不透明，RGB_565）或 80k 像素（半透明，ARGB_8888）以内。
   纯色面板不需要高分辨率，只保留够画圆角的像素。
 - **图片只在换图时传**。base64 几百 KB，滑动条之类的微调不必重复传，原生侧沿用已存的文件。
-- **复选框自绘**。矢量图标的颜色写死在资源里，无法跟随主题色，而 RemoteViews 没有
-  「只染一层路径」的能力，所以完成态图标改成小位图（`WidgetAppearance.todoIcon()`）。
+- **复选框拆成三层**。空心框 / 实心框 / 对勾各是一张白色矢量，颜色由
+  `setColorFilter` 决定（实心框染主题色、空心框染次要文字色、对勾保持白色）。
+  一开始是自绘位图，但位图在集合型子项里不可靠 —— 见下面第 7 条坑。
 
 ## 踩过的坑
 
@@ -117,6 +118,25 @@ Service Worker 缓存会导致装了新 APK 却跑旧代码，小组件因此收
 `setImageViewBitmap` 的位图会进 Binder 事务，超过约 1MB 就抛
 `TransactionTooLargeException`，而且**错误发生在桌面进程**，App 侧看不到堆栈，
 桌面只表现为小组件空白。生成位图前必须先按目标尺寸缩放到安全预算内。
+
+### 7. 集合型子项里不能用 setImageViewBitmap
+
+实测（模拟器 AOSP 启动器 + 真机澎湃 OS 都复现）：在集合型子项的 `getViewAt` 里用
+`setImageViewBitmap` 设置图片，**首次渲染正常**，但之后由 `notifyAppWidgetViewDataChanged`
+触发的重绘，启动器会**跳过这个位图动作**，同一批动作里的 `setPaintFlags`（划线）、
+`setTextColor`、`setViewVisibility` 却都会正常应用。
+
+症状很迷惑人：桌面点勾后**划线和排序立刻更新，但方框里没有勾**，打开 App 触发一次完整
+`updateAppWidget` 才补上。
+
+结论：集合型子项里用**资源 + 属性类动作**表达状态，别用位图：
+
+```java
+rv.setViewVisibility(R.id.todo_check_fill, done ? View.VISIBLE : View.GONE);
+rv.setInt(R.id.todo_check_fill, "setColorFilter", accent);   // 颜色照样能自定义
+```
+
+主布局（非集合）上的位图不受影响 —— 小组件的照片背景就是这么渲染的。
 
 ## 刷新机制
 

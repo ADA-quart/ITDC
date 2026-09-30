@@ -7,14 +7,41 @@
     android:paddingTop="5dp"
     android:paddingBottom="5dp">
 
-    <!-- 复选框：点按可直接完成待办 -->
-    <ImageView
+    <!--
+      复选框：点按可直接完成待办。
+      拆成「空心框 / 实心框 / 对勾」三层而不是贴一张位图 —— 集合型子项重绘时
+      启动器会跳过 setImageViewBitmap，导致点了框不变色（详见 docs/WIDGET.md）。
+    -->
+    <FrameLayout
         android:id="@+id/todo_check"
         android:layout_width="22dp"
         android:layout_height="22dp"
         android:layout_marginEnd="9dp"
-        android:src="@drawable/ic_todo_unchecked"
-        android:contentDescription="@string/widget_toggle_done" />
+        android:contentDescription="@string/widget_toggle_done">
+
+        <ImageView
+            android:id="@+id/todo_check_outline"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_todo_box_outline"
+            android:contentDescription="@null" />
+
+        <ImageView
+            android:id="@+id/todo_check_fill"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_todo_box_fill"
+            android:visibility="gone"
+            android:contentDescription="@null" />
+
+        <ImageView
+            android:id="@+id/todo_check_mark"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_todo_check_mark"
+            android:visibility="gone"
+            android:contentDescription="@null" />
+    </FrameLayout>
 
     <TextView
         android:id="@+id/todo_title"

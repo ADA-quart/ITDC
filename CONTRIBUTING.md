@@ -56,6 +56,8 @@ npm start
 
 - RemoteViews **只允许白名单控件**。用 `<View>` 画分隔线会抛 `Class not allowed`，必须用 `ImageView`。
 - 集合型小组件里子项**不能**用 `setOnClickPendingIntent`（会被忽略），必须 `setPendingIntentTemplate` + `setOnClickFillInIntent`，且模板 PendingIntent 要用 `FLAG_MUTABLE`。
+- 集合型子项里**不要**用 `setImageViewBitmap`：首次渲染正常，但 `notifyAppWidgetViewDataChanged`
+  后的重绘会被启动器跳过（点勾不变色），要用资源 + `setColorFilter` / `setViewVisibility` 表达状态。
 
 ### 构建 APK
 

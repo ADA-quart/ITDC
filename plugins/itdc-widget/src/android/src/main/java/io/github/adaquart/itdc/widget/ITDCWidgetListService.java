@@ -189,8 +189,22 @@ public class ITDCWidgetListService extends RemoteViewsService {
             if (LIST_TODO.equals(listType)) {
                 RemoteViews rv = new RemoteViews(context.getPackageName(), R.layout.widget_todo_item);
 
-                // 复选框：自绘位图，完成态的实心色跟随用户主题色（矢量资源的颜色写死改不了）
-                rv.setImageViewBitmap(R.id.todo_check, WidgetAppearance.todoIcon(context, row.done));
+                // 复选框：三层资源 + setColorFilter 着色，而不是贴位图。
+                //
+                // 实测（模拟器 AOSP 启动器 + 真机澎湃 OS）：集合型子项在
+                // notifyAppWidgetViewDataChanged 之后重绘时，启动器会跳过
+                // setImageViewBitmap —— 表现为「划线更新了，但框里没有勾」，
+                // 必须打开 App 触发一次完整 updateAppWidget 才会补上。
+                // 资源与属性类动作（setViewVisibility / setColorFilter / setTextColor）不受影响。
+                rv.setViewVisibility(R.id.todo_check_outline, row.done ? View.GONE : View.VISIBLE);
+                rv.setViewVisibility(R.id.todo_check_fill, row.done ? View.VISIBLE : View.GONE);
+                rv.setViewVisibility(R.id.todo_check_mark, row.done ? View.VISIBLE : View.GONE);
+                if (row.done) {
+                    // 实心框染成用户主题色，对勾保持白色叠在上面
+                    rv.setInt(R.id.todo_check_fill, "setColorFilter", WidgetAppearance.accent(context));
+                } else {
+                    rv.setInt(R.id.todo_check_outline, "setColorFilter", WidgetAppearance.textSecondary(context));
+                }
                 // 集合型小组件里子项不能用 setOnClickPendingIntent（系统会忽略），
                 // 必须用 fill-in intent，配合 provider 上的 setPendingIntentTemplate。
                 ITDCWidgetActionReceiver.bindFillIn(rv, R.id.todo_check, row.id, row.done);
