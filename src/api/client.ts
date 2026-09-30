@@ -5,6 +5,7 @@ import * as offline from './offline';
 import { generateScheduleLocally, validateScheduleLocally } from './local-scheduler';
 import { parseIcsFile, buildIcs, downloadBlob } from './local-ical';
 import type { ModelListResult } from './llm-models';
+import { generateLLMScheduleLocally } from './local-llm-scheduler';
 
 const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
@@ -519,14 +520,19 @@ export const scheduleApi = {
     const todos = await offline.getCachedTodos();
     const events = await offline.getEventCache();
 
-    // LLM 模式需要服务器；算法模式完全本地
+    // LLM 模式：有服务器时由服务器代理调用；本机模式由 App 直连大模型
     if (mode === 'llm') {
       if (!isSyncEnabled()) {
-        return {
-          mode: 'llm',
-          schedule: [],
-          validation: { valid: false, errors: ['LLM 调度需要连接已配置的服务器，本地模式请使用算法调度'] },
-        };
+        try {
+          const local = await generateLLMScheduleLocally();
+          return { mode: 'llm', ...local };
+        } catch (err: any) {
+          return {
+            mode: 'llm',
+            schedule: [],
+            validation: { valid: false, errors: [err?.message || '本机大模型调度失败'] },
+          };
+        }
       }
       try {
         const res = await api.post('/schedule/generate', { mode });

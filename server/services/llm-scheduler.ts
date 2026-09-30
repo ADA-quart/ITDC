@@ -4,6 +4,15 @@ import { createProvider } from '../llm/index.js';
 import { ScheduledItem } from './scheduler.js';
 import { decrypt, isEncrypted } from '../utils/crypto.js';
 import { debug } from '../utils/debug.js';
+import {
+  DEFAULT_SYSTEM_PROMPT,
+  renderSystemPrompt,
+  buildUserPrompt,
+  parseScheduleResponse,
+} from '../../shared/llm-prompt.js';
+
+// 提示词是服务端与本机模式共用的，从 shared/ 转出，避免两处各写一份规则
+export { DEFAULT_SYSTEM_PROMPT };
 
 
 /**
@@ -42,22 +51,6 @@ function getPromptTemplate(): string {
   return row?.value || '';
 }
 
-const DEFAULT_SYSTEM_PROMPT = `你是一个日程规划助手。根据以下信息，为待办事件安排最优时间。
-
-当前时间: {{current_time}}
-
-## 规则
-1. 待办事件不能与已有日历事件时间冲突
-2. 不要安排在深夜 (23:00-7:00)
-3. 优先安排距 deadline 最近的任务
-4. 高优先级任务应尽早安排（紧急重要 > 重要 > 紧急 > 普通）
-5. 连续工作 2 小时后建议安排 15 分钟休息
-6. 每个待办事件需要指定的分钟数完成
-7. 如果一个待办事件预计时间超过 90 分钟，必须拆分成多个不超过 90 分钟的时间段，每段之间安排 15 分钟休息。拆分后的多个时间段使用相同的 todo_id 标识
-
-请以纯 JSON 数组格式返回调度方案（不要包含 markdown 代码块标记）：
-[{ "todo_id": number, "start": "ISO datetime", "end": "ISO datetime" }]`;
-
 function buildPrompt(): { system: string; user: string } {
   const now = new Date().toISOString();
   const scheduleHorizon = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString();
@@ -71,24 +64,13 @@ function buildPrompt(): { system: string; user: string } {
     "SELECT id, title, estimated_minutes, priority, deadline FROM todos WHERE status = 'pending'"
   ).all();
 
-  const customTemplate = getPromptTemplate();
-  const systemPrompt = customTemplate
-    ? customTemplate.replace(/\{\{current_time\}\}/g, now)
-    : DEFAULT_SYSTEM_PROMPT.replace(/\{\{current_time\}\}/g, now);
-
-  const userPrompt = `## 当前日历事件（已占时间段）
-${JSON.stringify(events, null, 2)}
-
-## 已安排的待办
-${JSON.stringify(scheduledTodos, null, 2)}
-
-## 待安排的待办事件
-${JSON.stringify(pendingTodos, null, 2)}`;
-
-  return { system: systemPrompt, user: userPrompt };
+  return {
+    system: renderSystemPrompt(getPromptTemplate(), now),
+    user: buildUserPrompt({ events, scheduledTodos, pendingTodos }),
+  };
 }
 
-export { DEFAULT_SYSTEM_PROMPT, buildPrompt };
+export { buildPrompt };
 
 function validateSchedule(items: ScheduledItem[]): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
@@ -166,17 +148,7 @@ export async function generateLLMSchedule(): Promise<{ schedule: ScheduledItem[]
 
   debug.info('LLM response received', { length: response.content.length });
 
-  let parsed: any[];
-  try {
-    let content = response.content.trim();
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      content = jsonMatch[0];
-    }
-    parsed = JSON.parse(content);
-  } catch {
-    throw new Error('LLM 返回的格式无法解析，请重试');
-  }
+  const parsed = parseScheduleResponse(response.content);
 
   const todos = db.prepare("SELECT id, title, priority FROM todos WHERE status = 'pending'").all() as { id: number; title: string; priority: string }[];
   const schedule: ScheduledItem[] = parsed.map((item: any) => {

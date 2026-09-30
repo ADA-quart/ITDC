@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Form, Input, Select, Button, Table, Tag, message, Space, Popconfirm, Tabs, Spin, Alert, AutoComplete, Tooltip } from 'antd';
 import { SyncOutlined } from '@ant-design/icons';
-import { llmConfigApi, promptTemplateApi, settingsApi, api, setApiBase, getApiBase, isSyncEnabled } from '../api/client';
+import { settingsApi, api, setApiBase, getApiBase, isSyncEnabled } from '../api/client';
 import { Capacitor } from '@capacitor/core';
 import { ITDCWidgetPlugin } from '../capacitor/itdc-widget';
 import { pushWidgetSnapshot, setWidgetMode } from '../api/widget-sync';
 import { mergeWithServer } from '../api/sync-merge';
 import { checkForUpdate, getCurrentVersion, type UpdateCheckResult } from '../api/update-check';
 import { scheduleApi } from '../api/client';
-import { fetchModelsDirect, type ModelListResult } from '../api/llm-models';
+import { llmConfigService } from '../api/llm-config-service';
 import type { LLMConfig } from '../types';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
@@ -80,7 +80,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
 
   const loadConfigs = async () => {
     try {
-      const data = await llmConfigApi.getAll();
+      const data = await llmConfigService.getAll();
       setConfigs(data);
     } catch {
       message.error(t.settings.loadFailed);
@@ -89,7 +89,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
 
   const loadPromptTemplate = async () => {
     try {
-      const data = await promptTemplateApi.get();
+      const data = await llmConfigService.getPromptTemplate();
       setPromptTemplate(data.template);
       setDefaultTemplate(data.defaultTemplate);
     } catch {
@@ -189,10 +189,11 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
         message.error(t.settings.customProviderRequired);
         return;
       }
-      await llmConfigApi.create(values);
+      await llmConfigService.create(values);
       message.success(t.settings.added);
-      form.resetFields();
-      setProvider('openai');
+      // 只清空密钥框：服务商/地址/模型留着，方便接着用「获取模型列表」
+      // 复用刚存进保险箱的密钥，而不是把表单重置回 OpenAI 让用户重填一遍
+      form.setFieldsValue({ api_key: '' });
       setTestResult(null);
       loadConfigs();
     } catch {
@@ -202,7 +203,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
 
   const handleActivate = async (id: number) => {
     try {
-      await llmConfigApi.activate(id);
+      await llmConfigService.activate(id);
       message.success(t.settings.active);
       loadConfigs();
     } catch {
@@ -212,7 +213,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
 
   const handleDelete = async (id: number) => {
     try {
-      await llmConfigApi.delete(id);
+      await llmConfigService.remove(id);
       message.success(t.settings.delete);
       loadConfigs();
     } catch {
@@ -227,39 +228,24 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
 
     const needsKey = currentProvider !== 'ollama' && currentProvider !== 'lmstudio' && currentProvider !== 'custom';
     if (needsKey && !values.api_key) {
-      message.warning(locale === 'zh' ? '请先填写 API Key' : 'Fill in the API key first');
-      return;
+      // 本机模式下密钥可能已经在保险箱里（表单不回填密钥），先问一次再提示
+      const saved = await llmConfigService.resolveApiKey({
+        provider: currentProvider,
+        baseUrl: values.base_url,
+      });
+      if (!saved) {
+        message.warning(locale === 'zh' ? '请先填写 API Key' : 'Fill in the API key first');
+        return;
+      }
     }
 
     setLoadingModels(true);
     try {
-      const formParams = {
+      const result = await llmConfigService.listModels({
         provider: currentProvider,
         api_key: values.api_key,
         base_url: values.base_url,
-      };
-
-      // 优先走服务器（密钥存服务器、由服务器出网）；本机模式、服务器不可达
-      // 或服务器还是旧版本（没有这个接口）时退回 App 直连服务商。
-      let result: ModelListResult | null = null;
-      if (isSyncEnabled()) {
-        try {
-          const fromServer = await llmConfigApi.listModels(formParams);
-          // 服务器给出了结构化答复（成功或明确的失败原因）就采信，不再重复请求
-          if (fromServer && Array.isArray(fromServer.models)) {
-            result = { ...fromServer, source: 'server' };
-          }
-        } catch {
-          // 服务器报了 404/网络错误/返回的不是 JSON —— 落到直连
-        }
-      }
-      if (!result) {
-        result = await fetchModelsDirect({
-          provider: currentProvider,
-          apiKey: values.api_key,
-          baseUrl: values.base_url,
-        });
-      }
+      });
 
       setModels(result.models || []);
       if (result.success && (result.models?.length ?? 0) > 0) {
@@ -310,7 +296,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
       const values = await form.validateFields();
       setTesting(true);
       setTestResult(null);
-      const result = await llmConfigApi.test({
+      const result = await llmConfigService.test({
         provider: values.provider,
         api_key: values.api_key,
         base_url: values.base_url,
@@ -334,7 +320,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
   const handleTestExisting = async (config: LLMConfig) => {
     setTesting(true);
     try {
-      const result = await llmConfigApi.test({ id: config.id });
+      const result = await llmConfigService.testExisting(config.id);
       if (result.success) {
         message.success(t.settings.testSuccess);
       } else {
@@ -350,7 +336,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
   const handleSaveTemplate = async () => {
     setPromptSaving(true);
     try {
-      await promptTemplateApi.update(promptTemplate);
+      await llmConfigService.savePromptTemplate(promptTemplate);
       message.success(t.settings.templateSaved);
     } catch {
       message.error(t.settings.templateSaveFailed);
@@ -361,7 +347,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
 
   const handleResetTemplate = async () => {
     try {
-      const result = await promptTemplateApi.reset();
+      const result = await llmConfigService.resetPromptTemplate();
       setPromptTemplate('');
       setDefaultTemplate(result.defaultTemplate);
       message.success(t.settings.templateReset);
@@ -411,6 +397,22 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
       label: t.settings.llmConfig,
       children: (
         <>
+          {/* 本机模式与服务器模式的配置存放位置完全不同，先把这件事说清楚 */}
+          <Alert
+            style={{ marginBottom: 16 }}
+            type='info'
+            showIcon
+            message={
+              llmConfigService.isLocalMode()
+                ? t.settings.llmLocalTitle
+                : t.settings.llmServerTitle
+            }
+            description={
+              llmConfigService.isLocalMode()
+                ? (Capacitor.isNativePlatform() ? t.settings.llmLocalDescSecure : t.settings.llmLocalDescWeb)
+                : t.settings.llmServerDesc
+            }
+          />
           <div style={{ marginBottom: 24 }}>
             <h4>{t.settings.addConfig}</h4>
             <Form form={form} layout="vertical" initialValues={{ provider: 'openai' }}>

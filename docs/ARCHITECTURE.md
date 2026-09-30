@@ -60,6 +60,10 @@ ITDC/
 │   │   ├── client.ts           统一数据入口：本地写入 + 可选服务器同步
 │   │   ├── offline.ts          IndexedDB 读写、本地 id/uid 生成、墓碑
 │   │   ├── local-scheduler.ts  本地排程算法（不依赖服务器）
+│   │   ├── local-llm-scheduler.ts 本机 LLM 排程：直接调服务商
+│   │   ├── llm-config-service.ts  LLM 配置统一入口（服务器 / 本机双路径）
+│   │   ├── llm-config-local.ts    本机配置存储（IndexedDB + 密钥分离）
+│   │   ├── secure-store.ts        密钥读写（Android Keystore / 浏览器回退）
 │   │   ├── local-ical.ts       本地 iCal 解析与生成
 │   │   ├── local-excel.ts      本地周历 Excel 导出
 │   │   ├── sync-merge.ts       切换服务器时的合并同步
@@ -90,6 +94,29 @@ ITDC/
 ├── docs/                       文档
 └── data/                       SQLite 数据库（已 gitignore）
 ```
+
+## 大模型排程的两条路径
+
+排程有两种模式、两种调用路径，界面完全相同：
+
+```
+算法模式  ──► src/api/local-scheduler.ts（纯本地，无网络）
+
+LLM 模式  ──► 有服务器：服务器读库组装提示词 → 调服务商 → 返回结果
+          └─► 仅本机：App 读 IndexedDB 组装提示词 → 直连服务商 → 本地校验
+```
+
+两条 LLM 路径共用 `shared/llm-prompt.ts`（默认提示词、用户提示词拼接、模型响应解析），
+因此同一条待办在两种模式下不会排出两套结果。区别只在「谁出网」和「配置存在哪」：
+
+| | 服务器模式 | 仅本机模式 |
+|---|---|---|
+| 配置存放 | 服务器 `llm_config` 表 | IndexedDB（`llm_configs`） |
+| API Key | 服务器 AES 加密存库 | **Android Keystore** 加密存本机（`SecureStore.java`） |
+| 出网方 | 服务器 | App（WebView 直连，依赖服务商 CORS） |
+
+浏览器版没有系统密钥库，此时密钥明文存 localStorage —— 设置页会明确提示，
+不做「看起来加密了」的假动作。
 
 ## 技术选型
 

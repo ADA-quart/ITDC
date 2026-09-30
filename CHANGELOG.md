@@ -3,6 +3,30 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.7.0] - 2026-09-30
+
+### 新增
+
+- **本机模式的 LLM 排程**：不连服务器也能用大模型排程
+  - 配置存本机 IndexedDB（`llm_configs`），不再因为「没有服务器」而整块报「加载配置失败」
+  - API Key 交给 **Android Keystore**（AES-GCM，密钥不可导出）加密后保存，
+    明文不落盘；设置页会写明密钥存在哪里
+  - 排程由 App 直接调用服务商（OpenAI 兼容 / Ollama），提示词与响应解析与服务端共用
+    `shared/llm-prompt.ts`，两种模式的规则不会各写一套
+  - 「获取模型列表」「测试连接」在表单密钥为空时自动复用保险箱里的密钥，不必重复粘贴
+  - 服务器模式下行为不变：配置与密钥仍留在服务器，由服务器出网
+
+### 变更
+
+- 「添加配置」后保留服务商 / 地址 / 模型，只清空密钥框，方便接着查模型列表
+- 排程页在仅本机模式下显示对应说明，而不再提示「需要先配置服务器」
+- 默认系统提示词、用户提示词拼接与模型响应解析收敛到 `shared/llm-prompt.ts`
+- 版本号升至 1.7.0（versionCode 14）
+
+### 修复
+
+- 本机模式下 LLM 配置页此前完全不可用：读写都走服务器接口，没有服务器就整块失败
+
 ## [1.6.1] - 2026-09-30
 
 ### 修复
@@ -168,6 +192,7 @@
 - 深色模式、中英文切换
 - Android 桌面小组件（初版，静态位图）
 
+[1.7.0]: https://github.com/ADA-quart/ITDC/releases/tag/v1.7.0
 [1.6.1]: https://github.com/ADA-quart/ITDC/releases/tag/v1.6.1
 [1.6.0]: https://github.com/ADA-quart/ITDC/releases/tag/v1.6.0
 [1.5.0]: https://github.com/ADA-quart/ITDC/releases/tag/v1.5.0

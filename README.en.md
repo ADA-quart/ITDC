@@ -34,7 +34,7 @@ Turn on sync when you want your phone and PC to share data. Both sides merge; ne
 - ⏰&nbsp;Deadline countdown with overdue highlighting
 - ✂️&nbsp;Long tasks split automatically, with breaks between segments
 - 💬&nbsp;Natural language input — type "submit the report Friday afternoon"
-- 🧠&nbsp;Two scheduling modes: a local algorithm, or hand it to an LLM
+- 🧠&nbsp;Two scheduling modes: a local algorithm, or hand it to an LLM — works in this-device-only mode too, calling the provider directly with keys kept on device
 - 🌓&nbsp;Light / dark / follow system
 - 🎨&nbsp;Personalisation: accent colour, background image, widget palette
 - 🌍&nbsp;Simplified Chinese and English

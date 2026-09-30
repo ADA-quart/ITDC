@@ -142,4 +142,50 @@ public class ITDCWidgetPlugin extends Plugin {
         }
         call.resolve();
     }
+
+    // ---------- 本机密钥保险箱 ----------
+    // 本机模式要用大模型 API Key：WebView 存储是明文的，改由 Android Keystore 加密保管。
+    // 放在这个插件里是因为它已经是 App 的原生桥（系统设置、小组件），
+    // 再单开一个 Capacitor 插件模块只为三个方法不划算。
+
+    @PluginMethod
+    public void secureSet(PluginCall call) {
+        String key = call.getString("key");
+        if (key == null || key.trim().isEmpty()) {
+            call.reject("key is required");
+            return;
+        }
+        try {
+            SecureStore.put(getContext(), key.trim(), call.getString("value"));
+        } catch (Exception e) {
+            call.reject("secureSet failed: " + e.getMessage());
+            return;
+        }
+        call.resolve();
+    }
+
+    /** 读不到（没存过或密钥库被重置）返回 value = null，由前端决定让用户重填 */
+    @PluginMethod
+    public void secureGet(PluginCall call) {
+        String key = call.getString("key");
+        if (key == null || key.trim().isEmpty()) {
+            call.reject("key is required");
+            return;
+        }
+        JSObject ret = new JSObject();
+        String value = SecureStore.get(getContext(), key.trim());
+        if (value != null) ret.put("value", value);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void secureRemove(PluginCall call) {
+        String key = call.getString("key");
+        if (key == null || key.trim().isEmpty()) {
+            call.reject("key is required");
+            return;
+        }
+        SecureStore.remove(getContext(), key.trim());
+        call.resolve();
+    }
 }

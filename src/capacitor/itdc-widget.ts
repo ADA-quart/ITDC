@@ -24,6 +24,10 @@ export interface ItdcWidgetPluginInterface {
   getDoneQueue(): Promise<{ done: number[]; undone: number[] }>;
   /** 写回成功后清空队列 */
   clearDoneQueue(): Promise<void>;
+  /** 本机密钥保险箱：Android 走 Keystore 加密，浏览器回退到 localStorage */
+  secureSet(params: { key: string; value: string }): Promise<void>;
+  secureGet(params: { key: string }): Promise<{ value?: string | null }>;
+  secureRemove(params: { key: string }): Promise<void>;
 }
 
 export const ITDCWidgetPlugin = registerPlugin<ItdcWidgetPluginInterface>("itdc-widget");

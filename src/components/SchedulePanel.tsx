@@ -3,6 +3,7 @@ import { Button, Card, Radio, Tag, Alert, Spin, Empty, message } from 'antd';
 import { ThunderboltOutlined, RobotOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { scheduleApi } from '../api/client';
+import { llmConfigService } from '../api/llm-config-service';
 import type { ScheduleResult, Priority } from '../types';
 import { PRIORITY_COLORS } from '../types';
 import { useI18n } from '../i18n';
@@ -131,7 +132,11 @@ const SchedulePanel: React.FC = () => {
 
         {mode === 'llm' && (
           <Alert
-            message={t.schedule.llmConfigRequired}
+            message={
+              llmConfigService.isLocalMode()
+                ? t.schedule.llmLocalHint
+                : t.schedule.llmConfigRequired
+            }
             type="info"
             showIcon
             style={{ marginBottom: 12 }}
