@@ -3,7 +3,7 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [1.7.1] - 2026-09-30
 
 ### 修复
 
@@ -21,6 +21,7 @@
 
 - 本机模式调用大模型的超时 90s → 180s（推理型模型排程动辄一两分钟）
 - 排程校验新增「被安排在已过去的时间」检查，服务端与本机校验口径一致
+- 版本号升至 1.7.1（versionCode 15）
 
 ## [1.7.0] - 2026-09-30
 
@@ -211,6 +212,7 @@
 - 深色模式、中英文切换
 - Android 桌面小组件（初版，静态位图）
 
+[1.7.1]: https://github.com/ADA-quart/ITDC/releases/tag/v1.7.1
 [1.7.0]: https://github.com/ADA-quart/ITDC/releases/tag/v1.7.0
 [1.6.1]: https://github.com/ADA-quart/ITDC/releases/tag/v1.6.1
 [1.6.0]: https://github.com/ADA-quart/ITDC/releases/tag/v1.6.0
