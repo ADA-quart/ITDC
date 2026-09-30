@@ -4,6 +4,7 @@ import type { Calendar, CalendarEvent, Todo, ScheduleResult, LLMConfig } from '.
 import * as offline from './offline';
 import { generateScheduleLocally, validateScheduleLocally } from './local-scheduler';
 import { parseIcsFile, buildIcs, downloadBlob } from './local-ical';
+import type { ModelListResult } from './llm-models';
 
 const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
@@ -636,9 +637,12 @@ export const llmConfigApi = {
   delete: (id: number) => api.delete(`/schedule/llm-config/${id}`).then(r => r.data),
   test: (data: { id?: number; provider?: string; api_key?: string; base_url?: string; model?: string }) =>
     api.post<{ success: boolean; message: string; model?: string }>('/schedule/llm-config/test', data).then(r => r.data),
-  /** 拉取服务商的可用模型列表，供设置页下拉选择 */
+  /**
+   * 拉取服务商的可用模型列表，供设置页下拉选择。
+   * 超时压到 12s：拿不到就尽快交给 App 直连兜底，不让用户干等 30s。
+   */
   listModels: (data: { id?: number; provider?: string; api_key?: string; base_url?: string }) =>
-    api.post<{ success: boolean; models: string[]; message?: string }>('/schedule/llm-config/models', data)
+    api.post<ModelListResult>('/schedule/llm-config/models', data, { timeout: 12000 })
       .then(r => r.data),
 };
 

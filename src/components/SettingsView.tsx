@@ -8,6 +8,7 @@ import { pushWidgetSnapshot, setWidgetMode } from '../api/widget-sync';
 import { mergeWithServer } from '../api/sync-merge';
 import { checkForUpdate, getCurrentVersion, type UpdateCheckResult } from '../api/update-check';
 import { scheduleApi } from '../api/client';
+import { fetchModelsDirect, type ModelListResult } from '../api/llm-models';
 import type { LLMConfig } from '../types';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
@@ -232,17 +233,40 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
 
     setLoadingModels(true);
     try {
-      const result = await llmConfigApi.listModels({
+      const formParams = {
         provider: currentProvider,
         api_key: values.api_key,
         base_url: values.base_url,
-      });
+      };
+
+      // 优先走服务器（密钥存服务器、由服务器出网）；本机模式、服务器不可达
+      // 或服务器还是旧版本（没有这个接口）时退回 App 直连服务商。
+      let result: ModelListResult | null = null;
+      if (isSyncEnabled()) {
+        try {
+          const fromServer = await llmConfigApi.listModels(formParams);
+          // 服务器给出了结构化答复（成功或明确的失败原因）就采信，不再重复请求
+          if (fromServer && Array.isArray(fromServer.models)) {
+            result = { ...fromServer, source: 'server' };
+          }
+        } catch {
+          // 服务器报了 404/网络错误/返回的不是 JSON —— 落到直连
+        }
+      }
+      if (!result) {
+        result = await fetchModelsDirect({
+          provider: currentProvider,
+          apiKey: values.api_key,
+          baseUrl: values.base_url,
+        });
+      }
+
       setModels(result.models || []);
       if (result.success && (result.models?.length ?? 0) > 0) {
         message.success(
           locale === 'zh'
-            ? `获取到 ${result.models.length} 个模型，点击下拉选择`
-            : `${result.models.length} models found — pick one from the list`
+            ? `获取到 ${result.models.length} 个模型${result.source === 'direct' ? '（App 直连）' : ''}，点击下拉选择`
+            : `${result.models.length} models found${result.source === 'direct' ? ' (direct)' : ''} — pick one from the list`
         );
       } else {
         message.warning(

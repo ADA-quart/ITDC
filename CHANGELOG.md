@@ -3,6 +3,17 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.6.1] - 2026-09-30
+
+### 修复
+
+- **「获取模型列表」在仅本机模式下必然失败**。该按钮此前只走服务端代理
+  （`POST /api/schedule/llm-config/models`），于是三种情况都拿不到列表：
+  仅本机模式根本没有服务器、服务器被判定不可达、服务器进程还是旧版本没有这个接口。
+  现在服务端路径失败会自动退回 **App 直连服务商**（OpenAI 兼容端点 `GET /models`，
+  Ollama 为 `GET /api/tags`），提示里会标明来源「App 直连」。
+  服务端可达时行为不变；模型列表请求的服务端超时也从 30s 压到 12s，避免干等。
+
 ## [1.6.0] - 2026-09-30
 
 ### 新增
@@ -157,6 +168,7 @@
 - 深色模式、中英文切换
 - Android 桌面小组件（初版，静态位图）
 
+[1.6.1]: https://github.com/ADA-quart/ITDC/releases/tag/v1.6.1
 [1.6.0]: https://github.com/ADA-quart/ITDC/releases/tag/v1.6.0
 [1.5.0]: https://github.com/ADA-quart/ITDC/releases/tag/v1.5.0
 [1.4.0]: https://github.com/ADA-quart/ITDC/releases/tag/v1.4.0
