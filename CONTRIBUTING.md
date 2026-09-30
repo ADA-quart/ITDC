@@ -68,6 +68,33 @@ cd android && ./gradlew assembleDebug
 
 `build:native` 会把 PWA 的 Service Worker 换成「自杀式」脚本 —— 否则 APK 升级后 WebView 仍从缓存加载旧 JS，表现为「装了新版但功能没变」。
 
+## 发版流程
+
+1. **CHANGELOG**：把 `CHANGELOG.md` 顶部的 `## [Unreleased]` 改成 `## [x.y.z] - YYYY-MM-DD`。
+   平时每合并一个面向用户的改动就往 `Unreleased` 里写一行，发版时只需改名。
+2. **同步三处版本号**（缺一处 CI 会拦下来）：
+
+   | 文件 | 字段 |
+   |------|------|
+   | `package.json` | `version` |
+   | `capacitor.config.json` | `android.versionName` + `android.versionCode` |
+   | `android/app/build.gradle` | `versionName` + `versionCode` |
+
+   `versionCode` 必须递增，否则新 APK 装不上（会提示「应用未安装」）。
+3. 提交并推送 `main`。
+4. 打 tag 并推送：
+
+   ```bash
+   git tag v1.6.0
+   git push origin v1.6.0
+   ```
+
+CI（`.github/workflows/android-apk.yml`）会先校验 tag 与三处版本号、`CHANGELOG.md`
+段落是否一致，然后构建 APK、创建 Release，并把 CHANGELOG 里对应版本的内容作为 Release 说明。
+
+版本号含义：新增功能升 minor，修 bug 升 patch，破坏性变更（例如改包名导致必须卸载重装）升 major，
+并在 CHANGELOG 顶部醒目标注。
+
 ## PR 要求
 
 - 一个 PR 只做一件事，便于回滚

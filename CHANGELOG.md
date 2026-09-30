@@ -3,7 +3,7 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [1.6.0] - 2026-09-30
 
 ### 新增
 
@@ -19,6 +19,7 @@
 ### 变更
 
 - **设置改为独立页面**：与日历、待办同级，返回手势逐级回退而不是直接退出应用
+- 版本号升至 1.6.0（versionCode 12）
 
 ### 修复
 
@@ -156,6 +157,7 @@
 - 深色模式、中英文切换
 - Android 桌面小组件（初版，静态位图）
 
+[1.6.0]: https://github.com/ADA-quart/ITDC/releases/tag/v1.6.0
 [1.5.0]: https://github.com/ADA-quart/ITDC/releases/tag/v1.5.0
 [1.4.0]: https://github.com/ADA-quart/ITDC/releases/tag/v1.4.0
 [1.3.0]: https://github.com/ADA-quart/ITDC/releases/tag/v1.3.0
