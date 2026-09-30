@@ -93,6 +93,15 @@ async function set(key: string, value: any): Promise<void> {
   await store.set(key, value);
 }
 
+// 通用键值读写：外观设置里的背景图体积远超 localStorage 配额，改存 IndexedDB
+export async function kvGet<T>(key: string): Promise<T | undefined> {
+  return get<T>(key);
+}
+
+export async function kvSet(key: string, value: any): Promise<void> {
+  await set(key, value);
+}
+
 // ---------- 响应值归一化 ----------
 // 服务器或中间层可能返回非数组：典型场景是 Capacitor 本地服务器把未命中的 /api/* 回退成 index.html
 export function asArray<T>(value: unknown): T[] {

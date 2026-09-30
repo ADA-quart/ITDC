@@ -7,9 +7,18 @@ export interface LLMResponse {
   content: string;
 }
 
+export interface ModelListResult {
+  success: boolean;
+  models: string[];
+  /** 失败或列表为空时的说明，供界面直接展示 */
+  message?: string;
+}
+
 export interface LLMProvider {
   chat(messages: LLMMessage[]): Promise<LLMResponse>;
   testConnection(): Promise<{ success: boolean; message: string; model?: string }>;
+  /** 列出该服务商当前可用的模型，供设置页下拉选择 */
+  listModels(): Promise<ModelListResult>;
 }
 
 export interface LLMConfig {

@@ -1,19 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/widget_container_error"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center"
-    android:background="#1a1a2e"
-    android:padding="8dp">
+    android:background="@drawable/widget_bg">
+
+    <!-- 与主布局共用同一组 id，外观逻辑无需为提示页写第二套 -->
+    <ImageView
+        android:id="@+id/widget_bg_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:contentDescription="@null" />
 
     <TextView
         android:id="@+id/error_text"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:textSize="14sp"
         android:gravity="center"
         android:textAlignment="center"
-        android:textColor="#e0e0e0" />
-</LinearLayout>
+        android:padding="12dp"
+        android:textColor="@color/widget_text_primary" />
+</FrameLayout>

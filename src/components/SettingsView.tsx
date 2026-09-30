@@ -1,19 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, Select, Button, Table, Tag, message, Space, Popconfirm, Tabs, Spin, Alert } from 'antd';
+import { Modal, Form, Input, Select, Button, Table, Tag, message, Space, Popconfirm, Tabs, Spin, Alert, AutoComplete, Tooltip } from 'antd';
+import { SyncOutlined } from '@ant-design/icons';
 import { llmConfigApi, promptTemplateApi, settingsApi, api, setApiBase, getApiBase, isSyncEnabled } from '../api/client';
 import { Capacitor } from '@capacitor/core';
 import { ITDCWidgetPlugin } from '../capacitor/itdc-widget';
 import { pushWidgetSnapshot, setWidgetMode } from '../api/widget-sync';
 import { mergeWithServer } from '../api/sync-merge';
+import { checkForUpdate, getCurrentVersion, type UpdateCheckResult } from '../api/update-check';
 import { scheduleApi } from '../api/client';
 import type { LLMConfig } from '../types';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
+import AppearanceSettings from './AppearanceSettings';
 
 interface Props {
-  open: boolean;
-  onClose: () => void;
+  /** 打开时要定位到的标签页，由「去设置」这类入口指定 */
   initialTab?: string;
 }
 
@@ -49,7 +51,7 @@ const DEFAULT_MODELS: Record<string, string> = {
   custom: '',
 };
 
-const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
+const SettingsView: React.FC<Props> = ({ initialTab }) => {
   const { t, locale, setLocale } = useI18n();
   const { mode: themeMode, setMode: setThemeMode, isDark } = useTheme();
   const isMobile = useIsMobile();
@@ -59,6 +61,10 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
   const [provider, setProvider] = useState('openai');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [models, setModels] = useState<string[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [promptTemplate, setPromptTemplate] = useState('');
   const [defaultTemplate, setDefaultTemplate] = useState('');
   const [promptSaving, setPromptSaving] = useState(false);
@@ -90,24 +96,23 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
     }
   };
 
+  // 进入设置页时加载配置
   useEffect(() => {
-    if (open) {
-      loadConfigs();
-      loadPromptTemplate();
-    }
-  }, [open]);
+    loadConfigs();
+    loadPromptTemplate();
+  }, []);
 
   useEffect(() => {
-    if (open && initialTab) setActiveTab(initialTab);
-  }, [open, initialTab]);
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab]);
 
-  // 打开设置时查询电池优化状态：澎湃 OS / MIUI 默认冻结后台，会导致小组件不刷新
+  // 进入设置页时查询电池优化状态：澎湃 OS / MIUI 默认冻结后台，会导致小组件不刷新
   useEffect(() => {
-    if (!open || !Capacitor.isNativePlatform()) return;
+    if (!Capacitor.isNativePlatform()) return;
     void ITDCWidgetPlugin.isIgnoringBatteryOptimizations()
       .then((r) => setBatteryIgnoring(r.ignoring))
       .catch(() => setBatteryIgnoring(null));
-  }, [open]);
+  }, []);
 
   const handleSaveServer = async () => {
     const raw = (serverUrl || '').trim().replace(/\/+$/, '');
@@ -213,6 +218,68 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
       message.error(t.settings.deleteFailed);
     }
   };
+
+  // 拉取服务商的可用模型列表，填进模型名的下拉里，省去手工输入
+  const handleFetchModels = async () => {
+    const values = form.getFieldsValue();
+    const currentProvider = values.provider || provider;
+
+    const needsKey = currentProvider !== 'ollama' && currentProvider !== 'lmstudio' && currentProvider !== 'custom';
+    if (needsKey && !values.api_key) {
+      message.warning(locale === 'zh' ? '请先填写 API Key' : 'Fill in the API key first');
+      return;
+    }
+
+    setLoadingModels(true);
+    try {
+      const result = await llmConfigApi.listModels({
+        provider: currentProvider,
+        api_key: values.api_key,
+        base_url: values.base_url,
+      });
+      setModels(result.models || []);
+      if (result.success && (result.models?.length ?? 0) > 0) {
+        message.success(
+          locale === 'zh'
+            ? `获取到 ${result.models.length} 个模型，点击下拉选择`
+            : `${result.models.length} models found — pick one from the list`
+        );
+      } else {
+        message.warning(
+          result.message || (locale === 'zh' ? '未获取到模型列表，可手动填写' : 'No models found — enter one manually')
+        );
+      }
+    } catch (err: any) {
+      message.error(
+        err?.response?.data?.message ||
+          (locale === 'zh' ? '获取模型列表失败，可手动填写' : 'Failed to fetch models — enter one manually')
+      );
+    } finally {
+      setLoadingModels(false);
+    }
+  };
+
+  // 检查更新：查询 GitHub Releases，仅提示，不强制也不自动下载
+  const handleCheckUpdate = async () => {
+    setCheckingUpdate(true);
+    try {
+      setUpdateResult(await checkForUpdate());
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
+  const updateMessage = (() => {
+    if (!updateResult) return '';
+    if (updateResult.status === 'up-to-date') return t.settings.upToDate;
+    if (updateResult.status === 'update-available') return t.settings.updateAvailable + ' v' + updateResult.latest;
+    switch (updateResult.error) {
+      case 'rate-limited': return t.settings.updateErrRateLimited;
+      case 'network': return t.settings.updateErrNetwork;
+      case 'http': return t.settings.updateErrHttp + ' (HTTP ' + updateResult.httpStatus + ')';
+      default: return t.settings.updateErrParse;
+    }
+  })();
 
   const handleTest = async () => {
     try {
@@ -344,8 +411,25 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
               <Form.Item name="base_url" label={t.settings.apiUrl} rules={provider === 'custom' ? [{ required: true, message: t.settings.customProviderRequired }] : []}>
                 <Input placeholder={DEFAULT_URLS[provider]} />
               </Form.Item>
-              <Form.Item name="model" label={t.settings.modelName}>
-                <Input placeholder={DEFAULT_MODELS[provider]} />
+              <Form.Item label={t.settings.modelName}>
+                <Space.Compact style={{ width: '100%' }}>
+                  <Form.Item name="model" noStyle>
+                    <AutoComplete
+                      style={{ width: '100%' }}
+                      placeholder={DEFAULT_MODELS[provider]}
+                      options={models.map((m) => ({ value: m }))}
+                      filterOption={(input, option) =>
+                        String(option?.value ?? '').toLowerCase().includes(String(input).toLowerCase())
+                      }
+                    />
+                  </Form.Item>
+                  <Button icon={<SyncOutlined />} loading={loadingModels} onClick={handleFetchModels}>
+                    {t.settings.fetchModels}
+                  </Button>
+                </Space.Compact>
+                <div style={{ fontSize: 12, color: isDark ? '#999' : '#888', marginTop: 4 }}>
+                  {t.settings.modelHint}
+                </div>
               </Form.Item>
               <Space>
                 <Button type="primary" onClick={handleSubmit}>{t.settings.addConfig}</Button>
@@ -414,6 +498,11 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
           )}
         </div>
       ),
+    },
+    {
+      key: 'appearance',
+      label: t.settings.appearance,
+      children: <AppearanceSettings />,
     },
     {
       key: 'general',
@@ -549,23 +638,52 @@ const SettingsModal: React.FC<Props> = ({ open, onClose, initialTab }) => {
               placeholder={locale === 'zh' ? '点击"刷新日志"查看最近10条' : 'Click "Refresh" to view last 10 entries'}
             />
           </div>
+          <div>
+            <h4>{t.settings.about}</h4>
+            <Space wrap style={{ marginBottom: 8 }}>
+              <Tag>{t.settings.currentVersion} v{getCurrentVersion()}</Tag>
+              <Button icon={<SyncOutlined />} loading={checkingUpdate} onClick={handleCheckUpdate}>
+                {checkingUpdate ? t.settings.checking : t.settings.checkUpdate}
+              </Button>
+            </Space>
+            {updateResult && (
+              <Alert
+                style={{ marginBottom: 8 }}
+                showIcon
+                type={
+                  updateResult.status === 'update-available' ? 'info' :
+                  updateResult.status === 'up-to-date' ? 'success' : 'warning'
+                }
+                message={updateMessage}
+                description={
+                  updateResult.status === 'update-available' && updateResult.url ? (
+                    <a href={updateResult.url} target='_blank' rel='noreferrer'>{updateResult.url}</a>
+                  ) : undefined
+                }
+                action={
+                  updateResult.status === 'update-available' && updateResult.url ? (
+                    <Button size='small' type='primary' href={updateResult.url} target='_blank' rel='noreferrer'>
+                      {t.settings.goDownload}
+                    </Button>
+                  ) : undefined
+                }
+              />
+            )}
+            <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', margin: 0 }}>
+              {t.settings.updateHint}
+            </p>
+          </div>
         </div>
       ),
     },
   ];
 
   return (
-    <Modal
-      title={t.settings.title}
-      open={open}
-      onCancel={onClose}
-      footer={null}
-      width={isMobile ? '96%' : 700}
-      style={isMobile ? { top: 12, maxWidth: '100%' } : undefined}
-    >
+    <div style={{ background: isDark ? '#1f1f1f' : '#fff', padding: isMobile ? 12 : 24, borderRadius: 8 }}>
+      <h3 style={{ marginTop: 0, marginBottom: 12 }}>{t.settings.title}</h3>
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-    </Modal>
+    </div>
   );
 };
 
-export default SettingsModal;
+export default SettingsView;

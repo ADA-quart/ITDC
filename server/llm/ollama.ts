@@ -1,4 +1,4 @@
-import { LLMProvider, LLMMessage, LLMResponse } from './provider.js';
+import { LLMProvider, LLMMessage, LLMResponse, ModelListResult } from './provider.js';
 
 export class OllamaProvider implements LLMProvider {
   private baseUrl: string;
@@ -46,6 +46,29 @@ export class OllamaProvider implements LLMProvider {
       };
     } catch (err: any) {
       return { success: false, message: `Ollama 连接失败: ${err.message}` };
+    }
+  }
+
+  /** 列出本地已安装的模型（GET /api/tags） */
+  async listModels(): Promise<ModelListResult> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/tags`);
+      if (!res.ok) {
+        return { success: false, models: [], message: `Ollama 返回 ${res.status}` };
+      }
+      const data = await res.json();
+      const models: string[] = (data?.models || [])
+        .map((m: any) => m?.name || m?.model || m)
+        .filter((m: unknown): m is string => typeof m === 'string' && m.length > 0);
+
+      const unique = Array.from(new Set<string>(models)).sort();
+      return {
+        success: unique.length > 0,
+        models: unique,
+        message: unique.length > 0 ? undefined : 'Ollama 尚未安装任何模型（可先执行 ollama pull）',
+      };
+    } catch (err: any) {
+      return { success: false, models: [], message: `Ollama 连接失败: ${err.message}` };
     }
   }
 }

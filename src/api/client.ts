@@ -636,6 +636,10 @@ export const llmConfigApi = {
   delete: (id: number) => api.delete(`/schedule/llm-config/${id}`).then(r => r.data),
   test: (data: { id?: number; provider?: string; api_key?: string; base_url?: string; model?: string }) =>
     api.post<{ success: boolean; message: string; model?: string }>('/schedule/llm-config/test', data).then(r => r.data),
+  /** 拉取服务商的可用模型列表，供设置页下拉选择 */
+  listModels: (data: { id?: number; provider?: string; api_key?: string; base_url?: string }) =>
+    api.post<{ success: boolean; models: string[]; message?: string }>('/schedule/llm-config/models', data)
+      .then(r => r.data),
 };
 
 export const promptTemplateApi = {

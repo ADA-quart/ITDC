@@ -36,6 +36,7 @@ Turn on sync when you want your phone and PC to share data. Both sides merge; ne
 - 💬&nbsp;Natural language input — type "submit the report Friday afternoon"
 - 🧠&nbsp;Two scheduling modes: a local algorithm, or hand it to an LLM
 - 🌓&nbsp;Light / dark / follow system
+- 🎨&nbsp;Personalisation: accent colour, background image, widget palette
 - 🌍&nbsp;Simplified Chinese and English
 - 📴&nbsp;Works offline — reads and writes are unaffected
 
@@ -59,7 +60,13 @@ The Android widget is interactive, not a static image:
 - ⏳&nbsp;Ended classes disappear on their own, without opening the app
 - 🏷️&nbsp;Header shows the calendar of your next class, the date, and the teaching week
 - 🎨&nbsp;Rounded frosted look that follows the system light/dark setting
+- 🖌️&nbsp;Panel colour, opacity, brightness, and background image are all editable in the app and apply immediately
 - 📴&nbsp;Works in local-only mode too — no server needed
+
+Everything lives under **Settings → Appearance**: pick a preset accent colour or use the colour
+picker, upload a local image as the app background with its own opacity and blur controls, and let
+the widget either follow the app palette or use its own panel colour and brightness. Set panel
+opacity to 0 for a text-only widget.
 
 ## Quick Start
 

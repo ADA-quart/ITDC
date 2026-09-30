@@ -18,7 +18,8 @@ import CalendarView from './components/CalendarView';
 import TodoList from './components/TodoList';
 import SchedulePanel from './components/SchedulePanel';
 import DailyReview from './components/DailyReview';
-import SettingsModal from './components/SettingsModal';
+import SettingsView from './components/SettingsView';
+import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { ITDCWidgetPlugin } from './capacitor/itdc-widget';
 import { pushWidgetSnapshot, consumeWidgetDoneQueue } from './api/widget-sync';
@@ -28,9 +29,9 @@ import { useIsMobile } from './hooks/useIsMobile';
 
 const { Sider, Content } = Layout;
 
-type PageKey = 'calendar' | 'todos' | 'schedule' | 'review';
+type PageKey = 'calendar' | 'todos' | 'schedule' | 'review' | 'settings';
 
-const VALID_PAGES: PageKey[] = ['calendar', 'todos', 'schedule', 'review'];
+const VALID_PAGES: PageKey[] = ['calendar', 'todos', 'schedule', 'review', 'settings'];
 
 function getPageFromHash(): PageKey {
   const hash = window.location.hash.replace('#', '');
@@ -42,12 +43,12 @@ function getPageFromHash(): PageKey {
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<PageKey>(getPageFromHash);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<string | undefined>(undefined);
   const [isOffline, setIsOffline] = useState(false);
   const isMobile = useIsMobile();
   const { t, locale, setLocale } = useI18n();
   const { mode: themeMode, setMode: setThemeMode, isDark } = useTheme();
+  const { appearance } = useTheme();
 
   useEffect(() => {
     const handler = () => setCurrentPage(getPageFromHash());
@@ -108,9 +109,45 @@ const App: React.FC = () => {
 
   // 视图（如日历加载失败）可发此事件引导用户直接打开设置
   useEffect(() => {
-    const handler = () => { setSettingsTab('general'); setSettingsOpen(true); };
+    const handler = () => {
+      setSettingsTab('general');
+      window.location.hash = 'settings';
+      setCurrentPage('settings');
+    };
     window.addEventListener('itdc-open-settings', handler);
     return () => window.removeEventListener('itdc-open-settings', handler);
+  }, []);
+
+  // 从桌面小组件点进来：原生侧派发该事件，总是回到主页。
+  // 应用被完全杀掉后点击小组件走的是冷启动，WebView 直接落到默认主页，不经过这里。
+  useEffect(() => {
+    const handler = () => {
+      window.location.hash = 'calendar';
+      setCurrentPage('calendar');
+    };
+    window.addEventListener('itdc-open-home', handler);
+    return () => window.removeEventListener('itdc-open-home', handler);
+  }, []);
+
+  // Android 返回键：交给 @capacitor/app 的原生回调处理。
+  // 优先级 —— 先关掉最上层的弹窗，其次回退页面历史，最后才退出应用。
+  // 只把设置做成页面还不够：Capacitor 核心不处理返回键，必须在这里显式接管。
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let handle: { remove: () => Promise<void> } | undefined;
+    void CapApp.addListener('backButton', ({ canGoBack }) => {
+      // 弹窗以遮罩层形式挂载，取可见的最外层，点击它的关闭按钮触发组件自身的 onCancel
+      const overlays = Array.from(document.querySelectorAll<HTMLElement>('.ant-modal-wrap'))
+        .filter((el) => el.style.display !== 'none');
+      const top = overlays[overlays.length - 1];
+      if (top) {
+        const closer = top.querySelector<HTMLElement>('.ant-modal-close, .ant-btn-default');
+        if (closer) { closer.click(); return; }
+      }
+      if (canGoBack) { window.history.back(); return; }
+      void CapApp.exitApp();
+    }).then((l) => { handle = l; });
+    return () => { void handle?.remove(); };
   }, []);
 
   // 启动时把当前服务器地址推给桌面小组件（仅同步模式；仅本机模式下小组件显示本机数据提示）
@@ -138,16 +175,48 @@ const App: React.FC = () => {
         return <SchedulePanel />;
       case 'review':
         return <DailyReview />;
+      case 'settings':
+        return <SettingsView initialTab={settingsTab} />;
     }
   };
 
   const antdLocale = locale === 'zh' ? zhCN : enUS;
+
+  // 用户自定义主题色：antd token 负责组件层，CSS 变量负责零散样式
+  const themeConfig = {
+    algorithm: isDark ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
+    token: { colorPrimary: appearance.accent },
+  };
+
+  // 背景图铺在最底层（z-index:-1），页面容器改成透明才能真正透出来
+  const hasBgImage = !!appearance.bgImage;
+  const pageBg = hasBgImage ? 'transparent' : (isDark ? '#141414' : '#f5f5f5');
+
+  const backgroundLayer = hasBgImage ? (
+    <div
+      aria-hidden
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: -1,
+        pointerEvents: 'none',
+        backgroundImage: `url(${appearance.bgImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        opacity: Math.max(0.1, appearance.bgOpacity / 100),
+        // 模糊会在边缘采样到透明，放大一点盖住四角暗边
+        filter: appearance.bgBlur ? `blur(${appearance.bgBlur}px)` : undefined,
+        transform: appearance.bgBlur ? 'scale(1.08)' : undefined,
+      }}
+    />
+  ) : null;
 
   const menuItems = [
     { key: 'calendar', icon: <CalendarOutlined />, label: t.nav.calendar },
     { key: 'todos', icon: <CheckSquareOutlined />, label: t.nav.todos },
     { key: 'schedule', icon: <ThunderboltOutlined />, label: t.nav.schedule },
     { key: 'review', icon: <PieChartOutlined />, label: t.nav.review },
+    { key: 'settings', icon: <SettingOutlined />, label: t.nav.settings },
   ];
 
   // 仅同步模式下的网络异常才提示；仅本机模式属于正常使用，不显示任何警告横幅
@@ -164,17 +233,13 @@ const App: React.FC = () => {
 
   if (isMobile) {
     return (
-      <ConfigProvider
-        locale={antdLocale}
-        theme={{
-          algorithm: isDark ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
-        }}
-      >
-        <Layout style={{ minHeight: '100vh' }}>
+      <ConfigProvider locale={antdLocale} theme={themeConfig}>
+        {backgroundLayer}
+        <Layout style={{ minHeight: '100vh', background: 'transparent' }}>
           <Content
             style={{
               padding: 12,
-              background: isDark ? '#141414' : '#f5f5f5',
+              background: pageBg,
               overflow: 'auto',
               // Android 15+ 强制 edge-to-edge：为状态栏与手势导航条留出空间
               paddingTop: `calc(12px + ${inset('top')})`,
@@ -208,7 +273,7 @@ const App: React.FC = () => {
                   alignItems: 'center',
                   gap: 2,
                   cursor: 'pointer',
-                  color: currentPage === item.key ? '#1890ff' : (isDark ? '#aaa' : '#666'),
+                  color: currentPage === item.key ? appearance.accent : (isDark ? '#aaa' : '#666'),
                   fontSize: 11,
                 }}
               >
@@ -218,36 +283,16 @@ const App: React.FC = () => {
                 {item.label}
               </div>
             ))}
-            <div
-              onClick={() => setSettingsOpen(true)}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 2,
-                cursor: 'pointer',
-                color: isDark ? '#aaa' : '#666',
-                fontSize: 11,
-              }}
-            >
-              <SettingOutlined style={{ fontSize: 20 }} />
-              {t.nav.settings}
-            </div>
           </div>
-          <SettingsModal open={settingsOpen} initialTab={settingsTab} onClose={() => { setSettingsOpen(false); setSettingsTab(undefined); }} />
         </Layout>
       </ConfigProvider>
     );
   }
 
   return (
-    <ConfigProvider
-      locale={antdLocale}
-      theme={{
-        algorithm: isDark ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
-      }}
-    >
-      <Layout style={{ minHeight: '100vh' }}>
+    <ConfigProvider locale={antdLocale} theme={themeConfig}>
+      {backgroundLayer}
+      <Layout style={{ minHeight: '100vh', background: 'transparent' }}>
         <Sider width={200} theme={isDark ? 'dark' : 'light'}>
           <div style={{ padding: '16px', fontSize: 18, fontWeight: 'bold', textAlign: 'center', color: isDark ? '#fff' : undefined }}>
             {t.app.title}
@@ -277,12 +322,6 @@ const App: React.FC = () => {
                   label: locale === 'zh' ? t.settings.english : t.settings.chinese,
                   onClick: () => setLocale(locale === 'zh' ? 'en' : 'zh'),
                 },
-                {
-                  key: 'settings',
-                  icon: <SettingOutlined />,
-                  label: t.nav.settings,
-                  onClick: () => setSettingsOpen(true),
-                },
               ]}
             />
           </div>
@@ -290,16 +329,13 @@ const App: React.FC = () => {
             {t.app.designBy}
           </div>
         </Sider>
-        <Content style={{ padding: 24, background: isDark ? '#141414' : '#f5f5f5', overflow: 'auto' }}>
+        <Content style={{ padding: 24, background: pageBg, overflow: 'auto' }}>
           {renderContent()}
 {offlineBanner}
         </Content>
       </Layout>
-      <SettingsModal open={settingsOpen} initialTab={settingsTab} onClose={() => { setSettingsOpen(false); setSettingsTab(undefined); }} />
     </ConfigProvider>
   );
 };
 
 export default App;
-
-

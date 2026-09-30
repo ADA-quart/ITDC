@@ -1,11 +1,19 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { readFileSync } from 'fs';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const BACKEND_PORT = process.env.BACKEND_PORT || process.env.PORT || 3000;
 
+// 前端展示的版本号取自 package.json，避免多处各写一份导致不一致。
+// 修改版本时请同步 capacitor.config.json 与 android/app/build.gradle 的 versionName。
+const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')) as { version: string };
+
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [
     react(),
     VitePWA({

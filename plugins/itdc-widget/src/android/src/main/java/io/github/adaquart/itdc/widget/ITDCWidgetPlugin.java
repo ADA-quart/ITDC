@@ -55,6 +55,30 @@ public class ITDCWidgetPlugin extends Plugin {
     }
 
     /**
+     * App 下发外观：主题色、面板底色与透明度、明暗、背景图。
+     * image 只在换图时随请求带过来（base64），其余情况沿用原生侧已存的图。
+     */
+    @PluginMethod
+    public void setAppearance(PluginCall call) {
+        try {
+            String image = call.getString("image");
+            WidgetAppearance.apply(
+                    getContext(),
+                    call.getString("accent"),
+                    call.getString("panelColor"),
+                    call.getInt("panelOpacity", 90),
+                    call.getString("scheme"),
+                    Boolean.TRUE.equals(call.getBoolean("hasImage", false)),
+                    image);
+        } catch (Exception e) {
+            call.reject("apply appearance failed: " + e.getMessage());
+            return;
+        }
+        ITDCWidgetProvider.requestRefresh(getContext());
+        call.resolve();
+    }
+
+    /**
      * App 侧读取桌面上"打勾完成"的操作队列。
      * App 拿到后写回本地数据库，成功则调用 clearDoneQueue 清空。
      */

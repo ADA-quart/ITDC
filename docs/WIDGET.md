@@ -8,7 +8,7 @@
 - 课表：**今天 / 明天** 双栏，各含彩色竖条、课程名、地点、时间
 - 待办：复选框 + 标题 + 截止日期，**可点按完成**，已完成的显示划线并沉底
 - 三个区域**各自可上下滑动**
-- 圆角磨砂外观，跟随系统**日夜模式**自动切换
+- 圆角磨砂外观，跟随系统**日夜模式**自动切换，也可在 App 里自定义配色与背景图
 - **上过的课自动消失**（按结束时间过滤，无需打开 App）
 
 ## 为什么用集合型小组件
@@ -46,6 +46,33 @@ getDoneQueue() → 写回 IndexedDB → clearDoneQueue()
 
 用 `pending_done` / `pending_undone` 两个集合实现互斥，这样**点错了可以再点一次取消**。
 回写失败时保留队列，下次重试 —— 避免桌面状态与数据库永久不一致。
+
+## 外观自定义
+
+面板底色、不透明度、明暗、强调色与背景图都由 App 下发，走的是与快照同一条通道：
+
+```
+设置 → 外观（src/components/AppearanceSettings.tsx）
+   ↓ pushWidgetAppearance()          src/api/appearance.ts
+   ↓ ITDCWidgetPlugin.setAppearance()
+WidgetAppearance.java → SharedPreferences(widget_prefs) + files/widget_bg.jpg
+   ↓ requestRefresh()
+RemoteViews 重新渲染
+```
+
+几个设计上的取舍：
+
+- **背景走位图，不走 drawable**。`RemoteViews` 无法承载运行时构造的 drawable，
+  资源色（`@color/widget_bg`）也不能在运行时改。因此「圆角 + 底色/照片 + 透明度」
+  由 `WidgetAppearance.backgroundBitmap()` 一次性画成位图交给 `ImageView`。
+  根布局自带的圆角底色必须同时置为透明，否则会在位图透明处透出第二层颜色。
+- **位图有硬预算**。Binder 事务上限约 1MB，超了部分桌面会抛
+  `TransactionTooLargeException`，表现为整块小组件空白。因此按小组件实际像素缩到
+  160k 像素（不透明，RGB_565）或 80k 像素（半透明，ARGB_8888）以内。
+  纯色面板不需要高分辨率，只保留够画圆角的像素。
+- **图片只在换图时传**。base64 几百 KB，滑动条之类的微调不必重复传，原生侧沿用已存的文件。
+- **复选框自绘**。矢量图标的颜色写死在资源里，无法跟随主题色，而 RemoteViews 没有
+  「只染一层路径」的能力，所以完成态图标改成小位图（`WidgetAppearance.todoIcon()`）。
 
 ## 踩过的坑
 
@@ -85,6 +112,12 @@ Provider 声明了 `android:permission="BIND_APPWIDGET"`，广播要求**发送�
 Service Worker 缓存会导致装了新 APK 却跑旧代码，小组件因此收到旧格式数据。
 `npm run build:native` 会把 SW 替换成自我清理脚本（见 `scripts/native-sw-killswitch.mjs`）。
 
+### 6. 位图不能随便塞
+
+`setImageViewBitmap` 的位图会进 Binder 事务，超过约 1MB 就抛
+`TransactionTooLargeException`，而且**错误发生在桌面进程**，App 侧看不到堆栈，
+桌面只表现为小组件空白。生成位图前必须先按目标尺寸缩放到安全预算内。
+
 ## 刷新机制
 
 Android 15+ 抬高了 `setInexactRepeating` 的最短周期，Doze 下还会跳过；澎湃 OS 更是会冻结后台。
@@ -114,6 +147,7 @@ App 的设置页会检测电池优化状态并给出跳转入口。
 | `ITDCWidgetActionReceiver.java` | 点按完成 / 全部完成的接收与队列写入 |
 | `ITDCWidgetTimeChangeReceiver.java` | 时间或日期变化时重绘 |
 | `WidgetDoneStore.java` | 完成状态的本地存储与回传队列 |
+| `WidgetAppearance.java` | 主题色 / 面板底色与透明度 / 明暗 / 背景图的存储与位图生成 |
 | `ITDCWidgetPlugin.java` | 暴露给 JS 的桥接接口 |
 | `res/layout/widget_main.xml` | 主布局 |
-| `res/values-night/colors.xml` | 深色模式配色 |
+| `res/values-night/colors.xml` | 默认深色配色（用户自定义后由 WidgetAppearance 覆盖） |

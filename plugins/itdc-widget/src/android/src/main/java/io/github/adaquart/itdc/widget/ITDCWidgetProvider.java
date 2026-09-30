@@ -8,6 +8,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.text.TextUtils;
@@ -38,6 +39,8 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
 
     public static final String MODE_LOCAL = "local";
     public static final String MODE_SERVER = "server";
+    /** 小组件点击时带上，供 MainActivity 判断是否需要把 WebView 拉回主页 */
+    public static final String EXTRA_OPEN_HOME = "itdc_open_home";
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -152,6 +155,8 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
     private static void renderSnapshot(Context context, int appWidgetId, String json) {
         try {
             RemoteViews rv = new RemoteViews(context.getPackageName(), R.layout.widget_main);
+            applyAppearance(context, rv, appWidgetId);
+            applyTextColors(context, rv);
 
             String boardTitle = "";
             String dateText = "";
@@ -187,6 +192,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
                     TextUtils.isEmpty(boardTitle) ? context.getString(R.string.app_widget_label) : boardTitle);
             rv.setTextViewText(R.id.widget_date, dateText);
             rv.setTextViewText(R.id.widget_todo_header, context.getString(R.string.widget_todo_header));
+            rv.setTextColor(R.id.widget_todo_all_done, WidgetAppearance.accent(context));
             // 「全部完成」：一键把当前展示的待办全部标记完成
             rv.setOnClickPendingIntent(R.id.widget_todo_all_done,
                     ITDCWidgetActionReceiver.allDonePendingIntent(context));
@@ -227,6 +233,9 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         Intent launch = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
         if (launch == null) launch = new Intent();
         launch.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        // 标记来源：应用已在运行时由 MainActivity 收到 onNewIntent，
+        // 让 WebView 回到主页，否则会停在用户上次离开的页面（例如设置页）。
+        launch.putExtra(EXTRA_OPEN_HOME, true);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
         return PendingIntent.getActivity(context, 0, launch, flags);
@@ -235,11 +244,48 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
     private static void updateHint(Context context, int appWidgetId, String msg) {
         try {
             RemoteViews rv = new RemoteViews(context.getPackageName(), R.layout.widget_today_error);
+            applyAppearance(context, rv, appWidgetId);
             rv.setTextViewText(R.id.error_text, msg);
-            rv.setOnClickPendingIntent(R.id.widget_container_error, openAppIntent(context));
+            rv.setTextColor(R.id.error_text, WidgetAppearance.textPrimary(context));
+            rv.setOnClickPendingIntent(R.id.widget_root, openAppIntent(context));
             AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
             awm.updateAppWidget(appWidgetId, rv);
         } catch (Exception e) { Log.e(TAG, "updateHint failed", e); }
+    }
+
+    /**
+     * 应用用户自定义外观。
+     *
+     * 背景走 ImageView + 位图：RemoteViews 不能承载运行时构造的 drawable，
+     * 资源色也无法在运行时改，所以「圆角 + 底色/照片 + 透明度」一次性画成位图。
+     * 根布局原生的圆角底色必须先置空，否则会在位图透明处透出第二层颜色。
+     */
+    private static void applyAppearance(Context context, RemoteViews rv, int appWidgetId) {
+        try {
+            rv.setInt(R.id.widget_root, "setBackgroundColor", Color.TRANSPARENT);
+            android.graphics.Bitmap bitmap = WidgetAppearance.backgroundBitmap(context, appWidgetId);
+            if (bitmap != null) {
+                rv.setImageViewBitmap(R.id.widget_bg_image, bitmap);
+            } else {
+                // 生成失败时退回纯色圆角底，至少不是全透明
+                rv.setInt(R.id.widget_root, "setBackgroundColor",
+                        WidgetAppearance.panelColorWithAlpha(context));
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "applyAppearance failed", e);
+        }
+    }
+
+    /** 文字配色只作用于主布局：提示页没有这些控件 */
+    private static void applyTextColors(Context context, RemoteViews rv) {
+        rv.setTextColor(R.id.widget_board_title, WidgetAppearance.textPrimary(context));
+        rv.setTextColor(R.id.widget_date, WidgetAppearance.textSecondary(context));
+        rv.setTextColor(R.id.widget_today_label, WidgetAppearance.textSection(context));
+        rv.setTextColor(R.id.widget_tomorrow_label, WidgetAppearance.textSection(context));
+        rv.setTextColor(R.id.widget_todo_header, WidgetAppearance.textSection(context));
+        // 分隔线跟着明暗走：深色面板配浅色细线才分得开
+        rv.setInt(R.id.widget_divider_vertical, "setBackgroundColor", WidgetAppearance.divider(context));
+        rv.setInt(R.id.widget_divider_horizontal, "setBackgroundColor", WidgetAppearance.divider(context));
     }
 
     private static String normalizeBaseUrl(String url) {

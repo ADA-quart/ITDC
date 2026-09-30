@@ -180,6 +180,7 @@ public class ITDCWidgetListService extends RemoteViewsService {
             if (rows.isEmpty()) {
                 RemoteViews empty = new RemoteViews(context.getPackageName(), R.layout.widget_empty_item);
                 empty.setTextViewText(R.id.empty_text, emptyText);
+                empty.setTextColor(R.id.empty_text, WidgetAppearance.textEmpty(context));
                 return empty;
             }
 
@@ -188,9 +189,8 @@ public class ITDCWidgetListService extends RemoteViewsService {
             if (LIST_TODO.equals(listType)) {
                 RemoteViews rv = new RemoteViews(context.getPackageName(), R.layout.widget_todo_item);
 
-                // 复选框：完成态实心带勾，未完成态空心
-                rv.setImageViewResource(R.id.todo_check,
-                        row.done ? R.drawable.ic_todo_checked : R.drawable.ic_todo_unchecked);
+                // 复选框：自绘位图，完成态的实心色跟随用户主题色（矢量资源的颜色写死改不了）
+                rv.setImageViewBitmap(R.id.todo_check, WidgetAppearance.todoIcon(context, row.done));
                 // 集合型小组件里子项不能用 setOnClickPendingIntent（系统会忽略），
                 // 必须用 fill-in intent，配合 provider 上的 setPendingIntentTemplate。
                 ITDCWidgetActionReceiver.bindFillIn(rv, R.id.todo_check, row.id, row.done);
@@ -198,13 +198,14 @@ public class ITDCWidgetListService extends RemoteViewsService {
                 ITDCWidgetActionReceiver.bindFillIn(rv, R.id.todo_title, row.id, row.done);
 
                 rv.setTextViewText(R.id.todo_title, row.title);
+                rv.setTextColor(R.id.todo_title,
+                        row.done ? WidgetAppearance.textDone(context) : WidgetAppearance.textPrimary(context));
+                rv.setTextColor(R.id.todo_meta, WidgetAppearance.textSecondary(context));
 
                 // 划线效果：已完成的标题加删除线并降低不透明度
                 int flags = row.done ? (Paint.STRIKE_THRU_TEXT_FLAG | Paint.ANTI_ALIAS_FLAG)
                                      : Paint.ANTI_ALIAS_FLAG;
                 rv.setInt(R.id.todo_title, "setPaintFlags", flags);
-                rv.setInt(R.id.todo_title, "setTextColor",
-                        row.done ? 0xFF9E9E9E : context.getColor(R.color.widget_text_primary));
 
                 StringBuilder meta = new StringBuilder();
                 if (!TextUtils.isEmpty(row.slot)) meta.append(row.slot);
@@ -228,6 +229,9 @@ public class ITDCWidgetListService extends RemoteViewsService {
             rv.setViewVisibility(R.id.course_meta, TextUtils.isEmpty(row.location) ? View.GONE : View.VISIBLE);
             rv.setTextViewText(R.id.course_time,
                     TextUtils.isEmpty(row.end) ? row.start : row.start + " - " + row.end);
+            rv.setTextColor(R.id.course_title, WidgetAppearance.textPrimary(context));
+            rv.setTextColor(R.id.course_meta, WidgetAppearance.textSecondary(context));
+            rv.setTextColor(R.id.course_time, WidgetAppearance.textSecondary(context));
 
             // 左侧色条按课程颜色着色，对应参考图的彩色标记
             try {

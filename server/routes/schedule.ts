@@ -176,6 +176,39 @@ router.post('/llm-config/test', async (req: Request, res: Response) => {
   }
 });
 
+// 获取可用模型列表：供设置页把模型名做成下拉，省去手工输入。
+// id 指向已保存的配置时复用其密钥；否则用请求里传来的（表单尚未保存的情况）。
+router.post('/llm-config/models', async (req: Request, res: Response) => {
+  try {
+    const { id, provider, api_key, base_url } = req.body;
+
+    let config: any;
+    if (id) {
+      config = db.prepare('SELECT * FROM llm_config WHERE id = ?').get(id);
+      if (!config) {
+        return res.status(404).json({ success: false, models: [], message: '配置不存在' });
+      }
+    } else {
+      if (!provider || !VALID_PROVIDERS.includes(provider)) {
+        return res.status(400).json({ success: false, models: [], message: '不支持的 LLM 服务商' });
+      }
+      config = { provider, api_key: api_key || null, base_url: base_url || null, model: null };
+    }
+
+    const providerInstance = getProviderForConfig(config);
+    if (!providerInstance) {
+      return res.status(400).json({ success: false, models: [], message: '无法创建 LLM Provider' });
+    }
+
+    const result = await providerInstance.listModels();
+    debug.info('LLM list models', { provider: config.provider, count: result.models.length });
+    res.json(result);
+  } catch (error: any) {
+    debug.error('LLM list models failed', error.message);
+    res.status(500).json({ success: false, models: [], message: error.message || '获取模型列表失败' });
+  }
+});
+
 router.get('/prompt-template', (_req: Request, res: Response) => {
   const row = db.prepare("SELECT value FROM settings WHERE key = 'llm_prompt_template'").get() as { value: string } | undefined;
   res.json({ template: row?.value || '', defaultTemplate: DEFAULT_SYSTEM_PROMPT });

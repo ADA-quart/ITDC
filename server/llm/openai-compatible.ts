@@ -1,4 +1,4 @@
-import { LLMProvider, LLMMessage, LLMResponse } from './provider.js';
+import { LLMProvider, LLMMessage, LLMResponse, ModelListResult } from './provider.js';
 
 export class OpenAICompatibleProvider implements LLMProvider {
   private apiKey: string | null;
@@ -123,6 +123,46 @@ export class OpenAICompatibleProvider implements LLMProvider {
       return { success: false, message: `${this.providerName} 连接失败: ${chatResponse.status} - ${errText.slice(0, 100)}` };
     } catch (err: any) {
       return { success: false, message: `${this.providerName} 连接失败: ${err.message}` };
+    }
+  }
+
+  /**
+   * 列出可用模型（OpenAI 兼容端点的 GET /models）。
+   * 设置页用它把模型名做成下拉，省去手工输入。
+   */
+  async listModels(): Promise<ModelListResult> {
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (this.apiKey) {
+        headers['Authorization'] = `Bearer ${this.apiKey}`;
+      }
+
+      const res = await fetch(`${this.baseUrl}/models`, { headers });
+
+      if (res.status === 401 || res.status === 403) {
+        return { success: false, models: [], message: `${this.providerName} 认证失败，请检查 API Key` };
+      }
+      if (!res.ok) {
+        return { success: false, models: [], message: `${this.providerName} 返回 ${res.status}` };
+      }
+
+      const data = await res.json();
+      // OpenAI 用 { data: [...] }，部分兼容端点直接返回数组
+      const raw = Array.isArray(data) ? data : data?.data;
+      const models = Array.isArray(raw)
+        ? raw
+            .map((m: any) => (typeof m === 'string' ? m : m?.id || m?.name))
+            .filter((m: unknown): m is string => typeof m === 'string' && m.length > 0)
+        : [];
+
+      const unique = Array.from(new Set<string>(models)).sort();
+      return {
+        success: unique.length > 0,
+        models: unique,
+        message: unique.length > 0 ? undefined : `${this.providerName} 未返回任何模型`,
+      };
+    } catch (err: any) {
+      return { success: false, models: [], message: `${this.providerName} 连接失败: ${err.message}` };
     }
   }
 }
