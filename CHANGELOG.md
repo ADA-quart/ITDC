@@ -3,7 +3,7 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [1.7.2] - 2026-10-01
 
 ### 修复
 
@@ -12,6 +12,14 @@
   `setImageViewBitmap`（同一批动作里的划线、文字色都正常）。
   现在复选框改为「空心框 / 实心框 / 对勾」三层矢量资源 + `setColorFilter` 着色，
   仍然跟随用户自定义主题色，同时删掉了不再需要的两个旧图标与位图绘制代码
+- **打开设置页后直接点「获取模型列表」提示「请先填写 API Key」**。表单固定默认停在 OpenAI，
+  而用户启用的是别的服务商（例如 DeepSeek），于是找不到对应密钥。
+  现在进入设置页时表单会自动对齐到当前启用的配置（只填服务商 / 地址 / 模型，绝不回填密钥），
+  提示文案也改为「或把上方服务商选成已配置过的那一个」
+
+### 变更
+
+- 版本号升至 1.7.2（versionCode 16）
 
 ## [1.7.1] - 2026-09-30
 
@@ -222,6 +230,7 @@
 - 深色模式、中英文切换
 - Android 桌面小组件（初版，静态位图）
 
+[1.7.2]: https://github.com/ADA-quart/ITDC/releases/tag/v1.7.2
 [1.7.1]: https://github.com/ADA-quart/ITDC/releases/tag/v1.7.1
 [1.7.0]: https://github.com/ADA-quart/ITDC/releases/tag/v1.7.0
 [1.6.1]: https://github.com/ADA-quart/ITDC/releases/tag/v1.6.1

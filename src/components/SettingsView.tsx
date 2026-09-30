@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Form, Input, Select, Button, Table, Tag, message, Space, Popconfirm, Tabs, Spin, Alert, AutoComplete, Tooltip } from 'antd';
 import { SyncOutlined } from '@ant-design/icons';
 import { settingsApi, api, setApiBase, getApiBase, isSyncEnabled } from '../api/client';
@@ -75,6 +75,8 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
   const [batteryIgnoring, setBatteryIgnoring] = useState<boolean | null>(null);
   const [testingServer, setTestingServer] = useState(false);
   const [debugLog, setDebugLog] = useState('');
+  // 表单是否已按「当前启用的配置」对齐过：只做一次，避免打断用户正在输入的内容
+  const formSeeded = useRef(false);
 
   const PROVIDER_OPTIONS = locale === 'zh' ? PROVIDER_OPTIONS_ZH : PROVIDER_OPTIONS_EN;
 
@@ -82,6 +84,19 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
     try {
       const data = await llmConfigService.getAll();
       setConfigs(data);
+      // 首次进入设置页时，把表单对齐到当前启用的配置（只填服务商/地址/模型，绝不回填密钥）。
+      // 否则表单默认停在 OpenAI，而用户启用的是 DeepSeek，
+      // 点「获取模型列表」会因为「当前服务商没有密钥」而失败。
+      if (!formSeeded.current && data.length > 0) {
+        const active = data.find((c) => c.is_active) || data[0];
+        formSeeded.current = true;
+        setProvider(active.provider);
+        form.setFieldsValue({
+          provider: active.provider,
+          base_url: active.base_url || DEFAULT_URLS[active.provider] || '',
+          model: active.model || DEFAULT_MODELS[active.provider] || '',
+        });
+      }
     } catch {
       message.error(t.settings.loadFailed);
     }
@@ -234,7 +249,11 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
         baseUrl: values.base_url,
       });
       if (!saved) {
-        message.warning(locale === 'zh' ? '请先填写 API Key' : 'Fill in the API key first');
+        message.warning(
+          locale === 'zh'
+            ? '请先填写 API Key，或把上方「服务商」选成已配置过的那一个'
+            : 'Enter the API key, or pick the provider you already configured above'
+        );
         return;
       }
     }
