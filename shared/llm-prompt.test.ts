@@ -5,22 +5,38 @@ import {
   parseScheduleResponse,
   renderSystemPrompt,
 } from './llm-prompt';
+import { formatNowForModel } from './current-time';
 
 describe('renderSystemPrompt', () => {
   it('没有自定义模板时用默认模板并替换时间占位符', () => {
-    const rendered = renderSystemPrompt('', '2026-09-30T00:00:00.000Z');
-    expect(rendered).toContain('2026-09-30T00:00:00.000Z');
+    const rendered = renderSystemPrompt('', new Date('2026-09-30T00:00:00.000Z'));
     expect(rendered).not.toContain('{{current_time}}');
+    expect(rendered).toContain('2026-09-30'); // 本机时区的日期
     expect(rendered.startsWith(DEFAULT_SYSTEM_PROMPT.split('{{current_time}}')[0])).toBe(true);
   });
 
   it('自定义模板优先，且支持多处占位符', () => {
-    const rendered = renderSystemPrompt('A {{current_time}} B {{current_time}}', 'NOW');
-    expect(rendered).toBe('A NOW B NOW');
+    const rendered = renderSystemPrompt('A {{current_time}} B {{current_time}}', new Date());
+    expect(rendered.startsWith('A ')).toBe(true);
+    expect(rendered).not.toContain('{{current_time}}');
   });
 
   it('纯空白模板视为未设置', () => {
-    expect(renderSystemPrompt('   ', 'NOW')).toContain('NOW');
+    expect(renderSystemPrompt('   ', new Date())).toContain('当前时间');
+  });
+});
+
+describe('formatNowForModel', () => {
+  it('带上时区偏移量，避免模型回裸时间导致排到过去', () => {
+    const text = formatNowForModel(new Date('2026-09-30T05:56:00.000Z'));
+    expect(text).toMatch(/[+-]\d{2}:\d{2}/);
+    expect(text).toContain('UTC 偏移');
+    expect(text).toContain('2026-09-30T05:56:00.000Z');
+  });
+
+  it('默认系统提示词要求带偏移量的 ISO 时间', () => {
+    expect(DEFAULT_SYSTEM_PROMPT).toContain('带时区偏移');
+    expect(DEFAULT_SYSTEM_PROMPT).toContain('当前时间之前');
   });
 });
 

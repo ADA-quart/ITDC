@@ -6,6 +6,7 @@ import { generateScheduleLocally, validateScheduleLocally } from './local-schedu
 import { parseIcsFile, buildIcs, downloadBlob } from './local-ical';
 import type { ModelListResult } from './llm-models';
 import { generateLLMScheduleLocally } from './local-llm-scheduler';
+import { parseNaturalLanguageTodoLocally } from './local-nl-todo';
 
 const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
@@ -283,10 +284,23 @@ export const todoApi = {
     return replaced[0];
   },
 
-  // 自然语言录入需要 LLM，服务器未启用时返回明确提示（本地不内置模型）
+  // 自然语言录入需要 LLM：服务器模式交给服务器，本机模式由 App 直连大模型
   async parseNL(text: string): Promise<Todo> {
     if (!isSyncEnabled()) {
-      throw new Error('自然语言录入需要连接已配置 LLM 的服务器');
+      const parsed = await parseNaturalLanguageTodoLocally(text);
+      const todos = await offline.getCachedTodos();
+      const created = offline.localCreate({
+        title: parsed.title,
+        estimated_minutes: parsed.estimated_minutes,
+        priority: parsed.priority as Todo['priority'],
+        urgency: parsed.urgency,
+        importance: parsed.importance,
+        deadline: parsed.deadline,
+      });
+      todos.push(created);
+      await offline.saveCachedTodos(todos);
+      notifyDataChanged();
+      return created;
     }
     return api.post<Todo>('/todos/nl', { text }).then(r => r.data);
   },

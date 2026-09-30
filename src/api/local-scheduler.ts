@@ -246,6 +246,11 @@ export function validateScheduleLocally(
     if (start.getHours() < WORK_START_HOUR || end.getHours() > WORK_END_HOUR) {
       errors.push(`超出工作时段：${item.title}`);
     }
+    // 大模型偶尔会返回已经过去的时段（尤其是没带时区偏移时），
+    // 这种安排写进数据库就等于「排了但永远做不了」，必须拦下来
+    if (end.getTime() < Date.now() - 5 * 60 * 1000) {
+      errors.push(`时间已过去：${item.title}`);
+    }
     const todo = todoById.get(item.todo_id);
     if (todo?.deadline && end > new Date(todo.deadline)) {
       errors.push(`超过截止时间：${item.title}`);

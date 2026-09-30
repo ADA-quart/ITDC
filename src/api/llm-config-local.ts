@@ -95,10 +95,15 @@ export async function findLocalKey(params: {
 }): Promise<string | null> {
   const list = await readAll();
   const typedBase = (params.baseUrl || '').trim();
+  const sameProvider = list.filter((c) => c.provider === params.provider);
+  const sameBase = typedBase ? sameProvider.filter((c) => c.base_url === typedBase) : [];
+  // 优先「同地址且已启用」的那条：同一服务商可能存了多条配置（换过密钥），
+  // 取数组第一条会拿到过期密钥，表现为「明明是有效 Key 却认证失败」。
   const match =
-    list.find((c) => c.provider === params.provider && typedBase && c.base_url === typedBase) ||
-    list.find((c) => c.provider === params.provider && c.is_active) ||
-    list.find((c) => c.provider === params.provider);
+    sameBase.find((c) => c.is_active) ||
+    sameBase[0] ||
+    sameProvider.find((c) => c.is_active) ||
+    sameProvider[0];
   if (!match) return null;
   return (await secureGet(keyName(match.id))) || null;
 }

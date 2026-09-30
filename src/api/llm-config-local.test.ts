@@ -92,4 +92,12 @@ describe('本机 LLM 配置', () => {
     await saveLocalPromptTemplate('自定义模板 {{current_time}}');
     expect(await getLocalPromptTemplate()).toBe('自定义模板 {{current_time}}');
   });
+
+  it('同一服务商存了多条时，取当前启用那条的密钥', async () => {
+    await createLocalConfig({ provider: 'deepseek', api_key: 'sk-old', base_url: 'https://api.deepseek.com/v1' });
+    await createLocalConfig({ provider: 'deepseek', api_key: 'sk-new', base_url: 'https://api.deepseek.com/v1' });
+
+    // 第二条是新建的（自动启用），不能因为是数组第一条就继续用旧密钥
+    expect(await findLocalKey({ provider: 'deepseek', baseUrl: 'https://api.deepseek.com/v1' })).toBe('sk-new');
+  });
 });

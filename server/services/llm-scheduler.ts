@@ -52,7 +52,7 @@ function getPromptTemplate(): string {
 }
 
 function buildPrompt(): { system: string; user: string } {
-  const now = new Date().toISOString();
+  const now = new Date();
   const scheduleHorizon = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString();
   const events = db.prepare(
     'SELECT title, start_time, end_time, rrule FROM events WHERE start_time < ? ORDER BY start_time DESC LIMIT 100'
@@ -97,6 +97,10 @@ function validateSchedule(items: ScheduledItem[]): { valid: boolean; errors: str
     const startHour = itemStart.getHours();
     if (startHour >= 23 || startHour < 7) {
       errors.push(`待办 "${item.title}" 被安排在深夜时段`);
+    }
+    // 与本地校验保持一致：已经过去的时段写进库等于永远做不了
+    if (itemEnd.getTime() < Date.now() - 5 * 60 * 1000) {
+      errors.push(`待办 "${item.title}" 被安排在已过去的时间`);
     }
 
     for (const busy of allBusy) {

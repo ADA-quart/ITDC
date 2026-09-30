@@ -65,7 +65,7 @@ export async function generateLLMScheduleLocally(): Promise<{
   const now = new Date();
   const data = selectPromptData(todos, events, now);
   const content = await chatLocal(config, [
-    { role: 'system', content: renderSystemPrompt(template, now.toISOString()) },
+    { role: 'system', content: renderSystemPrompt(template, now) },
     { role: 'user', content: buildUserPrompt(data) },
   ]);
 

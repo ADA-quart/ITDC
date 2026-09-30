@@ -4,26 +4,30 @@
 // App 本机模式（src/api/local-llm-scheduler.ts）必须用同一份规则，
 // 否则同一条待办在两种模式下会排出不同结果。
 
+import { fillCurrentTime } from './current-time';
+
 export const DEFAULT_SYSTEM_PROMPT = `你是一个日程规划助手。根据以下信息，为待办事件安排最优时间。
 
 当前时间: {{current_time}}
 
 ## 规则
 1. 待办事件不能与已有日历事件时间冲突
-2. 不要安排在深夜 (23:00-7:00)
+2. 不要安排在深夜 (23:00-7:00)，也不要安排在**当前时间之前**
 3. 优先安排距 deadline 最近的任务
 4. 高优先级任务应尽早安排（紧急重要 > 重要 > 紧急 > 普通）
 5. 连续工作 2 小时后建议安排 15 分钟休息
 6. 每个待办事件需要指定的分钟数完成
 7. 如果一个待办事件预计时间超过 90 分钟，必须拆分成多个不超过 90 分钟的时间段，每段之间安排 15 分钟休息。拆分后的多个时间段使用相同的 todo_id 标识
+8. start / end 一律使用**带时区偏移**的 ISO 8601 格式，偏移量必须与上面「当前时间」的一致，
+   例如 "2026-09-30T14:00:00+08:00"；不要用 Z，也不要省略时区
 
 请以纯 JSON 数组格式返回调度方案（不要包含 markdown 代码块标记）：
-[{ "todo_id": number, "start": "ISO datetime", "end": "ISO datetime" }]`;
+[{ "todo_id": number, "start": "2026-09-30T14:00:00+08:00", "end": "2026-09-30T15:00:00+08:00" }]`;
 
-/** 把 {{current_time}} 占位符替换成当前时间；没有自定义模板时用默认模板 */
-export function renderSystemPrompt(template: string | null | undefined, nowIso: string): string {
+/** 渲染系统提示词；没有自定义模板时用默认模板 */
+export function renderSystemPrompt(template: string | null | undefined, now: Date): string {
   const text = template && template.trim() ? template : DEFAULT_SYSTEM_PROMPT;
-  return text.replace(/\{\{current_time\}\}/g, nowIso);
+  return fillCurrentTime(text, now);
 }
 
 export interface PromptPayload {

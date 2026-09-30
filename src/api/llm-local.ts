@@ -17,7 +17,8 @@ export interface LocalModelConfig {
   model?: string | null;
 }
 
-const CHAT_TIMEOUT_MS = 90000;
+// 大模型排程动辄要思考一两分钟（推理型模型更久），超时给足但要能中断
+const CHAT_TIMEOUT_MS = 180000;
 
 /** 服务商默认模型：用户没填模型名时兜底，避免发空 model 被拒 */
 const DEFAULT_MODEL: Record<string, string> = {
