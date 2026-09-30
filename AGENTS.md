@@ -36,3 +36,18 @@
 - 结论先行，然后列改动文件与验证方式；不要复述工具输出全文。
 - 报错贴关键几行即可，不要贴整段日志。
 - 不确定时选最小可行动作，并明确写出「存疑点 + 打算怎么验证」。
+
+## 4. 发布节奏（硬规则）
+
+**不要主动升版本号、打 tag、发 Release。** 版本号涨得太快会变成噪音，
+维护者要留内部测试期。
+
+- 平时改动：只记到 `CHANGELOG.md` 的 `## [Unreleased]` 段落，版本号三处保持不动。
+- 默认**只提交到本地**，不推远端。用户明确说「推」「发版」时才推送。
+- 用户说「内部测试」时：最多构建本地 debug APK 交付（`android/app/build/outputs/apk/debug/app-debug.apk`），
+  不碰远端任何东西。
+- 用户喊「推 / 发版」时，按顺序执行：
+  1. `[Unreleased]` 改成 `## [x.y.z] - YYYY-MM-DD`
+  2. 同步三处版本号（`package.json`、`capacitor.config.json`、`android/app/build.gradle`，`versionCode` +1）
+  3. `git push origin HEAD:refs/heads/main` → `git tag vX.Y.Z` → `git push origin vX.Y.Z`
+- 版本号语义：功能升 minor，修 bug 升 patch，破坏性变更升 major。

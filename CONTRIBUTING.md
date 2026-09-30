@@ -70,6 +70,9 @@ cd android && ./gradlew assembleDebug
 
 ## 发版流程
 
+> 版本号不随每次改动上涨：改动先进 `## [Unreleased]`，等内部测试通过、维护者决定发版时，
+> 再走下面的流程。一次发版对应一次对外可见的变化集合，避免版本号变成噪音。
+
 1. **CHANGELOG**：把 `CHANGELOG.md` 顶部的 `## [Unreleased]` 改成 `## [x.y.z] - YYYY-MM-DD`。
    平时每合并一个面向用户的改动就往 `Unreleased` 里写一行，发版时只需改名。
 2. **同步三处版本号**（缺一处 CI 会拦下来）：
