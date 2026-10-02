@@ -3,11 +3,12 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [1.8.0] - 2026-10-03
 
 ### 新增
 
 - 支持通过高校统一认证（CAS）登录教务系统，从「个人选课 → 课表查询 → 学期个人课表」导入课程表为日历事件。内置成都理工大学配置，学校列表可在设置中扩展
+- 版本号升至 1.8.0（versionCode 17）
 
 ### 修复
 
