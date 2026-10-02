@@ -12,7 +12,7 @@ import {
 } from 'antd';
 import {
   PlusOutlined, UploadOutlined, DeleteOutlined,
-  FolderAddOutlined, DownloadOutlined,
+  FolderAddOutlined, DownloadOutlined, ImportOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { Capacitor } from '@capacitor/core';
@@ -20,6 +20,7 @@ import { calendarApi, todoApi, getApiBase } from '../api/client';
 import type { Calendar, CalendarEvent, Todo } from '../types';
 import { TODO_PALETTE } from '../types';
 import ImportModal from './ImportModal';
+import CdutImportModal from './CdutImportModal';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
@@ -33,6 +34,7 @@ const CalendarView: React.FC = () => {
   const [hiddenCalendars, setHiddenCalendars] = useState<Set<number>>(new Set());
   const [modalOpen, setModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [cdutOpen, setCdutOpen] = useState(false);
   const [addCalOpen, setAddCalOpen] = useState(false);
   const [addCalForm] = Form.useForm();
   const [form] = Form.useForm();
@@ -336,6 +338,7 @@ const CalendarView: React.FC = () => {
         </div>
         <div style={{ borderTop: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`, paddingTop: 12, marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <Button icon={<DownloadOutlined />} block onClick={() => setImportOpen(true)}>{t.calendar.importIcal}</Button>
+          <Button icon={<ImportOutlined />} block onClick={() => setCdutOpen(true)}>{t.calendar.cdutImport}</Button>
           <Button icon={<UploadOutlined />} block loading={exportingIcal} onClick={handleExportIcal}>{t.calendar.exportIcal}</Button>
           <Button icon={<UploadOutlined />} block loading={exporting} onClick={handleExportWeek}>{t.calendar.exportWeek}</Button>
         </div>
@@ -397,6 +400,7 @@ const CalendarView: React.FC = () => {
       </Modal>
 
       <ImportModal open={importOpen} onClose={() => setImportOpen(false)} onImported={loadData} />
+      <CdutImportModal open={cdutOpen} onClose={() => setCdutOpen(false)} onImported={loadData} />
     </div>
   );
 };

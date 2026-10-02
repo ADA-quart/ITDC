@@ -3,7 +3,11 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [1.7.2] - 2026-10-01
+## [Unreleased]
+
+### 新增
+
+- 支持通过成都理工大学统一认证登录教务系统，从「个人选课 → 课表查询 → 学期个人课表」导入课程表为日历事件
 
 ### 修复
 
