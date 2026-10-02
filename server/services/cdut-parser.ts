@@ -48,7 +48,7 @@ export function parseTimetableHtml(html: string): CdutCourse[] {
 
 /** 从课表页 <option> 中提取学期列表 */
 export function parseSemesterOptions(html: string): string[] {
-  const re = /<option value="(20\S*)"[^>]*>/g;
+  const re = /<option value="(\d{4}-\d{4}-\d)"[^>]*>/g;
   const out: string[] = [];
   let m: RegExpExecArray | null;
   while ((m = re.exec(html)) !== null) {
@@ -63,7 +63,7 @@ export function parseSemesterOptions(html: string): string[] {
  */
 export function expandWeeks(raw: string): number[] {
   const weeks: number[] = [];
-  const cleaned = raw.replace(/周$/, '').trim();
+  const cleaned = raw.replace(/[（(]?周[)）]?$/, '').trim();
   if (!cleaned) return weeks;
   for (const seg of cleaned.split(/[,，]/)) {
     const rangeM = /^(\d+)-(\d+)$/.exec(seg.trim());

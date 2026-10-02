@@ -52,6 +52,8 @@ describe('cdut-parser', () => {
     expect(expandWeeks('1-16周')).toEqual(Array.from({length:16},(_,i)=>i+1));
     expect(expandWeeks('1-8,10-16周')).toEqual([1,2,3,4,5,6,7,8,10,11,12,13,14,15,16]);
     expect(expandWeeks('1,3,5周')).toEqual([1,3,5]);
+    expect(expandWeeks('3-5,7-16(周)')).toEqual([3,4,5,7,8,9,10,11,12,13,14,15,16]);
+    expect(expandWeeks('12-15(周)')).toEqual([12,13,14,15]);
     expect(expandWeeks('')).toEqual([]);
   });
 
