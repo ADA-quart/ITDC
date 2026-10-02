@@ -10,7 +10,7 @@ import scheduleRouter from './routes/schedule.js';
 import widgetRouter from './routes/widget.js';
 import settingsRouter from './routes/settings.js';
 import syncRouter from './routes/sync.js';
-import cdutRouter from './routes/cdut.js';
+import schoolRouter from './routes/school.js';
 import db, { ready } from './db/index.js';
 
 if (process.platform === 'win32') { try { execSync('chcp 65001', { stdio: 'pipe' }); } catch {} }
@@ -63,7 +63,7 @@ app.use('/api/schedule', scheduleRouter);
 app.use('/api/widget', widgetRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/sync', syncRouter);
-app.use('/api/cdut', cdutRouter);
+app.use('/api/school', schoolRouter);
 
 // 未匹配的 /api/* 统一返回 JSON 404，避免落入 SPA fallback 返回 index.html
 app.use('/api', (_req, res) => {
@@ -88,3 +88,5 @@ await ready;
 app.listen(Number(PORT), HOST, () => console.log(`Server http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} (LAN: 0.0.0.0:${PORT})`));
 
 process.on('SIGINT', () => { db.close(); process.exit(0); });
+
+

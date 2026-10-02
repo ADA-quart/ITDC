@@ -13,6 +13,7 @@ import type { LLMConfig } from '../types';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { getSelectedSchool, setSelectedSchool } from '../api/school-prefs';
 import AppearanceSettings from './AppearanceSettings';
 
 interface Props {
@@ -75,6 +76,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
   const [batteryIgnoring, setBatteryIgnoring] = useState<boolean | null>(null);
   const [testingServer, setTestingServer] = useState(false);
   const [debugLog, setDebugLog] = useState('');
+  const [schoolId, setSchoolId] = useState<string>('');
   // 表单是否已按「当前启用的配置」对齐过：只做一次，避免打断用户正在输入的内容
   const formSeeded = useRef(false);
 
@@ -116,6 +118,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
   useEffect(() => {
     loadConfigs();
     loadPromptTemplate();
+    getSelectedSchool().then((id) => setSchoolId(id ?? '')).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -563,6 +566,25 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
               options={[
                 { value: 'zh', label: t.settings.chinese },
                 { value: 'en', label: t.settings.english },
+              ]}
+            />
+          </div>
+          <div>
+            <h4>{t.settings.school}</h4>
+            <Select
+              value={schoolId || undefined}
+              onChange={async (v) => {
+                const id = v ?? '';
+                setSchoolId(id);
+                await setSelectedSchool(id || null);
+                window.dispatchEvent(new Event('school-prefs-changed'));
+                message.success(t.settings.schoolSaved);
+              }}
+              allowClear
+              placeholder={t.settings.schoolNone}
+              style={{ width: 240 }}
+              options={[
+                { value: 'cdut', label: '成都理工大学' },
               ]}
             />
           </div>

@@ -95,7 +95,7 @@ export function getApiBase(): string {
 
 export { api };
 
-// ---------- CDUT 教务系统（CDUniTap 统一认证） ----------
+// ---------- 学校教务课表导入（统一认证 CAS） ----------
 export interface CdutCourse {
   name: string;
   teacher: string;
@@ -106,16 +106,22 @@ export interface CdutCourse {
   sectionIndex: number;
 }
 
-export const cdutApi = {
+export const schoolApi = {
+  /** 已支持学校列表（服务器下发） */
+  list: () =>
+    api.get<{ schools: Array<{ id: string; name: string }> }>('/school').then(r => r.data),
   /** CAS 登录并返回 sessionId + 学期列表 */
-  login: (username: string, password: string) =>
-    api.post<{ sessionId: string; studentId: string; semesters: string[] }>('/cdut/login', { username, password })
+  login: (schoolId: string, username: string, password: string) =>
+    api.post<{ sessionId: string; studentId: string; semesters: string[] }>('/school/login', { schoolId, username, password })
       .then(r => r.data),
   /** 抓取指定学期课表，返回解析后的课程列表 */
   timetable: (sessionId: string, semester: string) =>
-    api.post<{ courses: CdutCourse[] }>('/cdut/timetable', { sessionId, semester })
+    api.post<{ courses: CdutCourse[] }>('/school/timetable', { sessionId, semester })
       .then(r => r.data),
 };
+
+/** 兼容旧引用名 */
+export const cdutApi = schoolApi;
 
 // ---------- 服务器同步层（可选，仅在使用服务器时调用） ----------
 const serverApi = {

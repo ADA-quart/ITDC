@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Modal, Input, Select, DatePicker, Button, message, Space, Typography } from 'antd';
 import { LoginOutlined, ImportOutlined } from '@ant-design/icons';
 import { Dayjs } from 'dayjs';
-import { cdutApi, calendarApi } from '../api/client';
+import { schoolApi, calendarApi } from '../api/client';
 import type { CdutCourse } from '../api/client';
 import { useI18n } from '../i18n';
 import { getCalendarCache } from '../api/offline';
@@ -40,7 +40,7 @@ function expandWeeks(raw: string): number[] {
 }
 
 /** 聚合课程并展开周次为具体日期事件列表 */
-function buildEvents(courses: CdutCourse[], weekStartDate: Date) {
+function buildEvents(courses: CdutCourse[], weekStartDate: Date, schoolId: string) {
   interface AggKey { name: string; teacher: string; location: string; sectionIndex: number; dayOfWeek: number; sections: string; }
   const aggMap = new Map<string, { key: AggKey; weeks: Set<number> }>();
   for (const c of courses) {
@@ -81,14 +81,14 @@ function buildEvents(courses: CdutCourse[], weekStartDate: Date) {
         start_time: start.toISOString(),
         end_time: end.toISOString(),
         location: key.location || null,
-        source: 'cdut',
+        source: schoolId,
       });
     }
   }
   return events;
 }
 
-const CdutImportModal: React.FC<Props> = ({ open, onClose, onImported }) => {
+const SchoolImportModal: React.FC<Props> = ({ open, onClose, onImported }) => {
   const { t } = useI18n();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -97,6 +97,7 @@ const CdutImportModal: React.FC<Props> = ({ open, onClose, onImported }) => {
   const [semesters, setSemesters] = useState<string[]>([]);
   const [semester, setSemester] = useState<string>('');
   const [weekStart, setWeekStart] = useState<Dayjs | null>(null);
+  const [schoolId, setSchoolId] = useState('cdut');
   const [loggingIn, setLoggingIn] = useState(false);
   const [importing, setImporting] = useState(false);
 
@@ -106,35 +107,35 @@ const CdutImportModal: React.FC<Props> = ({ open, onClose, onImported }) => {
   };
 
   const handleLogin = async () => {
-    if (!username || !password) { message.warning(t.cdut.studentIdRequired); return; }
+    if (!username || !password) { message.warning(t.schoolImport.studentIdRequired); return; }
     setLoggingIn(true);
     try {
-      const r = await cdutApi.login(username, password);
+      const r = await schoolApi.login(schoolId, username, password);
       setSessionId(r.sessionId);
       setStudentId(r.studentId);
       setSemesters(r.semesters);
       if (r.semesters.length > 0) setSemester(r.semesters[r.semesters.length - 1]);
-      message.success(t.cdut.loginOk);
+      message.success(t.schoolImport.loginOk);
     } catch (err: any) {
-      message.error(err?.response?.data?.error || t.cdut.loginFail);
+      message.error(err?.response?.data?.error || t.schoolImport.loginFail);
     } finally { setLoggingIn(false); }
   };
 
   const handleImport = async () => {
     if (!sessionId || !semester || !weekStart) {
-      message.warning(t.cdut.selectAllRequired);
+      message.warning(t.schoolImport.selectAllRequired);
       return;
     }
     setImporting(true);
     try {
-      const r = await cdutApi.timetable(sessionId, semester);
-      if (r.courses.length === 0) { message.warning(t.cdut.noCourses); return; }
-      const events = buildEvents(r.courses, weekStart.toDate());
+      const r = await schoolApi.timetable(sessionId, semester);
+      if (r.courses.length === 0) { message.warning(t.schoolImport.noCourses); return; }
+      const events = buildEvents(r.courses, weekStart.toDate(), schoolId);
       // 建日历
       const newCalendar = await calendarApi.create({
         name: `教务课表 ${semester}`,
         color: '#722ed1',
-        source: 'cdut',
+        source: schoolId,
       });
       // 获取新日历实际 id（服务器或本地）
       const after = await getCalendarCache();
@@ -142,42 +143,42 @@ const CdutImportModal: React.FC<Props> = ({ open, onClose, onImported }) => {
       for (const ev of events) {
         await calendarApi.createEvent({ ...ev, calendar_id: newCal.id, calendar_name: newCal.name, calendar_color: newCal.color });
       }
-      message.success(t.cdut.imported.replaceAll('{count}', String(events.length)));
+      message.success(t.schoolImport.imported.replaceAll('{count}', String(events.length)));
       onImported();
       reset();
       onClose();
     } catch (err: any) {
-      message.error(err?.response?.data?.error || t.cdut.importFail);
+      message.error(err?.response?.data?.error || t.schoolImport.importFail);
     } finally { setImporting(false); }
   };
 
   return (
     <Modal
-      title={t.cdut.title}
+      title={t.schoolImport.title}
       open={open}
       onCancel={() => { reset(); onClose(); }}
       footer={sessionId ? [
-        <Button key="cancel" onClick={() => { reset(); onClose(); }}>{t.cdut.cancel}</Button>,
+        <Button key="cancel" onClick={() => { reset(); onClose(); }}>{t.schoolImport.cancel}</Button>,
         <Button key="import" type="primary" icon={<ImportOutlined />} loading={importing} onClick={handleImport}>
-          {t.cdut.importBtn}
+          {t.schoolImport.importBtn}
         </Button>,
       ] : [
-        <Button key="cancel" onClick={onClose}>{t.cdut.cancel}</Button>,
+        <Button key="cancel" onClick={onClose}>{t.schoolImport.cancel}</Button>,
         <Button key="login" type="primary" icon={<LoginOutlined />} loading={loggingIn} onClick={handleLogin}>
-          {t.cdut.loginBtn}
+          {t.schoolImport.loginBtn}
         </Button>,
       ]}
     >
       {!sessionId ? (
         <Space direction="vertical" style={{ width: '100%' }} size={12}>
-          <Typography.Text type="secondary">{t.cdut.desc}</Typography.Text>
+          <Typography.Text type="secondary">{t.schoolImport.desc}</Typography.Text>
           <Input
-            placeholder={t.cdut.studentId}
+            placeholder={t.schoolImport.studentId}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
           />
           <Input.Password
-            placeholder={t.cdut.password}
+            placeholder={t.schoolImport.password}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onPressEnter={handleLogin}
@@ -185,25 +186,25 @@ const CdutImportModal: React.FC<Props> = ({ open, onClose, onImported }) => {
         </Space>
       ) : (
         <Space direction="vertical" style={{ width: '100%' }} size={12}>
-          <Typography.Text type="secondary">{t.cdut.loggedIn.replace('{id}', studentId)}</Typography.Text>
+          <Typography.Text type="secondary">{t.schoolImport.loggedIn.replace('{id}', studentId)}</Typography.Text>
           <Select
             style={{ width: '100%' }}
-            placeholder={t.cdut.selectSemester}
+            placeholder={t.schoolImport.selectSemester}
             value={semester || undefined}
             onChange={(v) => setSemester(v)}
             options={semesters.map((s) => ({ value: s, label: s }))}
           />
           <DatePicker
             style={{ width: '100%' }}
-            placeholder={t.cdut.weekStartDate}
+            placeholder={t.schoolImport.weekStartDate}
             value={weekStart}
             onChange={(d) => setWeekStart(d)}
           />
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>{t.cdut.weekStartHint}</Typography.Text>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>{t.schoolImport.weekStartHint}</Typography.Text>
         </Space>
       )}
     </Modal>
   );
 };
 
-export default CdutImportModal;
+export default SchoolImportModal;

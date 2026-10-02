@@ -20,7 +20,8 @@ import { calendarApi, todoApi, getApiBase } from '../api/client';
 import type { Calendar, CalendarEvent, Todo } from '../types';
 import { TODO_PALETTE } from '../types';
 import ImportModal from './ImportModal';
-import CdutImportModal from './CdutImportModal';
+import SchoolImportModal from './SchoolImportModal';
+import { getSelectedSchool } from '../api/school-prefs';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
@@ -35,6 +36,7 @@ const CalendarView: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [cdutOpen, setCdutOpen] = useState(false);
+  const [schoolEnabled, setSchoolEnabled] = useState(false);
   const [addCalOpen, setAddCalOpen] = useState(false);
   const [addCalForm] = Form.useForm();
   const [form] = Form.useForm();
@@ -115,6 +117,13 @@ const CalendarView: React.FC = () => {
   }, [buildEvents]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    getSelectedSchool().then((id) => setSchoolEnabled(!!id)).catch(() => {});
+    const handler = () => getSelectedSchool().then((id) => setSchoolEnabled(!!id)).catch(() => {});
+    window.addEventListener('school-prefs-changed', handler);
+    return () => window.removeEventListener('school-prefs-changed', handler);
+  }, []);
 
   useEffect(() => {
     // 隐藏日历变化时局部刷新；失败只影响刷新，不能冒泡成未处理拒绝导致白屏
@@ -338,7 +347,9 @@ const CalendarView: React.FC = () => {
         </div>
         <div style={{ borderTop: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`, paddingTop: 12, marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <Button icon={<DownloadOutlined />} block onClick={() => setImportOpen(true)}>{t.calendar.importIcal}</Button>
-          <Button icon={<ImportOutlined />} block onClick={() => setCdutOpen(true)}>{t.calendar.cdutImport}</Button>
+          {schoolEnabled && (
+            <Button icon={<ImportOutlined />} block onClick={() => setCdutOpen(true)}>{t.calendar.schoolImport}</Button>
+          )}
           <Button icon={<UploadOutlined />} block loading={exportingIcal} onClick={handleExportIcal}>{t.calendar.exportIcal}</Button>
           <Button icon={<UploadOutlined />} block loading={exporting} onClick={handleExportWeek}>{t.calendar.exportWeek}</Button>
         </div>
@@ -400,7 +411,7 @@ const CalendarView: React.FC = () => {
       </Modal>
 
       <ImportModal open={importOpen} onClose={() => setImportOpen(false)} onImported={loadData} />
-      <CdutImportModal open={cdutOpen} onClose={() => setCdutOpen(false)} onImported={loadData} />
+      <SchoolImportModal open={cdutOpen} onClose={() => setCdutOpen(false)} onImported={loadData} />
     </div>
   );
 };
