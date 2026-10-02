@@ -58,7 +58,15 @@ describe('cdut-parser', () => {
   it('computes section time', () => {
     const d = new Date(2025, 0, 6); // Monday
     const t = sectionTime(0, d);
-    expect(t.start).toContain('T00:10:00');
-    expect(t.end).toContain('T01:45:00');
+    const start = new Date(t.start);
+    const end = new Date(t.end);
+    // 断言本地时间字段而非 UTC 字符串，跨时区 runner 一致
+    expect(start.getFullYear()).toBe(2025);
+    expect(start.getMonth()).toBe(0);
+    expect(start.getDate()).toBe(6);
+    expect(start.getHours()).toBe(8);
+    expect(start.getMinutes()).toBe(10);
+    expect(end.getHours()).toBe(9);
+    expect(end.getMinutes()).toBe(45);
   });
 });
