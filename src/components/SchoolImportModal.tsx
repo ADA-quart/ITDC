@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { Modal, Input, Select, DatePicker, Button, message, Space, Typography } from 'antd';
 import { LoginOutlined, ImportOutlined } from '@ant-design/icons';
 import { Dayjs } from 'dayjs';
+import { Capacitor } from '@capacitor/core';
 import { schoolApi, calendarApi } from '../api/client';
+import { localSchoolApi } from '../api/school-cas';
 import type { CdutCourse } from '../api/client';
 import { useI18n } from '../i18n';
 import { getCalendarCache } from '../api/offline';
@@ -93,6 +95,7 @@ const SchoolImportModal: React.FC<Props> = ({ open, onClose, onImported }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const isNative = Capacitor.isNativePlatform();
   const [studentId, setStudentId] = useState('');
   const [semesters, setSemesters] = useState<string[]>([]);
   const [semester, setSemester] = useState<string>('');
@@ -110,7 +113,9 @@ const SchoolImportModal: React.FC<Props> = ({ open, onClose, onImported }) => {
     if (!username || !password) { message.warning(t.schoolImport.studentIdRequired); return; }
     setLoggingIn(true);
     try {
-      const r = await schoolApi.login(schoolId, username, password);
+      const r = isNative
+        ? { sessionId: 'local', ...(await localSchoolApi.login(schoolId, username, password)) }
+        : await schoolApi.login(schoolId, username, password);
       setSessionId(r.sessionId);
       setStudentId(r.studentId);
       setSemesters(r.semesters);
@@ -128,7 +133,9 @@ const SchoolImportModal: React.FC<Props> = ({ open, onClose, onImported }) => {
     }
     setImporting(true);
     try {
-      const r = await schoolApi.timetable(sessionId, semester);
+      const r = isNative && sessionId === 'local'
+        ? await localSchoolApi.timetable(schoolId, semester)
+        : await schoolApi.timetable(sessionId, semester);
       if (r.courses.length === 0) { message.warning(t.schoolImport.noCourses); return; }
       const events = buildEvents(r.courses, weekStart.toDate(), schoolId);
       // 建日历

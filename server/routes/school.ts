@@ -1,6 +1,6 @@
 import { Router, Request, Response as ExpressResponse } from 'express';
 import { createHash, publicEncrypt, constants } from 'crypto';
-import { parseTimetableHtml, parseSemesterOptions } from '../services/cdut-parser.js';
+import { parseTimetableHtml, parseSemesterOptions } from '../../shared/cdut-parser.js';
 import { getSchool, SCHOOLS } from '../../shared/schools.js';
 import { debug } from '../utils/debug.js';
 

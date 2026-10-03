@@ -3,6 +3,14 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 变更
+
+- 解析器下沉到 shared/，前后端共用同一套课表解析逻辑
+- 新增本地直连 CAS（src/api/school-cas.ts）：原生 App 内直接与学校统一认证和教务系统通信，不依赖中转服务器；Web 端仍走服务器 API
+- 安装 jsencrypt 支持浏览器端 RSA PKCS#1 密码加密
+
 ## [1.8.0] - 2026-10-03
 
 ### 新增
