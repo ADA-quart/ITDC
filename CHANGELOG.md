@@ -7,6 +7,10 @@
 
 ### 变更
 
+- **许可证改为 PolyForm Noncommercial License 1.0.0**（原 MIT）：个人与非商业用途不变，
+  商业用途需另行授权；LICENSE、README、package.json 与贡献指南同步更新
+- **README 重构**：新增「智能排程」章节并置于功能之前，作为项目主线介绍两种调度模式、
+  算法策略与结果微调方式；新增智能排程界面截图（docs/images/app-schedule.png）
 - 解析器下沉到 shared/，前后端共用同一套课表解析逻辑
 - 新增本地直连 CAS（src/api/school-cas.ts）：原生 App 内直接与学校统一认证和教务系统通信，不依赖中转服务器；Web 端仍走服务器 API
 - 安装 jsencrypt 支持浏览器端 RSA PKCS#1 密码加密

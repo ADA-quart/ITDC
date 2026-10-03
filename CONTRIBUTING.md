@@ -100,6 +100,12 @@ CI（`.github/workflows/android-apk.yml`）会先校验 tag 与三处版本号�
 版本号含义：新增功能升 minor，修 bug 升 patch，破坏性变更（例如改包名导致必须卸载重装）升 major，
 并在 CHANGELOG 顶部醒目标注。
 
+## 贡献许可
+
+提交 PR 即表示你同意：你的贡献同样以 [PolyForm Noncommercial License 1.0.0](LICENSE)
+授权，并允许维护者在商业授权场景下一并分发你的贡献（否则同一份代码会同时存在
+非商用与商用两套授权，无法对外提供商业许可）。
+
 ## PR 要求
 
 - 一个 PR 只做一件事，便于回滚

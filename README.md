@@ -2,10 +2,10 @@
 
 <h1>ITDC</h1>
 
-<h3>本地优先的日历 · 待办 · 智能排程</h3>
+<h3>本地优先的日历 · 待办 · <b>智能排程</b></h3>
 
-<p>数据存在你自己的设备上，不配服务器也能完整使用<br>
-需要手机与电脑共享时，再开启同步 —— 两端数据合并，不互相覆盖</p>
+<p>把待办交给算法或大模型，自动排进日历空档<br>
+数据存在你自己的设备上，不配服务器也能完整使用</p>
 
 <p>
   <a href="README.en.md">English</a> ·
@@ -16,28 +16,63 @@
 <p>
   <a href="https://github.com/ADA-quart/ITDC/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ADA-quart/ITDC/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/ADA-quart/ITDC/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/ADA-quart/ITDC"></a>
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-orange.svg"></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-Web%20%7C%20Android-informational">
 </p>
 
-<img src="docs/images/app-calendar.png" alt="ITDC 日历视图" width="880">
+<img src="docs/images/app-schedule.png" alt="ITDC 智能排程：待办自动排入日历空档" width="880">
 
 </div>
 
+## 智能排程
+
+ITDC 的核心是**把待办自动排进你的时间表**。点一下「生成方案」，引擎会读取全部未完成待办与
+现有日程，避开已占用的时段，按优先级和截止时间排出可执行的计划，确认后再写入日历。
+
+**两种调度模式**
+
+| 模式 | 怎么排 | 适合 |
+|------|--------|------|
+| ⚡ 算法调度 | 本地确定性算法，不联网、瞬时出结果 | 日常固定节奏，想要可预期、可复现的排法 |
+| 🧠 LLM 调度 | 交给大模型理解任务语义与偏好 | 任务描述复杂、需要模型判断拆分方式的场景 |
+
+**算法调度怎么排**
+
+- 按四象限优先级排序：紧急重要 → 重要不紧急 → 紧急不重要 → 普通
+- 同一优先级内，截止时间早的先排
+- 只使用每天 7:00–23:00 的工作时段，避开已有日程与已排期的待办
+- 单段最长 90 分钟，超长任务自动切分并插入休息；每连续工作 2 小时留 15 分钟休息
+- 排完自动校验：时段冲突、超出工作时段、越过截止时间、已过去的时间段，都会列出来
+
+**LLM 调度怎么排**
+
+- **仅本机模式也能直连大模型**：由 App 自己组装提示词、直接调用服务商，不经过中转服务器
+- API Key 用 **Android Keystore** 加密保存在本机（浏览器版明文存本地，设置页会明确提示）
+- 支持 OpenAI、DeepSeek、Ollama、LM Studio 与自定义 OpenAI 兼容端点
+- 提示词可自定义：设置里能改调度模板，控制模型如何理解和拆分你的任务
+- 模型返回后同样走本地校验，不合格的安排会标出来而不是直接写入
+
+**结果可以再调**
+
+排定后待办会出现在日历里，可以直接拖拽改时间、拖边缘改时长，调整立即生效。
+
+> 排程逻辑在客户端与服务端各有一份实现（`src/api/local-scheduler.ts`、`server/services/scheduler.ts`），
+> 两边策略一致；提示词与响应解析统一收敛在 `shared/llm-prompt.ts`，两种模式不会排出两套结果。
+
 ## 功能
 
+- 🧠&nbsp;**智能排程：算法调度或大模型调度，把待办自动排进日历空档**（见上节）
+- ✅&nbsp;艾森豪威尔四象限待办，自动分级 P1–P4
+- ✂️&nbsp;长任务自动拆分，段落之间留休息时间
+- 💬&nbsp;自然语言录入：输入「周五下午交报告」自动解析成结构化待办
 - 📅&nbsp;多日历管理，自定义名称与颜色
 - 🔁&nbsp;完整支持 RRULE 重复规则，可表示每周固定的课程表
+- 🖱️&nbsp;拖拽移动事件、拖动边缘改时长、点空白处快速新建
 - 📥&nbsp;iCal 导入导出，📤 导出本周为 Excel
 - 🎓&nbsp;教务课表导入：用学校统一认证（CAS）账号登录，按学期整表导入为日历事件；原生 App 直连学校系统，不依赖中转服务器
-- 🖱️&nbsp;拖拽移动事件、拖动边缘改时长、点空白处快速新建
-- ✅&nbsp;艾森豪威尔四象限待办，自动分级 P1–P4
 - ⏰&nbsp;截止日期倒计时，逾期高亮
 - 🔔&nbsp;到点提醒：Android 端按待办的排程开始或截止时间弹出系统通知
-- ✂️&nbsp;长任务自动拆分，段落之间留休息时间
 - 📊&nbsp;今日回顾：逾期、今日到期、待处理与已完成统计，含近 7 天趋势
-- 💬&nbsp;自然语言录入：输入「周五下午交报告」自动解析成结构化待办
-- 🧠&nbsp;两种排程模式：本地算法调度，或交给大模型调度（**仅本机模式也能直连大模型**，配置与密钥不出本机）
 - 🌓&nbsp;浅色 / 深色 / 跟随系统
 - 🎨&nbsp;外观自定义：主题色、背景图、小组件配色
 - 🌍&nbsp;简体中文 / English
@@ -47,7 +82,10 @@
 ## 界面
 
 <p align="center">
+  <img src="docs/images/app-calendar.png" alt="日历视图" width="440">
   <img src="docs/images/app-todos.png" alt="待办管理：四象限分级" width="440">
+</p>
+<p align="center">
   <img src="docs/images/app-review.png" alt="今日回顾：统计与趋势" width="440">
 </p>
 
@@ -92,7 +130,7 @@ npm run dev:all          # 前端 5173 + 后端 3000
 
 | 模式 | 场景 | 怎么配 |
 |------|------|--------|
-| 仅本机（默认） | 单设备 | 不用配 |
+| 仅本机（默认） | 单设备 | 不用配，排程与大模型调用都在本机完成 |
 | 局域网 | 手机连电脑 | 电脑跑 `npm start`，手机填 `http://<电脑IP>:3000/api` |
 | 公网 | 任意网络多设备 | 部署到云平台或内网穿透，填 `https://<域名>/api` |
 
@@ -110,7 +148,7 @@ React 18 · TypeScript · Ant Design 5 · FullCalendar 6 · Vite 6 · IndexedDB
 
 | 文档 | 内容 |
 |------|------|
-| [架构说明](docs/ARCHITECTURE.md) | 数据流、合并同步原理、技术选型理由 |
+| [架构说明](docs/ARCHITECTURE.md) | 数据流、合并同步原理、排程的双路径设计、技术选型理由 |
 | [部署指南](docs/DEPLOYMENT.md) | 局域网、内网穿透、云平台、Docker |
 | [小组件](docs/WIDGET.md) | 设计、数据通道、Android 平台限制 |
 | [API 参考](docs/API.md) | 全部 HTTP 接口 |
@@ -149,6 +187,9 @@ npm run android:sync
 cd android && ./gradlew assembleDebug
 ```
 
+排程算法的单元测试在 `src/api/local-scheduler.test.ts` 与 `server/services/scheduler.test.ts`，
+改排程规则时两边都要跑。
+
 ## 常见问题
 
 **小组件不自动刷新** —— 国产 ROM 默认限制后台。设置 → 应用 → ITDC → 省电策略 → 无限制。
@@ -156,6 +197,9 @@ cd android && ./gradlew assembleDebug
 **手机连不上电脑** —— 确认同一网络、`start.bat` 在运行，检查 Windows 防火墙是否放行 3000。
 
 **数据在哪** —— 服务端模式在 `data/calendar.db`；仅本机模式在浏览器 IndexedDB，可用「导出 iCal」备份。
+
+**排程结果不符合预期** —— 算法调度会严格避开已占用时段并把超长任务切段；如果任务描述本身
+需要语义判断（比如「先做简单的再做难的」），改用 LLM 调度，或在设置里调整提示词模板。
 
 **怎么导入学校课表** —— 在「设置 → 通用设置」里选定学校后，日历侧栏会出现「导入教务课表」。用学校统一认证（CAS）的账号密码登录，选择学期并填写第一周周一的日期，即可把整学期课表导入为一个新日历。目前内置成都理工大学；学校配置集中在 `shared/schools.ts`，扩展新学校时从这里开始。
 
@@ -165,4 +209,10 @@ cd android && ./gradlew assembleDebug
 
 ## 许可证
 
-[MIT](LICENSE) © 2026 ADA-quart
+[PolyForm Noncommercial License 1.0.0](LICENSE) © 2026 ADA-quart
+
+**个人使用与非商业用途免费**：个人学习、研究、实验、业余项目，以及学校、慈善机构、
+公共研究机构等非营利组织，都可以自由使用、修改和分发。
+
+**商业用途需另行授权**：包括但不限于在公司内部部署、作为付费产品或服务的一部分、
+以及其他以商业获利为目的的使用。有商业授权需求请联系维护者。

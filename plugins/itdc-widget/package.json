@@ -6,5 +6,6 @@
     "android": {
       "src": "./src/android"
     }
-  }
+  },
+  "license": "PolyForm-Noncommercial-1.0.0"
 }
