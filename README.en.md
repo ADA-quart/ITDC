@@ -29,16 +29,20 @@ Turn on sync when you want your phone and PC to share data. Both sides merge; ne
 - 📅&nbsp;Multiple calendars with custom names and colors
 - 🔁&nbsp;Full RRULE support — build a recurring weekly class schedule
 - 📥&nbsp;iCal import and export, 📤 weekly export to Excel
+- 🎓&nbsp;School timetable import via CAS login — bring in a whole semester as calendar events; the native app connects to the school directly, with no relay server
 - 🖱️&nbsp;Drag to move events, drag edges to resize, click empty space to create
 - ✅&nbsp;Eisenhower matrix todos, auto-classified P1–P4
 - ⏰&nbsp;Deadline countdown with overdue highlighting
+- 🔔&nbsp;Reminders — on Android, a system notification at a todo's scheduled start or deadline
 - ✂️&nbsp;Long tasks split automatically, with breaks between segments
+- 📊&nbsp;Daily review — overdue, due-today, pending and done counts plus a 7-day trend
 - 💬&nbsp;Natural language input — type "submit the report Friday afternoon"
 - 🧠&nbsp;Two scheduling modes: a local algorithm, or hand it to an LLM — works in this-device-only mode too, calling the provider directly with keys kept on device
 - 🌓&nbsp;Light / dark / follow system
 - 🎨&nbsp;Personalisation: accent colour, background image, widget palette
 - 🌍&nbsp;Simplified Chinese and English
 - 📴&nbsp;Works offline — reads and writes are unaffected
+- ⬆️&nbsp;Update check — query GitHub Releases from Settings; it only notifies, never downloads
 
 ## Screenshots
 
@@ -129,6 +133,7 @@ Copy `.env.example` to `.env` (not needed in local-only mode).
 | `DB_PATH` | `data/calendar.db` | SQLite file path |
 | `CRYPTO_SECRET` | dev default | Encrypts LLM API keys. **Required in production** — `openssl rand -hex 32` |
 | `CORS_ORIGINS` | empty | Extra allowed frontend origins, comma-separated |
+| `CORS_ALLOW_ALL` | empty | Set to `1` to allow any origin — internal or self-hosted deployments only |
 
 ## Development
 
@@ -156,6 +161,12 @@ Check whether Windows Firewall allows port 3000.
 
 **Where is my data?** — Server mode: `data/calendar.db`. Local-only mode: the browser's IndexedDB,
 which you can back up with "Export iCal".
+
+**How do I import my school timetable?** — Pick your school under Settings → General and the calendar
+sidebar shows an "Import Timetable" button. Sign in with your school CAS credentials, choose a semester
+and enter the Monday of week 1 to import the whole semester as a new calendar. Chengdu University of
+Technology is currently built in. School configs live in `shared/schools.ts`, the starting point for
+adding another school.
 
 **The teaching week number is wrong** — It's currently estimated as "the week containing September 1
 is week 1", which may differ from your institution's calendar.
