@@ -7,6 +7,7 @@
 
 ### 变更
 
+- **主页贡献图自动刷新**：ITDC 的 `main` 分支更新后，通过 `repository_dispatch` 通知个人主页仓库；未配置 `PROFILE_REPO_TOKEN` 时静默跳过
 - **许可证改为 PolyForm Noncommercial License 1.0.0**（原 MIT）：个人与非商业用途不变，
   商业用途需另行授权；LICENSE、README、package.json 与贡献指南同步更新
 - **README 重构**：新增「智能排程」章节并置于功能之前，作为项目主线介绍两种调度模式、
