@@ -16,6 +16,14 @@
 - 新增本地直连 CAS（src/api/school-cas.ts）：原生 App 内直接与学校统一认证和教务系统通信，不依赖中转服务器；Web 端仍走服务器 API
 - 安装 jsencrypt 支持浏览器端 RSA PKCS#1 密码加密
 
+## [1.8.1] - 2026-10-07
+
+### 变更
+
+- **应用图标与启动画面更换为新版 Logo**（智能日历网格 + 品牌蓝 #167CFF）：桌面 PWA 图标、
+  Android 方形 / 圆形 / 自适应图标（五档密度）与横竖屏启动画面全部同步替换
+- 版本号升至 1.8.1（versionCode 18）
+
 ## [1.8.0] - 2026-10-03
 
 ### 新增
@@ -248,6 +256,8 @@
 - 深色模式、中英文切换
 - Android 桌面小组件（初版，静态位图）
 
+[1.8.1]: https://github.com/ADA-quart/ITDC/releases/tag/v1.8.1
+[1.8.0]: https://github.com/ADA-quart/ITDC/releases/tag/v1.8.0
 [1.7.2]: https://github.com/ADA-quart/ITDC/releases/tag/v1.7.2
 [1.7.1]: https://github.com/ADA-quart/ITDC/releases/tag/v1.7.1
 [1.7.0]: https://github.com/ADA-quart/ITDC/releases/tag/v1.7.0
