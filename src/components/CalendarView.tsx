@@ -8,11 +8,12 @@ import zhCnLocale from '@fullcalendar/core/locales/zh-cn';
 import enLocale from '@fullcalendar/core/locales/en-gb';
 import {
   Alert, Button, Modal, Form, Input, Select, DatePicker, message,
-  Checkbox, Popconfirm, ColorPicker, Tooltip,
+  Checkbox, Popconfirm, ColorPicker, Tooltip, Segmented,
 } from 'antd';
 import {
   PlusOutlined, UploadOutlined, DeleteOutlined,
   FolderAddOutlined, DownloadOutlined, ImportOutlined,
+  LeftOutlined, RightOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { Capacitor } from '@capacitor/core';
@@ -29,6 +30,24 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import { swipeDirection } from '../utils/swipe';
 
 const CAL_VIEW_KEY = 'itdc_calendar_view';
+
+/** 标题去掉当年的年份，手机上才放得下一行（如「2026年10月12日 - 18日」→「10月12日 - 18日」） */
+function shortTitle(raw: string): string {
+  const y = String(new Date().getFullYear());
+  let out = raw;
+  if (out.startsWith(`${y}年`)) out = out.slice(y.length + 1);
+  if (out.endsWith(`, ${y}`)) out = out.slice(0, -`, ${y}`.length);
+  if (out.endsWith(` ${y}`)) out = out.slice(0, -(` ${y}`).length);
+  return out.trim();
+}
+
+/** 教室：解析结果是「教学楼 - 教室」，窄列里只显示教室 */
+function shortRoom(location?: string | null): string {
+  const raw = (location ?? '').trim();
+  if (!raw) return '';
+  const parts = raw.split(' - ');
+  return parts[parts.length - 1].trim();
+}
 
 /** 记住上次用的日历视图：手机首次默认单日，桌面默认周视图 */
 function resolveInitialView(isMobile: boolean): string {
@@ -61,6 +80,8 @@ const CalendarView: React.FC = () => {
   const swipeRef = useRef<HTMLDivElement | null>(null);
   // 初始视图只取一次：之后由用户自己切换，viewDidMount 会把选择记下来
   const [calView] = useState(() => resolveInitialView(isMobile));
+  const [calViewType, setCalViewType] = useState(calView);
+  const [calTitle, setCalTitle] = useState('');
 
   const hiddenCalendarsRef = useRef<Set<number>>(hiddenCalendars);
   hiddenCalendarsRef.current = hiddenCalendars;
@@ -375,7 +396,6 @@ const CalendarView: React.FC = () => {
         display: 'flex',
         flexDirection: 'column',
         order: isMobile ? 2 : 0,
-        maxHeight: isMobile ? 260 : undefined,
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <span style={{ fontWeight: 'bold' }}>{t.calendar.calendarList}</span>
@@ -385,14 +405,14 @@ const CalendarView: React.FC = () => {
         </div>
         <div style={{ flex: 1, overflow: 'auto' }}>
           {calendars.map(c => (
-            <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', borderRadius: 6, marginBottom: 4, background: hiddenCalendars.has(c.id) ? (isDark ? '#303030' : '#f5f5f5') : (isDark ? '#1a1a2e' : '#e6f7ff'), opacity: hiddenCalendars.has(c.id) ? 0.5 : 1 }}>
-              <Checkbox checked={!hiddenCalendars.has(c.id)} onChange={() => toggleCalendar(c.id)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, marginBottom: 6, background: hiddenCalendars.has(c.id) ? (isDark ? '#303030' : '#f5f5f5') : (isDark ? '#1a1a2e' : '#e6f7ff'), opacity: hiddenCalendars.has(c.id) ? 0.5 : 1 }}>
+              <Checkbox checked={!hiddenCalendars.has(c.id)} onChange={() => toggleCalendar(c.id)} style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
-                <span style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 90 }}>{c.name}</span>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
               </Checkbox>
               {calendars.length <= 1 ? null : (
                 <Popconfirm title={t.calendar.deleteCalendar} onConfirm={() => handleDeleteCalendar(c.id)} okText={t.calendar.delete} cancelText={t.calendar.cancel}>
-                  <Button size="small" type="text" danger icon={<DeleteOutlined />} style={{ fontSize: 11 }} />
+                  <Button size="small" type="text" danger icon={<DeleteOutlined />} />
                 </Popconfirm>
               )}
             </div>
@@ -420,19 +440,79 @@ const CalendarView: React.FC = () => {
         <div style={{ marginBottom: 12 }}>
           <Button type="primary" icon={<PlusOutlined />} block={isMobile} onClick={() => { form.resetFields(); form.setFieldsValue({ calendar_id: calendars.length > 0 ? calendars[0].id : undefined }); setModalOpen(true); }}>{t.calendar.newEvent}</Button>
         </div>
+        {/* 手机端自绘导航：标题一行放得下，按钮分组不再挤成一团 */}
+        {isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
+            <Button
+              size="small"
+              type="text"
+              aria-label={t.calendar.prevPage}
+              icon={<LeftOutlined />}
+              onClick={() => calendarRef.current?.getApi().prev()}
+            />
+            <div style={{
+              flex: 1,
+              minWidth: 0,
+              textAlign: 'center',
+              fontWeight: 600,
+              fontSize: 15,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
+              {calTitle}
+            </div>
+            <Button
+              size="small"
+              type="text"
+              aria-label={t.calendar.nextPage}
+              icon={<RightOutlined />}
+              onClick={() => calendarRef.current?.getApi().next()}
+            />
+            <Button size="small" onClick={() => calendarRef.current?.getApi().today()}>{t.calendar.today}</Button>
+            <Segmented
+              size="small"
+              value={calViewType}
+              onChange={(v) => calendarRef.current?.getApi().changeView(String(v))}
+              options={[
+                { label: t.calendar.viewDay, value: 'timeGridDay' },
+                { label: t.calendar.viewWeek, value: 'timeGridWeek' },
+              ]}
+            />
+          </div>
+        )}
         {/* 滑动容器：手机上左右滑即可翻到上一天/下一天（周视图则翻一周） */}
-        <div ref={swipeRef}>
+        <div
+          ref={swipeRef}
+          style={{
+            // 今日底色调淡（默认是 rgba(255,220,40,.15) 的整列黄底）
+            ['--fc-today-bg-color' as any]: 'rgba(24,144,255,0.05)',
+          } as React.CSSProperties}
+        >
           <FullCalendar
             ref={calendarRef}
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, rrulePlugin]}
             initialView={calView}
             locale={locale === 'zh' ? zhCnLocale : enLocale}
             headerToolbar={isMobile
-              ? { left: 'prev,next', center: 'title', right: 'today timeGridDay,timeGridWeek' }
+              ? false
               : { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' }}
-            viewDidMount={(arg) => {
-              // 记住用户在手机/桌面上选的视图，下次打开沿用
+            datesSet={(arg) => {
+              setCalTitle(shortTitle(arg.view.title));
+              setCalViewType(arg.view.type);
+              // 记住用户选的视图，下次打开沿用
               try { localStorage.setItem(CAL_VIEW_KEY, arg.view.type); } catch { /* 忽略存储失败 */ }
+            }}
+            eventContent={(arg) => {
+              // 手机端周视图列很窄：只显示课名 + 教室（时间左边刻度已经有了）
+              if (!isMobile || arg.view.type !== 'timeGridWeek') return undefined;
+              const room = shortRoom((arg.event.extendedProps as any)?.location);
+              return (
+                <div style={{ lineHeight: 1.15, overflow: 'hidden', padding: '1px 2px' }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, wordBreak: 'break-word' }}>{arg.event.title}</div>
+                  {room && <div style={{ fontSize: 10, opacity: 0.85, marginTop: 2 }}>{room}</div>}
+                </div>
+              );
             }}
             events={events}
             selectable
