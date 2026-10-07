@@ -78,6 +78,19 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 
+// 本地调试包每次构建都递增 versionCode（按分钟取时间戳）：
+// 同版本号反复覆盖安装时，系统/启动器可能沿用旧数据与旧缓存，表现为"装了没变化"。
+// CI 发版传 -PciRelease，保持 defaultConfig 里的正式版本号不变。
+if (!project.hasProperty('ciRelease')) {
+    android.applicationVariants.all { variant ->
+        if (variant.buildType.name == 'debug') {
+            variant.outputs.each { output ->
+                output.versionCodeOverride = (int) (System.currentTimeMillis() / 60000L)
+            }
+        }
+    }
+}
+
 try {
     def servicesJSON = file('google-services.json')
     if (servicesJSON.text) {

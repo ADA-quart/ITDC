@@ -90,8 +90,8 @@ const CalendarView: React.FC = () => {
   const [calView] = useState(() => resolveInitialView(isMobile));
   const [calViewType, setCalViewType] = useState(calView);
   const [calTitle, setCalTitle] = useState('');
-  // 课表视图（按大节的格子）：数据复用日历事件，翻页用自己的周起点
-  const [timetableMode, setTimetableMode] = useState(false);
+  // 手机端「周」视图直接用课表格子渲染（数据复用日历事件，翻页用自己的周起点）
+  const [timetableMode, setTimetableMode] = useState(() => calView === 'timeGridWeek');
   const [weekStart, setWeekStart] = useState(() => mondayOf(dayjs()));
   const timetableModeRef = useRef(false);
   timetableModeRef.current = timetableMode;
@@ -262,6 +262,13 @@ const CalendarView: React.FC = () => {
     if (longPressTimerRef.current !== null) window.clearTimeout(longPressTimerRef.current);
   }, []);
 
+  // 从课表格子切回日历视图时，FullCalendar 之前是隐藏的（宽度为 0），需要让它重新量一次尺寸
+  useEffect(() => {
+    if (timetableMode) return;
+    const id = window.setTimeout(() => calendarRef.current?.getApi().updateSize(), 0);
+    return () => window.clearTimeout(id);
+  }, [timetableMode]);
+
   useEffect(() => {
     getSelectedSchool().then((id) => setSchoolEnabled(!!id)).catch(() => {});
     const handler = () => getSelectedSchool().then((id) => setSchoolEnabled(!!id)).catch(() => {});
@@ -380,14 +387,19 @@ const CalendarView: React.FC = () => {
   };
 
   const switchView = (value: string) => {
-    if (value === 'timetable') {
+    // 课表格子的视图选择也要记住（FullCalendar 不在渲染，datesSet 不会触发）
+    try { localStorage.setItem(CAL_VIEW_KEY, value); } catch { /* 忽略存储失败 */ }
+    if (value === 'timeGridWeek') {
       const cur = calendarRef.current?.getApi()?.getDate();
       setWeekStart(mondayOf(dayjs(cur ?? new Date())));
       setTimetableMode(true);
       return;
     }
     setTimetableMode(false);
-    calendarRef.current?.getApi().changeView(value);
+    const api = calendarRef.current?.getApi();
+    api?.changeView(value);
+    // 从课表格子切回日视图时，让 FullCalendar 对齐到正在看的那一周
+    api?.gotoDate(weekStart.toDate());
   };
 
   const handleAddTodoToEvent = async () => {
@@ -652,7 +664,9 @@ const CalendarView: React.FC = () => {
               overflow: 'hidden',
               textOverflow: 'ellipsis',
             }}>
-              {calTitle}
+              {timetableMode
+                ? `${weekStart.format('M月D日')} - ${weekStart.add(6, 'day').format('M月D日')}`
+                : calTitle}
             </div>
             <Button
               size="small"
@@ -664,12 +678,11 @@ const CalendarView: React.FC = () => {
             <Button size="small" onClick={goToday}>{t.calendar.today}</Button>
             <Segmented
               size="small"
-              value={timetableMode ? 'timetable' : calViewType}
+              value={timetableMode ? 'timeGridWeek' : calViewType}
               onChange={(v) => switchView(String(v))}
               options={[
                 { label: t.calendar.viewDay, value: 'timeGridDay' },
                 { label: t.calendar.viewWeek, value: 'timeGridWeek' },
-                { label: t.calendar.viewTimetable, value: 'timetable' },
               ]}
             />
           </div>
@@ -682,14 +695,16 @@ const CalendarView: React.FC = () => {
             ['--fc-today-bg-color' as any]: 'rgba(24,144,255,0.05)',
           } as React.CSSProperties}
         >
-          {timetableMode ? (
+          {timetableMode && (
             <TimetableGrid
               weekStart={weekStart}
               events={events}
               isDark={isDark}
               onSelectEvent={(ev) => setDetailEvent(ev)}
             />
-          ) : (
+          )}
+          {/* 周视图用课表格子时，FullCalendar 只隐藏不卸载：切回日视图时它的实例还在 */}
+          <div style={{ display: timetableMode ? 'none' : undefined }}>
           <FullCalendar
             ref={calendarRef}
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, rrulePlugin]}
@@ -854,7 +869,7 @@ const CalendarView: React.FC = () => {
             slotMinTime="07:00:00"
             slotMaxTime="23:00:00"
           />
-          )}
+          </div>
         </div>
       </div>
       </div>
