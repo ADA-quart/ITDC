@@ -154,12 +154,14 @@
             android:text="@string/widget_all_done" />
     </LinearLayout>
 
-    <!-- 待办列表：独立滚动。固定 88dp（约两行）：原来 120dp 在桌面上显得很肥，
-         课表只剩一格；剩下的高度全部留给课表。 -->
+    <!-- 待办列表：独立滚动。
+         高度按权重与课表分（1 : 1.15），和 1.8 版一致：课表能露出两三节，
+         待办也不会被压成一行；不要改回固定 dp，否则桌面拉大后课表会只剩一格。 -->
     <ListView
         android:id="@+id/widget_todo_list"
         android:layout_width="match_parent"
-        android:layout_height="88dp"
+        android:layout_height="0dp"
+        android:layout_weight="1.15"
         android:divider="@null"
         android:dividerHeight="0dp"
         android:scrollbars="vertical"
