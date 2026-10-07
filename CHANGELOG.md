@@ -3,6 +3,12 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 变更
+
+- **中英文 README 重写**：按 standard-readme 的段落顺序重组（图标 + 一句话定位 + 徽章 + 演示图 → 功能一览 → 智能排程 / 课表导入 / 提醒 / 小组件 → 快速开始 → 文档 → FAQ → 许可证），内容对齐当前版本的实际功能与真实目录结构；相对链接与图片均校验可解析
+
 ## [1.9.1] - 2026-10-07
 
 ### 变更
