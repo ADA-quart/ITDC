@@ -29,3 +29,8 @@ plugins/*/src/android/build/
 # 本地构建出来的安装包（要装手机从这里拿，不入库）
 downloads/
 
+# 本地模拟器巡检截图 / 临时调试 APK（不入库）
+/.*.png
+/.window.xml
+/ITDC-Debug-*.apk
+
