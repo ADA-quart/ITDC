@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { List, Tag, Button, Modal, message, Badge, Empty, Spin, ColorPicker, Input } from 'antd';
-import { DeleteOutlined, EditOutlined, SplitCellsOutlined } from '@ant-design/icons';
+import { CheckOutlined, DeleteOutlined, EditOutlined, SplitCellsOutlined, UndoOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { todoApi, scheduleApi } from '../api/client';
 import type { Todo, Priority, TodoStatus } from '../types';
@@ -10,6 +10,7 @@ import { syncAllReminders } from '../api/reminders';
 import TodoForm from './TodoForm';
 import TodoSplitModal from './TodoSplitModal';
 import { useI18n } from '../i18n';
+import { cardStyle } from './ui';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 
@@ -134,6 +135,83 @@ const TodoList: React.FC = () => {
 
   const groups = groupByPriority(todos);
 
+  // 桌面：右侧一列文字按钮（信息量足）
+  const desktopActions = (todo: Todo) => [
+    <Button key="done" type="link" size="small" onClick={() => handleToggleDone(todo)}>
+      {todo.status === 'done' ? t.todo.cancelDone : t.todo.markDone}
+    </Button>,
+    <Button
+      key="split"
+      type="link"
+      size="small"
+      icon={<SplitCellsOutlined />}
+      onClick={() => setSplitTodo(todo)}
+      disabled={todo.status === 'done'}
+    >
+      {t.todo.split}
+    </Button>,
+    <Button
+      key="edit"
+      type="link"
+      size="small"
+      icon={<EditOutlined />}
+      aria-label={t.todo.editTodo}
+      onClick={() => { setEditingTodo(todo); setFormVisible(true); }}
+    />,
+    <Button
+      key="delete"
+      type="link"
+      size="small"
+      danger
+      icon={<DeleteOutlined />}
+      aria-label={t.todo.delete}
+      onClick={() => handleDelete(todo.id)}
+    />,
+  ];
+
+  // 手机：排在内容下方的一排按钮。图标 + 短文字，高度 ≥40px，符合触控目标建议
+  const mobileActions = (todo: Todo) => {
+    const style: React.CSSProperties = { minHeight: 40, minWidth: 44, paddingInline: 10 };
+    return [
+      <Button
+        key="done"
+        size="small"
+        style={style}
+        icon={todo.status === 'done' ? <UndoOutlined /> : <CheckOutlined />}
+        onClick={() => handleToggleDone(todo)}
+      >
+        {todo.status === 'done' ? t.todo.cancelDone : t.todo.markDone}
+      </Button>,
+      <Button
+        key="split"
+        size="small"
+        style={style}
+        icon={<SplitCellsOutlined />}
+        onClick={() => setSplitTodo(todo)}
+        disabled={todo.status === 'done'}
+      >
+        {t.todo.split}
+      </Button>,
+      <Button
+        key="edit"
+        size="small"
+        style={style}
+        icon={<EditOutlined />}
+        aria-label={t.todo.editTodo}
+        onClick={() => { setEditingTodo(todo); setFormVisible(true); }}
+      />,
+      <Button
+        key="delete"
+        size="small"
+        danger
+        style={style}
+        icon={<DeleteOutlined />}
+        aria-label={t.todo.delete}
+        onClick={() => handleDelete(todo.id)}
+      />,
+    ];
+  };
+
   const filterButtons: { key: TodoStatus | undefined; label: string }[] = [
     { key: undefined, label: t.todo.all },
     { key: 'pending', label: t.todo.pending },
@@ -142,7 +220,7 @@ const TodoList: React.FC = () => {
   ];
 
   return (
-    <div style={{ background: isDark ? '#1f1f1f' : '#fff', padding: isMobile ? 12 : 24, borderRadius: 8 }}>
+    <div style={cardStyle(isDark, isMobile)}>
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', gap: 8, marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {filterButtons.map(btn => (
@@ -190,44 +268,12 @@ const TodoList: React.FC = () => {
                   dataSource={items}
                   renderItem={(todo) => (
                     <List.Item
-                      actions={[
-                        <Button
-                          key="done"
-                          type="link"
-                          size="small"
-                          onClick={() => handleToggleDone(todo)}
-                        >
-                          {todo.status === 'done' ? t.todo.cancelDone : t.todo.markDone}
-                        </Button>,
-                        <Button
-                          key="split"
-                          type="link"
-                          size="small"
-                          icon={<SplitCellsOutlined />}
-                          onClick={() => setSplitTodo(todo)}
-                          disabled={todo.status === 'done'}
-                        >
-                          {t.todo.split}
-                        </Button>,
-                        <Button
-                          key="edit"
-                          type="link"
-                          size="small"
-                          icon={<EditOutlined />}
-                          onClick={() => { setEditingTodo(todo); setFormVisible(true); }}
-                        />,
-                        <Button
-                          key="delete"
-                          type="link"
-                          size="small"
-                          danger
-                          icon={<DeleteOutlined />}
-                          onClick={() => handleDelete(todo.id)}
-                        />,
-                      ]}
-                      style={{ opacity: todo.status === 'done' ? 0.5 : 1 }}
+                      actions={isMobile ? undefined : desktopActions(todo)}
+                      style={{ opacity: todo.status === 'done' ? 0.5 : 1, alignItems: isMobile ? 'stretch' : undefined }}
                     >
-                      <List.Item.Meta
+                      {/* 手机上操作按钮排在内容下方，避免四个按钮把标题挤成一条缝 */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <List.Item.Meta
                         title={
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span
@@ -271,7 +317,13 @@ const TodoList: React.FC = () => {
                             )}
                           </div>
                         }
-                      />
+                        />
+                        {isMobile && (
+                          <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                            {mobileActions(todo)}
+                          </div>
+                        )}
+                      </div>
                     </List.Item>
                   )}
                 />

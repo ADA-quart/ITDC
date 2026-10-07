@@ -27,6 +27,7 @@ import {
   setClassReminderLeadMin,
 } from '../api/class-reminders';
 import AppearanceSettings from './AppearanceSettings';
+import { cardStyle, sectionTitleStyle } from './ui';
 
 interface Props {
   /** 打开时要定位到的标签页，由「去设置」这类入口指定 */
@@ -460,7 +461,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
             }
           />
           <div style={{ marginBottom: 24 }}>
-            <h4>{t.settings.addConfig}</h4>
+            <h4 style={sectionTitleStyle}>{t.settings.addConfig}</h4>
             <Form form={form} layout="vertical" initialValues={{ provider: 'openai' }}>
               <Form.Item name="provider" label={t.settings.provider} rules={[{ required: true }]}>
                 <Select
@@ -516,13 +517,14 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
           </div>
 
           <div>
-            <h4>{t.settings.llmConfig}</h4>
+            <h4 style={sectionTitleStyle}>{t.settings.llmConfig}</h4>
             <Table
               columns={columns}
               dataSource={configs}
               rowKey="id"
               size="small"
               pagination={false}
+              scroll={{ x: 'max-content' }}
             />
           </div>
         </>
@@ -553,7 +555,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
           </Space>
           {!promptTemplate && defaultTemplate && (
             <div style={{ marginTop: 16 }}>
-              <h4>{t.settings.defaultTemplate}</h4>
+              <h4 style={sectionTitleStyle}>{t.settings.defaultTemplate}</h4>
               <pre style={{
                 fontSize: 11,
                 maxHeight: 200,
@@ -582,7 +584,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
       children: (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div>
-            <h4>{t.settings.language}</h4>
+            <h4 style={sectionTitleStyle}>{t.settings.language}</h4>
             <Select
               value={locale}
               onChange={setLocale}
@@ -594,7 +596,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
             />
           </div>
           <div>
-            <h4>{t.settings.school}</h4>
+            <h4 style={sectionTitleStyle}>{t.settings.school}</h4>
             <Select
               value={schoolId || undefined}
               onChange={async (v) => {
@@ -614,7 +616,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
           </div>
           {isAndroid() && (
             <div>
-              <h4>{t.settings.classReminder}</h4>
+              <h4 style={sectionTitleStyle}>{t.settings.classReminder}</h4>
               <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 12 }}>
                 {t.settings.classReminderHint}
               </p>
@@ -651,7 +653,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
             </div>
           )}
           <div>
-            <h4>{t.settings.dataMode}</h4>
+            <h4 style={sectionTitleStyle}>{t.settings.dataMode}</h4>
             <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 12 }}>
               {t.settings.dataModeHint}
             </p>
@@ -704,7 +706,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
             />
           </div>
           <div>
-            <h4>{t.settings.theme}</h4>
+            <h4 style={sectionTitleStyle}>{t.settings.theme}</h4>
             <Select
               value={themeMode}
               onChange={setThemeMode}
@@ -719,7 +721,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
 
           {Capacitor.isNativePlatform() && (
             <div>
-              <h4>{t.settings.widgetSection}</h4>
+              <h4 style={sectionTitleStyle}>{t.settings.widgetSection}</h4>
               <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 8 }}>
                 {t.settings.widgetLocalHint}
               </p>
@@ -743,7 +745,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
             </div>
           )}
           <div>
-            <h4>{locale === 'zh' ? '调试日志' : 'Debug Log'}</h4>
+            <h4 style={sectionTitleStyle}>{locale === 'zh' ? '调试日志' : 'Debug Log'}</h4>
             <Space style={{ marginBottom: 8 }}>
               <Button onClick={async () => {
                 try {
@@ -768,7 +770,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
             />
           </div>
           <div>
-            <h4>{t.settings.about}</h4>
+            <h4 style={sectionTitleStyle}>{t.settings.about}</h4>
             <Space wrap style={{ marginBottom: 8 }}>
               <Tag>{t.settings.currentVersion} v{getCurrentVersion()}</Tag>
               <Button icon={<SyncOutlined />} loading={checkingUpdate} onClick={handleCheckUpdate}>
@@ -808,7 +810,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
   ];
 
   return (
-    <div style={{ background: isDark ? '#1f1f1f' : '#fff', padding: isMobile ? 12 : 24, borderRadius: 8 }}>
+    <div style={cardStyle(isDark, isMobile)}>
       <h3 style={{ marginTop: 0, marginBottom: 12 }}>{t.settings.title}</h3>
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
     </div>

@@ -28,6 +28,7 @@ import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { swipeDirection } from '../utils/swipe';
+import { cardStyle, TOUCH_TARGET } from './ui';
 
 const CAL_VIEW_KEY = 'itdc_calendar_view';
 
@@ -390,9 +391,7 @@ const CalendarView: React.FC = () => {
       <div style={{
         width: isMobile ? '100%' : 220,
         minWidth: isMobile ? undefined : 220,
-        background: isDark ? '#1f1f1f' : '#fff',
-        borderRadius: 8,
-        padding: isMobile ? 12 : 16,
+        ...cardStyle(isDark, isMobile, { padding: isMobile ? 12 : 16 }),
         display: 'flex',
         flexDirection: 'column',
         order: isMobile ? 2 : 0,
@@ -405,7 +404,7 @@ const CalendarView: React.FC = () => {
         </div>
         <div style={{ flex: 1, overflow: 'auto' }}>
           {calendars.map(c => (
-            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, marginBottom: 6, background: hiddenCalendars.has(c.id) ? (isDark ? '#303030' : '#f5f5f5') : (isDark ? '#1a1a2e' : '#e6f7ff'), opacity: hiddenCalendars.has(c.id) ? 0.5 : 1 }}>
+            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: TOUCH_TARGET, padding: '8px 10px', borderRadius: 10, marginBottom: 6, background: hiddenCalendars.has(c.id) ? (isDark ? '#303030' : '#f5f5f5') : (isDark ? '#1a1a2e' : '#e6f7ff'), opacity: hiddenCalendars.has(c.id) ? 0.5 : 1 }}>
               <Checkbox checked={!hiddenCalendars.has(c.id)} onChange={() => toggleCalendar(c.id)} style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
                 <span style={{ flex: 1, minWidth: 0, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
@@ -430,9 +429,7 @@ const CalendarView: React.FC = () => {
 
       <div style={{
         flex: isMobile ? undefined : 1,
-        background: isDark ? '#1f1f1f' : '#fff',
-        padding: isMobile ? 8 : 16,
-        borderRadius: 8,
+        ...cardStyle(isDark, isMobile, { padding: isMobile ? 12 : 16 }),
         overflow: 'auto',
         order: isMobile ? 1 : 0,
         minHeight: 0,

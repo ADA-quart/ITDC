@@ -24,6 +24,7 @@ import { Capacitor } from '@capacitor/core';
 import { ITDCWidgetPlugin } from './capacitor/itdc-widget';
 import { pushWidgetSnapshot, consumeWidgetDoneQueue } from './api/widget-sync';
 import { useI18n } from './i18n';
+import { TOUCH_TARGET, withAlpha } from './components/ui';
 import { useTheme } from './contexts/ThemeContext';
 import { useIsMobile } from './hooks/useIsMobile';
 
@@ -185,7 +186,18 @@ const App: React.FC = () => {
   // 用户自定义主题色：antd token 负责组件层，CSS 变量负责零散样式
   const themeConfig = {
     algorithm: isDark ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
-    token: { colorPrimary: appearance.accent },
+    token: {
+      colorPrimary: appearance.accent,
+      // 手机上把控件放大到接近 44-48px 的触控目标（Material 48dp / HIG 44pt）
+      borderRadius: isMobile ? 12 : 8,
+      controlHeight: isMobile ? 40 : 32,
+      fontSize: 14,
+    },
+    components: {
+      Modal: { borderRadiusLG: 14 },
+      Card: { borderRadiusLG: 12 },
+      Segmented: { borderRadius: 10 },
+    },
   };
 
   // 背景图铺在最底层（z-index:-1），页面容器改成透明才能真正透出来
@@ -262,6 +274,8 @@ const App: React.FC = () => {
             height: `calc(56px + ${inset('bottom')})`,
             paddingBottom: inset('bottom'),
             zIndex: 100,
+            paddingLeft: 8,
+            paddingRight: 8,
           }}>
             {menuItems.map(item => (
               <div
@@ -271,9 +285,19 @@ const App: React.FC = () => {
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   gap: 2,
+                  // 拇指热区：底部导航是最高频入口，整块都要能点中（≥48dp）
+                  minWidth: 56,
+                  minHeight: TOUCH_TARGET,
+                  padding: '4px 10px',
+                  borderRadius: 12,
                   cursor: 'pointer',
+                  userSelect: 'none',
+                  WebkitTapHighlightColor: 'transparent',
+                  background: currentPage === item.key ? withAlpha(appearance.accent, isDark ? 0.22 : 0.1) : 'transparent',
                   color: currentPage === item.key ? appearance.accent : (isDark ? '#aaa' : '#666'),
+                  fontWeight: currentPage === item.key ? 600 : 400,
                   fontSize: 11,
                 }}
               >

@@ -5,6 +5,7 @@ import { Capacitor } from '@capacitor/core';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../i18n';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { sectionTitleStyle } from './ui';
 import {
   ACCENT_PRESETS,
   compressImageToDataUrl,
@@ -83,7 +84,7 @@ const AppearanceSettings: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
       {/* ---------- 应用主题色 ---------- */}
       <div>
-        <h4 style={{ marginBottom: 4 }}>
+        <h4 style={sectionTitleStyle}>
           <BgColorsOutlined /> {t.settings.accentColor}
         </h4>
         <p style={hintStyle}>{t.settings.accentHint}</p>
@@ -92,7 +93,7 @@ const AppearanceSettings: React.FC = () => {
 
       {/* ---------- 背景图 ---------- */}
       <div>
-        <h4 style={{ marginBottom: 4 }}>
+        <h4 style={sectionTitleStyle}>
           <PictureOutlined /> {t.settings.backgroundImage}
         </h4>
         <p style={hintStyle}>{t.settings.backgroundImageHint}</p>
@@ -154,7 +155,7 @@ const AppearanceSettings: React.FC = () => {
 
       {/* ---------- 小组件外观 ---------- */}
       <div>
-        <h4 style={{ marginBottom: 4 }}>{t.settings.widgetStyle}</h4>
+        <h4 style={sectionTitleStyle}>{t.settings.widgetStyle}</h4>
         <p style={hintStyle}>
           {Capacitor.isNativePlatform() ? t.settings.widgetNativeHint : t.settings.widgetWebHint}
         </p>

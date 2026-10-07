@@ -6,6 +6,7 @@ import { PRIORITY_LABELS, PRIORITY_COLORS } from '../types';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { cardStyle } from './ui';
 
 function dayKey(d: Date): string {
   const y = d.getFullYear();
@@ -71,7 +72,7 @@ const DailyReview: React.FC = () => {
   const maxTrend = Math.max(1, ...trend.flatMap(x => [x.created, x.done]));
 
   return (
-    <div style={{ background: isDark ? '#1f1f1f' : '#fff', padding: isMobile ? 12 : 24, borderRadius: 8 }}>
+    <div style={cardStyle(isDark, isMobile)}>
       <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
         {[
           { label: t.review.overdue, value: overdueCount, color: '#f5222d' },

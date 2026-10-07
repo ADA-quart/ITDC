@@ -168,14 +168,14 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
                 String tomorrowLabel = root.optString("tomorrowLabel", "");
                 String week = root.optString("weekLabel", "");
 
-                StringBuilder sb = new StringBuilder();
-                if (!TextUtils.isEmpty(todayLabel)) sb.append(todayLabel);
+                // 顶栏只放「第 N 周」：日期已经写在「今天 10.7 / 明天 10.8」的分栏标题里，
+                // 同一日期在两处出现没有意义。拿不到周次时再退回显示日期。
                 if (!TextUtils.isEmpty(week)) {
-                    if (sb.length() > 0) sb.append("  ");
-                    sb.append(context.getString(R.string.widget_week_prefix)).append(week)
-                      .append(context.getString(R.string.widget_week_suffix));
+                    dateText = context.getString(R.string.widget_week_prefix) + week
+                            + context.getString(R.string.widget_week_suffix);
+                } else {
+                    dateText = todayLabel;
                 }
-                dateText = sb.toString();
 
                 // 分栏标题带上日期，如「今天 9.29」「明天 9.30」
                 String todayHeader = context.getString(R.string.widget_today);
