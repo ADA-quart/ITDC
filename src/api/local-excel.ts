@@ -1,7 +1,7 @@
 // 本地周历 Excel 导出：与 server/routes/calendar.ts 的 export-week 保持同样的两张表结构。
 import XLSX from 'xlsx-js-style';
 import type { Calendar, CalendarEvent, Todo } from '../types';
-import { downloadBlob } from './local-ical';
+import { exportFile } from './export-file';
 
 const PRIORITY_LABELS_ZH: Record<string, string> = {
   'urgent-important': '紧急重要',
@@ -181,7 +181,7 @@ export async function exportWeekLocally(
   XLSX.utils.book_append_sheet(workbook, listSheet, lang === 'zh' ? '事件明细' : 'Event Details');
 
   const buf = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
-  downloadBlob(
+  await exportFile(
     new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
     `calendar-week-${fmtDate(weekStart)}.xlsx`
   );

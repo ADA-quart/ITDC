@@ -3,7 +3,8 @@ import { message } from 'antd';
 import type { Calendar, CalendarEvent, Todo, ScheduleResult, LLMConfig } from '../types';
 import * as offline from './offline';
 import { generateScheduleLocally, validateScheduleLocally } from './local-scheduler';
-import { parseIcsFile, buildIcs, downloadBlob } from './local-ical';
+import { parseIcsFile, buildIcs } from './local-ical';
+import { exportFile } from './export-file';
 import type { ModelListResult } from './llm-models';
 import { generateLLMScheduleLocally } from './local-llm-scheduler';
 import { parseNaturalLanguageTodoLocally } from './local-nl-todo';
@@ -543,7 +544,7 @@ export const calendarApi = {
     const ics = buildIcs(items);
     const now = new Date();
     const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-    downloadBlob(new Blob([ics], { type: 'text/calendar;charset=utf-8' }), `calendar-${stamp}.ics`);
+    await exportFile(new Blob([ics], { type: 'text/calendar;charset=utf-8' }), `calendar-${stamp}.ics`);
   },
 
   // 导出周历 Excel：本地生成
