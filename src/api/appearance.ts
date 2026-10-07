@@ -25,6 +25,10 @@ export interface AppearanceSettings {
   /** 背景图焦点（0-100，50 为居中）：cover 时决定保留哪一边 */
   bgFocusX: number;
   bgFocusY: number;
+  /** 有背景图时，日历/卡片等界面的透明度 0-100（0 纯透明，100 不透明） */
+  uiOpacity: number;
+  /** 有背景图时，界面的背景模糊 0-20 px（0 = 纯透明不磨砂） */
+  uiBlur: number;
   /** 小组件主题色是否跟随应用主题色 */
   widgetFollowAccent: boolean;
   /** 小组件单独的主题色（widgetFollowAccent=false 时生效） */
@@ -59,6 +63,8 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
   bgFit: 'cover',
   bgFocusX: 50,
   bgFocusY: 50,
+  uiOpacity: 62,
+  uiBlur: 14,
   widgetFollowAccent: true,
   widgetAccent: '#4C9AFF',
   widgetPanelColor: null,
@@ -99,6 +105,8 @@ export function sanitizeAppearance(raw: unknown): AppearanceSettings {
     bgFit: o.bgFit === 'contain' ? 'contain' : 'cover',
     bgFocusX: clamp(o.bgFocusX, 0, 100, DEFAULT_APPEARANCE.bgFocusX),
     bgFocusY: clamp(o.bgFocusY, 0, 100, DEFAULT_APPEARANCE.bgFocusY),
+    uiOpacity: clamp(o.uiOpacity, 0, 100, DEFAULT_APPEARANCE.uiOpacity),
+    uiBlur: clamp(o.uiBlur, 0, 20, DEFAULT_APPEARANCE.uiBlur),
     widgetFollowAccent: o.widgetFollowAccent !== false,
     widgetAccent: hex(o.widgetAccent, DEFAULT_APPEARANCE.widgetAccent),
     widgetPanelColor: typeof o.widgetPanelColor === 'string' && HEX_RE.test(o.widgetPanelColor)

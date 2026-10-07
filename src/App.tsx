@@ -306,7 +306,7 @@ const App: React.FC = () => {
             left: 0,
             right: 0,
         background: `var(--itdc-nav-bg, ${isDark ? '#1f1f1f' : '#fff'})`,
-        backdropFilter: 'var(--itdc-card-blur, none)',
+        backdropFilter: 'var(--itdc-nav-blur, none)',
             borderTop: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
             display: 'flex',
             justifyContent: 'space-around',

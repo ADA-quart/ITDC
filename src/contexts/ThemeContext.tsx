@@ -133,24 +133,31 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     const root = document.documentElement;
     const glass = !!appearance.bgImage;
+    const ui = appearance.uiOpacity / 100;
+    const cellAlpha = Math.max(0, ui * 0.7);
+    const headAlpha = Math.min(1, ui * 0.85);
+    // 底部导航即使把日历调到全透明也要保持可读，否则列表文字会从下面透上来重影
+    const navAlpha = Math.min(1, Math.max(0.92, ui + 0.12));
+    const navBlur = glass ? `blur(${Math.max(appearance.uiBlur, 8)}px)` : 'none';
+    const blur = glass && appearance.uiBlur > 0 ? `blur(${appearance.uiBlur}px)` : 'none';
     document.body.classList.toggle('itdc-has-bg-image', glass);
     root.style.setProperty(
       '--itdc-card-bg',
       glass
-        ? (isDark ? 'rgba(18, 18, 20, 0.62)' : 'rgba(255, 255, 255, 0.62)')
+        ? (isDark ? `rgba(18, 18, 20, ${ui})` : `rgba(255, 255, 255, ${ui})`)
         : (isDark ? '#1f1f1f' : '#fff')
     );
-    root.style.setProperty('--itdc-card-blur', glass ? 'blur(14px)' : 'none');
+    root.style.setProperty('--itdc-card-blur', blur);
     root.style.setProperty(
       '--itdc-cell-bg',
       glass
-        ? (isDark ? 'rgba(18, 18, 20, 0.44)' : 'rgba(255, 255, 255, 0.44)')
+        ? (isDark ? `rgba(18, 18, 20, ${cellAlpha})` : `rgba(255, 255, 255, ${cellAlpha})`)
         : (isDark ? '#1b1b1b' : '#fff')
     );
     root.style.setProperty(
       '--itdc-head-bg',
       glass
-        ? (isDark ? 'rgba(30, 30, 32, 0.62)' : 'rgba(255, 255, 255, 0.58)')
+        ? (isDark ? `rgba(30, 30, 32, ${headAlpha})` : `rgba(255, 255, 255, ${headAlpha})`)
         : (isDark ? '#232323' : '#fafafa')
     );
     root.style.setProperty(
@@ -162,10 +169,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     root.style.setProperty(
       '--itdc-nav-bg',
       glass
-        ? (isDark ? 'rgba(18, 18, 20, 0.80)' : 'rgba(255, 255, 255, 0.80)')
+        ? (isDark ? `rgba(18, 18, 20, ${navAlpha})` : `rgba(255, 255, 255, ${navAlpha})`)
         : (isDark ? '#1f1f1f' : '#fff')
     );
-  }, [appearance.bgImage, isDark]);
+    root.style.setProperty('--itdc-nav-blur', navBlur);
+  }, [appearance.bgImage, appearance.uiOpacity, appearance.uiBlur, isDark]);
 
   // 外观变化推给桌面小组件。150ms 防抖：拖动不透明度滑块时不必每帧重建一次桌面视图。
   useEffect(() => {

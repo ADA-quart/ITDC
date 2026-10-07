@@ -19,4 +19,13 @@ describe('sanitizeAppearance 背景填充与焦点', () => {
   it('非法填充方式回退铺满', () => {
     expect(sanitizeAppearance({ bgFit: 'stretch' as never }).bgFit).toBe('cover');
   });
+
+  it('界面透明度/模糊默认值并夹取范围', () => {
+    const s = sanitizeAppearance({});
+    expect(s.uiOpacity).toBe(62);
+    expect(s.uiBlur).toBe(14);
+    const clamped = sanitizeAppearance({ uiOpacity: 999, uiBlur: -5 });
+    expect(clamped.uiOpacity).toBe(100);
+    expect(clamped.uiBlur).toBe(0);
+  });
 });

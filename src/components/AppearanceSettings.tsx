@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Button, ColorPicker, Popconfirm, Slider, Space, Switch, Upload, message } from 'antd';
 import { BgColorsOutlined, DeleteOutlined, PictureOutlined, UploadOutlined } from '@ant-design/icons';
 import { Capacitor } from '@capacitor/core';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../i18n';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { sectionTitleStyle, withAlpha } from './ui';
+import { sectionTitleStyle } from './ui';
 import {
   ACCENT_PRESETS,
   compressImageToDataUrl,
@@ -25,6 +25,8 @@ const AppearanceSettings: React.FC = () => {
   const isMobile = useIsMobile();
   const [processing, setProcessing] = useState(false);
   const [applying, setApplying] = useState(false);
+  const dragRef = useRef<{ x: number; y: number; fx: number; fy: number } | null>(null);
+  const clampFocus = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
 
   const hintStyle: React.CSSProperties = {
     fontSize: 12,
@@ -122,6 +124,28 @@ const AppearanceSettings: React.FC = () => {
         {appearance.bgImage && (
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
             <div
+              onPointerDown={(e) => {
+                dragRef.current = {
+                  x: e.clientX,
+                  y: e.clientY,
+                  fx: appearance.bgFocusX,
+                  fy: appearance.bgFocusY,
+                };
+                e.currentTarget.setPointerCapture(e.pointerId);
+              }}
+              onPointerMove={(e) => {
+                const drag = dragRef.current;
+                if (!drag) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                const dx = ((e.clientX - drag.x) / Math.max(1, rect.width)) * 100;
+                const dy = ((e.clientY - drag.y) / Math.max(1, rect.height)) * 100;
+                updateAppearance({
+                  bgFocusX: clampFocus(drag.fx - dx),
+                  bgFocusY: clampFocus(drag.fy - dy),
+                });
+              }}
+              onPointerUp={() => { dragRef.current = null; }}
+              onPointerCancel={() => { dragRef.current = null; }}
               style={{
                 width: isMobile ? '100%' : 180,
                 height: 110,
@@ -132,6 +156,8 @@ const AppearanceSettings: React.FC = () => {
                 backgroundRepeat: 'no-repeat',
                 border: `1px solid ${isDark ? '#303030' : '#e8e8e8'}`,
                 flexShrink: 0,
+                cursor: 'grab',
+                touchAction: 'none',
               }}
             />
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -168,38 +194,36 @@ const AppearanceSettings: React.FC = () => {
               </Space>
               <div style={{ ...hintStyle, marginTop: 0 }}>{t.settings.fitHint}</div>
               <div style={{ fontSize: 13 }}>{t.settings.focusPoint}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 30px)', gap: 6, marginTop: 4 }}>
-                {[0, 50, 100].flatMap((y) => [0, 50, 100].map((x) => {
-                  const active = appearance.bgFocusX === x && appearance.bgFocusY === y;
-                  return (
-                    <button
-                      key={`${x}-${y}`}
-                      type='button'
-                      aria-label={`focus-${x}-${y}`}
-                      onClick={() => updateAppearance({ bgFocusX: x, bgFocusY: y })}
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: 6,
-                        border: `1px solid ${active ? appearance.accent : (isDark ? '#444' : '#ddd')}`,
-                        background: active ? withAlpha(appearance.accent, 0.25) : (isDark ? '#262626' : '#fafafa'),
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <span style={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: 3,
-                        background: active ? appearance.accent : (isDark ? '#888' : '#bbb'),
-                      }} />
-                    </button>
-                  );
-                }))}
-              </div>
-              <div style={{ ...hintStyle, marginTop: 6 }}>{t.settings.focusHint}</div>
+              <div style={{ ...hintStyle, marginTop: 0 }}>{t.settings.focusHint}</div>
+              <div style={{ fontSize: 12 }}>{t.settings.focusHorizontal}</div>
+              <Slider
+                min={0}
+                max={100}
+                value={appearance.bgFocusX}
+                onChange={(value) => updateAppearance({ bgFocusX: value })}
+              />
+              <div style={{ fontSize: 12 }}>{t.settings.focusVertical}</div>
+              <Slider
+                min={0}
+                max={100}
+                value={appearance.bgFocusY}
+                onChange={(value) => updateAppearance({ bgFocusY: value })}
+              />
+              <div style={{ fontSize: 13 }}>{t.settings.uiOpacity}</div>
+              <Slider
+                min={0}
+                max={100}
+                value={appearance.uiOpacity}
+                onChange={(value) => updateAppearance({ uiOpacity: value })}
+              />
+              <div style={{ fontSize: 13 }}>{t.settings.uiBlur}</div>
+              <Slider
+                min={0}
+                max={20}
+                value={appearance.uiBlur}
+                onChange={(value) => updateAppearance({ uiBlur: value })}
+              />
+              <div style={{ ...hintStyle, marginTop: 0 }}>{t.settings.uiOpacityHint}</div>
             </div>
           </div>
         )}
