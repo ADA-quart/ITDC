@@ -8,8 +8,6 @@ import { kvGet, kvSet } from './offline';
 
 /** 小组件明暗：auto 跟随系统，light/dark 由用户指定 */
 export type WidgetScheme = 'auto' | 'light' | 'dark';
-/** 背景图填充方式：cover 铺满并裁切，contain 完整显示并留边 */
-export type BgFit = 'cover' | 'contain';
 
 export interface AppearanceSettings {
   /** 应用主题色：#RRGGBB */
@@ -20,11 +18,11 @@ export interface AppearanceSettings {
   bgOpacity: number;
   /** 背景图高斯模糊 0-20 px */
   bgBlur: number;
-  /** 背景图填充方式 */
-  bgFit: BgFit;
   /** 背景图焦点（0-100，50 为居中）：cover 时决定保留哪一边 */
   bgFocusX: number;
   bgFocusY: number;
+  /** 图片缩放（1-3 倍，头像式裁切：区域固定，放大图片选局部） */
+  bgZoom: number;
   /** 有背景图时，日历/卡片等界面的透明度 0-100（0 纯透明，100 不透明） */
   uiOpacity: number;
   /** 有背景图时，界面的背景模糊 0-20 px（0 = 纯透明不磨砂） */
@@ -60,9 +58,9 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
   bgImage: null,
   bgOpacity: 100,
   bgBlur: 0,
-  bgFit: 'cover',
   bgFocusX: 50,
   bgFocusY: 50,
+  bgZoom: 1,
   uiOpacity: 62,
   uiBlur: 14,
   widgetFollowAccent: true,
@@ -102,9 +100,9 @@ export function sanitizeAppearance(raw: unknown): AppearanceSettings {
     bgImage: typeof o.bgImage === 'string' && o.bgImage.startsWith('data:image/') ? o.bgImage : null,
     bgOpacity: clamp(o.bgOpacity, 0, 100, DEFAULT_APPEARANCE.bgOpacity),
     bgBlur: clamp(o.bgBlur, 0, 20, DEFAULT_APPEARANCE.bgBlur),
-    bgFit: o.bgFit === 'contain' ? 'contain' : 'cover',
     bgFocusX: clamp(o.bgFocusX, 0, 100, DEFAULT_APPEARANCE.bgFocusX),
     bgFocusY: clamp(o.bgFocusY, 0, 100, DEFAULT_APPEARANCE.bgFocusY),
+    bgZoom: Math.max(1, Math.min(3, Number.isFinite(Number(o.bgZoom)) ? Number(o.bgZoom) : 1)),
     uiOpacity: clamp(o.uiOpacity, 0, 100, DEFAULT_APPEARANCE.uiOpacity),
     uiBlur: clamp(o.uiBlur, 0, 20, DEFAULT_APPEARANCE.uiBlur),
     widgetFollowAccent: o.widgetFollowAccent !== false,
@@ -237,9 +235,9 @@ export async function pushWidgetAppearance(settings: AppearanceSettings): Promis
     panelOpacity: settings.widgetPanelOpacity,
     scheme: settings.widgetScheme,
     hasImage: !!wanted,
-    fit: settings.bgFit,
     focusX: settings.bgFocusX,
     focusY: settings.bgFocusY,
+    zoom: settings.bgZoom,
     ...(image ? { image } : {}),
   });
 

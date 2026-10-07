@@ -250,13 +250,14 @@ const App: React.FC = () => {
         zIndex: -1,
         pointerEvents: 'none',
         backgroundImage: `url(${appearance.bgImage})`,
-        backgroundSize: appearance.bgFit === 'contain' ? 'contain' : 'cover',
+        backgroundSize: 'cover',
         backgroundPosition: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
         backgroundRepeat: 'no-repeat',
         opacity: Math.max(0.1, appearance.bgOpacity / 100),
         // 模糊会在边缘采样到透明，放大一点盖住四角暗边
         filter: appearance.bgBlur ? `blur(${appearance.bgBlur}px)` : undefined,
-        transform: appearance.bgBlur ? 'scale(1.08)' : undefined,
+        transform: `scale(${(appearance.bgBlur ? 1.08 : 1) * appearance.bgZoom})`,
+        transformOrigin: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
       }}
     />
   ) : null;

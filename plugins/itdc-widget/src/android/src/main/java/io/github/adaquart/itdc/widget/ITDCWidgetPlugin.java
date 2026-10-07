@@ -69,9 +69,9 @@ public class ITDCWidgetPlugin extends Plugin {
                     call.getInt("panelOpacity", 90),
                     call.getString("scheme"),
                     Boolean.TRUE.equals(call.getBoolean("hasImage", false)),
-                    call.getString("fit"),
                     call.getInt("focusX", 50),
                     call.getInt("focusY", 50),
+                    call.getFloat("zoom", 1f),
                     image);
         } catch (Exception e) {
             call.reject("apply appearance failed: " + e.getMessage());

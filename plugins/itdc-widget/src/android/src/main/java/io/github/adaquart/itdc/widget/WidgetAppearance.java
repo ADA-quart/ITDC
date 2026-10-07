@@ -44,9 +44,9 @@ final class WidgetAppearance {
     private static final String KEY_OPACITY = "ap_panel_opacity";
     private static final String KEY_SCHEME = "ap_scheme";
     private static final String KEY_HAS_IMAGE = "ap_has_image";
-    private static final String KEY_FIT = "ap_fit";
     private static final String KEY_FOCUS_X = "ap_focus_x";
     private static final String KEY_FOCUS_Y = "ap_focus_y";
+    private static final String KEY_ZOOM = "ap_zoom";
     private static final String IMAGE_NAME = "widget_bg.jpg";
 
     static final String SCHEME_AUTO = "auto";
@@ -85,7 +85,7 @@ final class WidgetAppearance {
 
     /** App 下发外观：colors 立即生效；image 只在换图时传，缺省表示沿用已存的文件 */
     static void apply(Context context, String accent, String panelColor, int panelOpacity,
-                      String scheme, boolean hasImage, String fit, int focusX, int focusY,
+                      String scheme, boolean hasImage, int focusX, int focusY, float zoom,
                       String imageDataUrl) throws Exception {
         SharedPreferences.Editor editor = prefs(context).edit();
         if (!TextUtils.isEmpty(accent)) {
@@ -95,9 +95,9 @@ final class WidgetAppearance {
         editor.putInt(KEY_OPACITY, Math.max(0, Math.min(100, panelOpacity)));
         editor.putString(KEY_SCHEME, normalizeScheme(scheme));
         editor.putBoolean(KEY_HAS_IMAGE, hasImage && imageFile(context).exists());
-        editor.putString(KEY_FIT, "contain".equals(fit) ? "contain" : "cover");
         editor.putInt(KEY_FOCUS_X, Math.max(0, Math.min(100, focusX)));
         editor.putInt(KEY_FOCUS_Y, Math.max(0, Math.min(100, focusY)));
+        editor.putFloat(KEY_ZOOM, Math.max(1f, Math.min(3f, zoom)));
         editor.apply();
 
         if (!TextUtils.isEmpty(imageDataUrl)) {
@@ -241,9 +241,9 @@ final class WidgetAppearance {
             int opacity = prefs(context).getInt(KEY_OPACITY, DEFAULT_OPACITY);
             int alpha = Math.round(Math.max(0, Math.min(100, opacity)) * 255f / 100f);
             boolean useImage = hasImage(context);
-            String fit = prefs(context).getString(KEY_FIT, "cover");
             int focusX = prefs(context).getInt(KEY_FOCUS_X, 50);
             int focusY = prefs(context).getInt(KEY_FOCUS_Y, 50);
+            float zoom = prefs(context).getFloat(KEY_ZOOM, 1f);
 
             int[] size = targetSize(context, appWidgetId, useImage, alpha);
             int width = size[0];
@@ -266,17 +266,12 @@ final class WidgetAppearance {
             if (photo != null) {
                 Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
                 paint.setAlpha(alpha);
-                if ("contain".equals(fit)) {
-                    // 完整显示：先铺面板底色，再把整张图按焦点对齐放进去（不裁切）
-                    canvas.drawColor(withAlpha(panelColor(context), alpha), PorterDuff.Mode.SRC);
-                    canvas.drawBitmap(photo, null, fitRect(photo, width, height, focusX, focusY), paint);
-                } else {
-                    canvas.drawBitmap(
-                            photo,
-                            cropRect(photo, width, height, focusX, focusY),
-                            new RectF(0, 0, width, height),
-                            paint);
-                }
+                // 头像式裁切：边框固定，图片按焦点 + 缩放选择显示区域，始终铺满
+                canvas.drawBitmap(
+                        photo,
+                        cropRect(photo, width, height, focusX, focusY, zoom),
+                        new RectF(0, 0, width, height),
+                        paint);
                 photo.recycle();
             } else {
                 // 无图或解码失败：退回纯色面板，至少不会变成透明条
@@ -289,33 +284,22 @@ final class WidgetAppearance {
         }
     }
 
-    /** 照片按目标宽高做裁切；focusX/focusY（0-100）决定保留哪一部分 */
-    private static Rect cropRect(Bitmap photo, int width, int height, int focusX, int focusY) {
+    /** 照片按目标宽高做裁切；focusX/focusY（0-100）定位置，zoom（1-3）放大取局部 */
+    private static Rect cropRect(Bitmap photo, int width, int height, int focusX, int focusY, float zoom) {
         int bw = photo.getWidth();
         int bh = photo.getHeight();
         if (bw <= 0 || bh <= 0) return new Rect(0, 0, 1, 1);
 
-        int cropWidth = Math.round(bh * (float) width / height);
+        float z = Math.max(1f, Math.min(3f, zoom));
+        int cropWidth = Math.max(1, Math.round(bh * (float) width / height / z));
         if (cropWidth <= bw) {
             int left = Math.round((bw - cropWidth) * Math.max(0, Math.min(100, focusX)) / 100f);
             return new Rect(left, 0, left + cropWidth, bh);
         }
-        int cropHeight = Math.round(bw * (float) height / width);
+        int cropHeight = Math.max(1, Math.round(bw * (float) height / width / z));
         int top = Math.round(
                 Math.max(0, bh - cropHeight) * Math.max(0, Math.min(100, focusY)) / 100f);
         return new Rect(0, top, bw, Math.min(bh, top + cropHeight));
-    }
-
-    /** 完整显示模式：按比例缩放到目标框内，剩余区域留面板底色，按焦点对齐 */
-    private static RectF fitRect(Bitmap photo, int width, int height, int focusX, int focusY) {
-        float scale = Math.min(
-                width / (float) Math.max(1, photo.getWidth()),
-                height / (float) Math.max(1, photo.getHeight()));
-        float drawWidth = photo.getWidth() * scale;
-        float drawHeight = photo.getHeight() * scale;
-        float left = (width - drawWidth) * Math.max(0, Math.min(100, focusX)) / 100f;
-        float top = (height - drawHeight) * Math.max(0, Math.min(100, focusY)) / 100f;
-        return new RectF(left, top, left + drawWidth, top + drawHeight);
     }
 
     /** 小组件宽度（像素），用于把圆角半径换算到位图坐标系 */

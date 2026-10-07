@@ -5,7 +5,7 @@ import { Capacitor } from '@capacitor/core';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../i18n';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { sectionTitleStyle } from './ui';
+import { secondaryTextColor, sectionTitleStyle } from './ui';
 import {
   ACCENT_PRESETS,
   compressImageToDataUrl,
@@ -147,19 +147,32 @@ const AppearanceSettings: React.FC = () => {
               onPointerUp={() => { dragRef.current = null; }}
               onPointerCancel={() => { dragRef.current = null; }}
               style={{
+                position: 'relative',
                 width: isMobile ? '100%' : 180,
                 height: 110,
                 borderRadius: 8,
-                backgroundImage: `url(${appearance.bgImage})`,
-                backgroundSize: appearance.bgFit === 'contain' ? 'contain' : 'cover',
-                backgroundPosition: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
-                backgroundRepeat: 'no-repeat',
+                overflow: 'hidden',
                 border: `1px solid ${isDark ? '#303030' : '#e8e8e8'}`,
                 flexShrink: 0,
                 cursor: 'grab',
                 touchAction: 'none',
               }}
-            />
+            >
+              <div
+                aria-hidden
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundImage: `url(${appearance.bgImage})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
+                  backgroundRepeat: 'no-repeat',
+                  transform: `scale(${appearance.bgZoom})`,
+                  transformOrigin: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
+                  pointerEvents: 'none',
+                }}
+              />
+            </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13 }}>{t.settings.backgroundOpacity}</div>
               <Slider
@@ -175,24 +188,6 @@ const AppearanceSettings: React.FC = () => {
                 value={appearance.bgBlur}
                 onChange={(value) => updateAppearance({ bgBlur: value })}
               />
-              <div style={{ fontSize: 13 }}>{t.settings.backgroundFit}</div>
-              <Space style={{ marginBottom: 8 }}>
-                <Button
-                  size='small'
-                  type={appearance.bgFit === 'cover' ? 'primary' : 'default'}
-                  onClick={() => updateAppearance({ bgFit: 'cover' })}
-                >
-                  {t.settings.fitCover}
-                </Button>
-                <Button
-                  size='small'
-                  type={appearance.bgFit === 'contain' ? 'primary' : 'default'}
-                  onClick={() => updateAppearance({ bgFit: 'contain' })}
-                >
-                  {t.settings.fitContain}
-                </Button>
-              </Space>
-              <div style={{ ...hintStyle, marginTop: 0 }}>{t.settings.fitHint}</div>
               <div style={{ fontSize: 13 }}>{t.settings.focusPoint}</div>
               <div style={{ ...hintStyle, marginTop: 0 }}>{t.settings.focusHint}</div>
               <div style={{ fontSize: 12 }}>{t.settings.focusHorizontal}</div>
@@ -209,6 +204,49 @@ const AppearanceSettings: React.FC = () => {
                 value={appearance.bgFocusY}
                 onChange={(value) => updateAppearance({ bgFocusY: value })}
               />
+              <div style={{ fontSize: 12 }}>{t.settings.imageZoom}</div>
+              <Slider
+                min={1}
+                max={3}
+                step={0.05}
+                value={appearance.bgZoom}
+                onChange={(value) => updateAppearance({ bgZoom: value })}
+              />
+              <div style={{ ...hintStyle, marginTop: 0 }}>{t.settings.imageZoomHint}</div>
+              <div style={{ fontSize: 13, marginTop: 8 }}>{t.settings.widgetCropPreview}</div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {[{ label: '4×2', ratio: '2 / 1' }, { label: '4×4', ratio: '1 / 1' }].map((preset) => (
+                  <div key={preset.label} style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        position: 'relative',
+                        aspectRatio: preset.ratio,
+                        borderRadius: 10,
+                        overflow: 'hidden',
+                        border: `1px solid ${isDark ? '#303030' : '#e8e8e8'}`,
+                      }}
+                    >
+                      <div
+                        aria-hidden
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          backgroundImage: `url(${appearance.bgImage})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
+                          backgroundRepeat: 'no-repeat',
+                          transform: `scale(${appearance.bgZoom})`,
+                          transformOrigin: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
+                        }}
+                      />
+                    </div>
+                    <div style={{ fontSize: 11, textAlign: 'center', color: secondaryTextColor(isDark) }}>
+                      {preset.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ ...hintStyle, marginTop: 6 }}>{t.settings.widgetCropHint}</div>
               <div style={{ fontSize: 13 }}>{t.settings.uiOpacity}</div>
               <Slider
                 min={0}
