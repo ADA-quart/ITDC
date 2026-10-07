@@ -65,7 +65,16 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = (e: MediaQueryListEvent) => setSystemDark(e.matches);
     mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
+    // 原生侧推来的系统深浅色（WebView 的媒体查询在切主题时不刷新，只能靠原生通知）
+    const nativeHandler = (e: Event) => {
+      const dark = (e as CustomEvent<{ dark?: boolean }>).detail?.dark;
+      if (typeof dark === 'boolean') setSystemDark(dark);
+    };
+    window.addEventListener('itdc-system-theme', nativeHandler);
+    return () => {
+      mq.removeEventListener('change', handler);
+      window.removeEventListener('itdc-system-theme', nativeHandler);
+    };
   }, []);
 
   const isDark = mode === 'dark' || (mode === 'system' && systemDark);

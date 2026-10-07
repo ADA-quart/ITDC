@@ -5,6 +5,7 @@ import * as offline from './offline';
 import { generateScheduleLocally, validateScheduleLocally } from './local-scheduler';
 import { parseIcsFile, buildIcs } from './local-ical';
 import { exportFile } from './export-file';
+import { colorForCourse } from '../../shared/course-colors';
 import type { ModelListResult } from './llm-models';
 import { generateLLMScheduleLocally } from './local-llm-scheduler';
 import { parseNaturalLanguageTodoLocally } from './local-nl-todo';
@@ -497,6 +498,8 @@ export const calendarApi = {
         end_time: ev.endTime,
         rrule: ev.rrule,
         location: ev.location,
+        // 导入的课表按课程名固定配色，和教务导入保持一致的观感
+        color: ev.title ? colorForCourse(ev.title) : null,
         source: 'ical',
         uid: ev.uid,
         created_at: new Date().toISOString(),

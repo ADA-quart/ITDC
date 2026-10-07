@@ -1,6 +1,7 @@
 package io.github.adaquart.itdc;
 
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -23,6 +24,35 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         applySystemBarInsets();
+    }
+
+    /**
+     * 系统深浅色变化时通知前端。
+     *
+     * AndroidManifest 里 Activity 声明了 uiMode 配置变化，系统切深色时不会重建 Activity，
+     * 于是 WebView 的 prefers-color-scheme 一直停在旧值——表现就是"小组件跟随系统，App 不跟随"。
+     * 这里把当前系统值直接推给前端，由前端切换主题。
+     */
+    private boolean isSystemDark() {
+        int mode = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        return mode == Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    private void notifySystemTheme() {
+        dispatchToWebView("window.dispatchEvent(new CustomEvent('itdc-system-theme',{detail:{dark:"
+                + isSystemDark() + "}}))");
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        notifySystemTheme();
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        notifySystemTheme();
     }
 
     /**

@@ -677,22 +677,57 @@ const CalendarView: React.FC = () => {
               // 手机端周视图列很窄：只显示课名 + 教室（时间左边刻度已经有了）
               if (isMobile && arg.view.type === 'timeGridWeek') {
                 const room = shortRoom((arg.event.extendedProps as any)?.location);
+                // 周视图列窄、块也矮，角标单独做小一号，保证课名和角标两行都放得下
+                const compactBadge = mergedCount > 0 ? (
+                  <span style={{
+                    flexShrink: 0,
+                    padding: '0 3px',
+                    borderRadius: 6,
+                    background: 'rgba(255,255,255,.92)',
+                    color: '#333',
+                    fontSize: 9,
+                    lineHeight: '12px',
+                  }}>
+                    {mergedCount}
+                  </span>
+                ) : null;
+                // 半小时以内的短块只有一行的高度：角标并到课名那一行，避免被裁掉
+                const shortBlock = arg.event.start && arg.event.end
+                  ? (arg.event.end.getTime() - arg.event.start.getTime()) < 45 * 60 * 1000
+                  : false;
                 return (
-                  <div style={{ lineHeight: 1.15, overflow: 'hidden', padding: '1px 2px' }}>
+                  // 整块裁切 + 单行省略：窄列里宁可截断，也不能让文字/角标溢出到别的格子上
+                  <div style={{ height: '100%', maxHeight: '100%', overflow: 'hidden', padding: '1px 2px', lineHeight: 1.2 }}>
                     {/* 字号下限对齐 Apple HIG 的 11pt / Material 的 label small */}
-                    <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.25, wordBreak: 'break-word' }}>
-                      {arg.event.title}{badge}
+                    {/* flex + minWidth:0 才能让超长课名省略，不把角标挤出框 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0 }}>
+                      <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {arg.event.title}
+                      </span>
+                      {shortBlock && compactBadge}
                     </div>
-                    {room && <div style={{ fontSize: 11, lineHeight: 1.2, opacity: 0.9, marginTop: 1 }}>{room}</div>}
+                    {/* 角标放到第二行（跟教室并排），窄列里不跟课名抢宽度 */}
+                    {!shortBlock && (room || compactBadge) && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0, marginTop: 1 }}>
+                        {room && (
+                          <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: 11, opacity: 0.9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {room}
+                          </span>
+                        )}
+                        {compactBadge}
+                      </div>
+                    )}
                   </div>
                 );
               }
               // 其它视图：保持「时间 + 标题」的默认观感，另外挂上融合进来的待办数量。
               // 这里必须自己渲染（不能返回 true 走默认），否则角标在数据刷新后会被重绘吃掉。
               return (
-                <div style={{ display: 'flex', alignItems: 'center', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                  {arg.timeText && <span style={{ opacity: 0.9, marginRight: 4 }}>{arg.timeText} -</span>}
-                  <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{arg.event.title}</span>
+                <div style={{ display: 'flex', alignItems: 'center', width: '100%', minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                  {arg.timeText && <span style={{ opacity: 0.9, marginRight: 4, flexShrink: 0 }}>{arg.timeText} -</span>}
+                  <span style={{ flex: '1 1 auto', minWidth: 0, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {arg.event.title}
+                  </span>
                   {badge}
                 </div>
               );
@@ -714,8 +749,13 @@ const CalendarView: React.FC = () => {
             editable
             select={handleDateSelect}
             eventClick={handleEventClick}
+            // 触屏上 FullCalendar 默认要按住 1s 才开始拖事件，比长按删除的计时还长，
+            // 于是"想拖"会先弹出删除确认。把拖拽长按调短（开始拖动会立即取消删除计时器）。
+            eventLongPressDelay={250}
             eventDidMount={(info) => {
               eventElsRef.current.set(String(info.event.id), info.el as HTMLElement);
+              // 事件块本身也裁切，兜住任何溢出的内容（窄列里长课名 + 角标）
+              (info.el as HTMLElement).style.overflow = 'hidden';
               // 待办用虚线的次要样式，和课程/日程区分开（拖进课程时段也不会抢视线）
               if (info.event.extendedProps?.type === 'todo') {
                 const el = info.el as HTMLElement;
@@ -738,7 +778,7 @@ const CalendarView: React.FC = () => {
                   longPressTimerRef.current = null;
                   longPressFiredRef.current = true;
                   confirmDeleteEvent(String(info.event.id), info.event.title);
-                }, 700);
+                }, 900);
               };
               el.addEventListener('touchstart', start, { passive: true });
               el.addEventListener('touchend', clear);
@@ -757,7 +797,9 @@ const CalendarView: React.FC = () => {
                 longPressTimerRef.current = null;
               }
             }}
-            height={isMobile ? 520 : 'auto'}
+            // 手机上让日历铺满一整屏：高度按视口算（扣掉顶部新建按钮、日期行与底部导航），
+            // 日历列表与导入/导出顺延到下一屏，往上滑即可看到
+            height={isMobile ? 'calc(100dvh - 232px)' : 'auto'}
             allDaySlot={true}
             // 待办拖进课程时段时并排显示，而不是盖住课程（课程优先，待办不占课的位置）
             slotEventOverlap={false}

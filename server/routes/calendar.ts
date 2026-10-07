@@ -4,6 +4,7 @@ import XLSX from 'xlsx-js-style';
 import db from '../db/index.js';
 import { parseIcsFile } from '../services/ical-parser.js';
 import { debug } from '../utils/debug.js';
+import { colorForCourse } from '../../shared/course-colors.js';
 
 function getWeekRange(date: Date): { start: Date; end: Date } {
   const d = new Date(date);
@@ -165,7 +166,7 @@ router.post('/import', upload.single('file'), (req: Request, res: Response) => {
     const calendarId = calendarResult.lastInsertRowid;
 
     const insertStmt = db.prepare(
-      'INSERT INTO events (calendar_id, title, description, start_time, end_time, rrule, location, source, uid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO events (calendar_id, title, description, start_time, end_time, rrule, location, color, source, uid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
 
     const importedCount = db.transaction(() => {
@@ -178,9 +179,11 @@ router.post('/import', upload.single('file'), (req: Request, res: Response) => {
           ev.startTime,
           ev.endTime,
           ev.rrule || null,
-          ev.location,
+          ev.location || null,
+          // 与客户端一致：导入的课表按课程名固定配色
+          ev.title ? colorForCourse(ev.title) : null,
           'ical',
-          ev.uid
+          ev.uid || null,
         );
         count++;
       }
