@@ -44,6 +44,12 @@ android {
             if (customKeystorePath != null) {
                 signingConfig signingConfigs.fixed
             }
+            // 本地自用构建换成独立包名（ITDC Debug），可以和手机上发布的正式版共存、
+            // 各自独立覆盖升级；CI 发版时传 -PciRelease，仍用原包名，不影响正式用户升级。
+            if (!project.hasProperty('ciRelease')) {
+                applicationIdSuffix ".debug"
+                resValue "string", "app_name", "ITDC Debug"
+            }
         }
         release {
             minifyEnabled false

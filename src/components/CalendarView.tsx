@@ -85,6 +85,10 @@ const CalendarView: React.FC = () => {
   const [calViewType, setCalViewType] = useState(calView);
   const [calTitle, setCalTitle] = useState('');
   const [detailEvent, setDetailEvent] = useState<any | null>(null);
+  // 「在这节课里加个待办」：直接给这段时间排一条待办，省得先排期再拖进来
+  const [addTodoTarget, setAddTodoTarget] = useState<any | null>(null);
+  const [addTodoTitle, setAddTodoTitle] = useState('');
+  const [addTodoMinutes, setAddTodoMinutes] = useState(30);
   const longPressFiredRef = useRef(false);
   const longPressTimerRef = useRef<number | null>(null);
   // 事件 id → DOM 元素，融合动画需要知道"融进哪一滴"的位置
@@ -344,6 +348,32 @@ const CalendarView: React.FC = () => {
       await loadData();
     } catch {
       message.error(t.calendar.eventMoveFailed);
+    }
+  };
+
+  const handleAddTodoToEvent = async () => {
+    const title = addTodoTitle.trim();
+    if (!addTodoTarget || !title) return;
+    const start = dayjs(addTodoTarget.start);
+    const rawEnd = start.add(addTodoMinutes, 'minute');
+    const eventEnd = dayjs(addTodoTarget.end);
+    // 必须整段落在事件里才会融合，所以超出就压到事件结束时间
+    const end = rawEnd.isAfter(eventEnd) ? eventEnd : rawEnd;
+    try {
+      await todoApi.create({
+        title,
+        estimated_minutes: addTodoMinutes,
+        status: 'scheduled',
+        scheduled_start: start.toISOString(),
+        scheduled_end: end.toISOString(),
+      });
+      message.success(t.calendar.todoAddedToEvent);
+      setAddTodoTarget(null);
+      setAddTodoTitle('');
+      setDetailEvent(null);
+      await loadData();
+    } catch {
+      message.error(t.calendar.todoAddFailed);
     }
   };
 
@@ -627,16 +657,43 @@ const CalendarView: React.FC = () => {
               try { localStorage.setItem(CAL_VIEW_KEY, arg.view.type); } catch { /* 忽略存储失败 */ }
             }}
             eventContent={(arg) => {
+              const mergedCount = (((arg.event.extendedProps as any)?.mergedTodos as unknown[]) ?? []).length;
+              const badge = mergedCount > 0 ? (
+                <span style={{
+                  marginLeft: 6,
+                  padding: '0 5px',
+                  borderRadius: 8,
+                  background: 'rgba(255,255,255,.92)',
+                  color: '#333',
+                  fontSize: 10,
+                  lineHeight: '15px',
+                  display: 'inline-block',
+                  verticalAlign: 'middle',
+                  flexShrink: 0,
+                }}>
+                  {mergedCount}
+                </span>
+              ) : null;
               // 手机端周视图列很窄：只显示课名 + 教室（时间左边刻度已经有了）
-              // 其它视图必须返回 true 才是「用默认渲染」——返回 undefined 会被当成
-              // 自定义内容为空，事件块就只剩一个色块、文字全没了
-              if (!isMobile || arg.view.type !== 'timeGridWeek') return true;
-              const room = shortRoom((arg.event.extendedProps as any)?.location);
+              if (isMobile && arg.view.type === 'timeGridWeek') {
+                const room = shortRoom((arg.event.extendedProps as any)?.location);
+                return (
+                  <div style={{ lineHeight: 1.15, overflow: 'hidden', padding: '1px 2px' }}>
+                    {/* 字号下限对齐 Apple HIG 的 11pt / Material 的 label small */}
+                    <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.25, wordBreak: 'break-word' }}>
+                      {arg.event.title}{badge}
+                    </div>
+                    {room && <div style={{ fontSize: 11, lineHeight: 1.2, opacity: 0.9, marginTop: 1 }}>{room}</div>}
+                  </div>
+                );
+              }
+              // 其它视图：保持「时间 + 标题」的默认观感，另外挂上融合进来的待办数量。
+              // 这里必须自己渲染（不能返回 true 走默认），否则角标在数据刷新后会被重绘吃掉。
               return (
-                <div style={{ lineHeight: 1.15, overflow: 'hidden', padding: '1px 2px' }}>
-                  {/* 字号下限对齐 Apple HIG 的 11pt / Material 的 label small */}
-                  <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.25, wordBreak: 'break-word' }}>{arg.event.title}</div>
-                  {room && <div style={{ fontSize: 11, lineHeight: 1.2, opacity: 0.9, marginTop: 1 }}>{room}</div>}
+                <div style={{ display: 'flex', alignItems: 'center', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                  {arg.timeText && <span style={{ opacity: 0.9, marginRight: 4 }}>{arg.timeText} -</span>}
+                  <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{arg.event.title}</span>
+                  {badge}
                 </div>
               );
             }}
@@ -659,16 +716,6 @@ const CalendarView: React.FC = () => {
             eventClick={handleEventClick}
             eventDidMount={(info) => {
               eventElsRef.current.set(String(info.event.id), info.el as HTMLElement);
-              // 融合了待办的课程挂一个小角标，显示里面有几个待办
-              const mergedCount = ((info.event.extendedProps?.mergedTodos as unknown[] | undefined) ?? []).length;
-              if (mergedCount > 0) {
-                const badge = document.createElement('span');
-                badge.textContent = `${mergedCount}`;
-                badge.title = t.calendar.mergedBadge.replace('{n}', String(mergedCount));
-                badge.style.cssText = 'position:absolute;right:2px;bottom:1px;font-size:10px;line-height:1;'
-                  + 'padding:1px 4px;border-radius:6px;background:rgba(255,255,255,.9);color:#333;pointer-events:none;';
-                (info.el as HTMLElement).appendChild(badge);
-              }
               // 待办用虚线的次要样式，和课程/日程区分开（拖进课程时段也不会抢视线）
               if (info.event.extendedProps?.type === 'todo') {
                 const el = info.el as HTMLElement;
@@ -736,7 +783,20 @@ const CalendarView: React.FC = () => {
               {t.calendar.delete}
             </Button>
           ),
-          <Button key="close" type="primary" onClick={() => setDetailEvent(null)}>{t.calendar.close}</Button>,
+          detailEvent?.extendedProps?.type === 'todo' ? null : (
+            <Button
+              key="add-todo"
+              type="primary"
+              onClick={() => {
+                setAddTodoTitle('');
+                setAddTodoMinutes(30);
+                setAddTodoTarget(detailEvent);
+              }}
+            >
+              {t.calendar.addTodoToEvent}
+            </Button>
+          ),
+          <Button key="close" onClick={() => setDetailEvent(null)}>{t.calendar.close}</Button>,
         ].filter(Boolean)}
       >
         {detailEvent && (() => {
@@ -798,6 +858,38 @@ const CalendarView: React.FC = () => {
             </div>
           );
         })()}
+      </Modal>
+
+      {/* 在课程/日程里直接加一条待办（自动排在这段时间内，因此会融合进去） */}
+      <Modal
+        open={!!addTodoTarget}
+        title={t.calendar.addTodoToEvent}
+        okText={t.calendar.createEvent}
+        cancelText={t.calendar.cancel}
+        okButtonProps={{ disabled: !addTodoTitle.trim() }}
+        onOk={handleAddTodoToEvent}
+        onCancel={() => setAddTodoTarget(null)}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Input
+            autoFocus
+            placeholder={t.calendar.addTodoTitle}
+            value={addTodoTitle}
+            onChange={(e) => setAddTodoTitle(e.target.value)}
+            onPressEnter={handleAddTodoToEvent}
+          />
+          <Input
+            type="number"
+            addonBefore={t.calendar.addTodoMinutes}
+            value={String(addTodoMinutes)}
+            onChange={(e) => setAddTodoMinutes(Math.max(5, Math.min(600, Number(e.target.value) || 30)))}
+          />
+          {addTodoTarget && (
+            <span style={hintTextStyle(isDark)}>
+              {dayjs(addTodoTarget.start).format('MM/DD HH:mm')}–{dayjs(addTodoTarget.end).format('HH:mm')}
+            </span>
+          )}
+        </div>
       </Modal>
 
       <Modal title={t.calendar.newEvent} open={modalOpen} onOk={handleSubmit} onCancel={() => { setModalOpen(false); form.resetFields(); }} okText={t.calendar.createEvent} cancelText={t.calendar.cancel}>

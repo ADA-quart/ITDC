@@ -86,7 +86,9 @@ jobs:
 
       - name: Build debug APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        # -PciRelease：发布包保持原包名（io.github.adaquart.itdc），
+        # 本地产出的调试包才带 .debug 后缀，两者可共存
+        run: ./gradlew assembleDebug --no-daemon -PciRelease
 
       - name: Verify APK signature
         run: |
