@@ -34,8 +34,10 @@ interface GridItem {
 const TimetableGrid: React.FC<Props> = ({ weekStart, events, isDark, onSelectEvent }) => {
   const { t } = useI18n();
 
-  // 把事件按「星期 + 大节」放进格子：取与该节次窗口重叠最多的一节。
-  // 完全不与任何节次重叠的（18:00-19:10 的空档、20:45 之后、午休等）放进「课外」兜底行，
+  // 把事件按「星期 + 大节」放进格子：与哪几节有时间重叠，就画在哪几行。
+  // 连上三节的晚课（19:10-21:35）因此会同时出现在第 6、7 行，和真实课表一致，
+  // 而不是被塞进一格后看起来"九点半下课却只显示到 20:45"。
+  // 完全不与任何节次重叠的（18:00-19:10 的空档、午休等）放进「课外」兜底行，
   // 不能按"开始时间 ≥ 某节开始"归到上一节，否则 18:00 的待办会和 16:25 的课叠在同一格。
   const cells = new Map<string, GridItem[]>();
   const extraCells = new Map<string, GridItem[]>();
@@ -48,17 +50,6 @@ const TimetableGrid: React.FC<Props> = ({ weekStart, events, isDark, onSelectEve
     if (day < 0 || day > 6) continue;
     const startMinutes = start.hour() * 60 + start.minute();
     const endMinutes = startMinutes + Math.max(1, dayjs(ev.end).diff(start, 'minute'));
-    let section = -1;
-    let bestOverlap = 0;
-    for (let i = 0; i < TIMETABLE.length; i++) {
-      const [sh, sm] = TIMETABLE[i][0].split(':').map(Number);
-      const [eh, em] = TIMETABLE[i][1].split(':').map(Number);
-      const overlap = Math.min(endMinutes, eh * 60 + em) - Math.max(startMinutes, sh * 60 + sm);
-      if (overlap > bestOverlap) {
-        bestOverlap = overlap;
-        section = i;
-      }
-    }
     const item: GridItem = {
       event: ev,
       title: String(ev.title ?? '').replace(/^\[待办\]\s*/, ''),
@@ -67,11 +58,21 @@ const TimetableGrid: React.FC<Props> = ({ weekStart, events, isDark, onSelectEve
       mergedCount: ((ev.extendedProps?.mergedTodos as unknown[]) ?? []).length,
       isTodo: ev.extendedProps?.type === 'todo',
     };
-    const bucket = section >= 0 ? cells : extraCells;
-    const key = section >= 0 ? `${day}-${section}` : String(day);
-    const list = bucket.get(key) ?? [];
-    list.push(item);
-    bucket.set(key, list);
+    let placed = false;
+    for (let i = 0; i < TIMETABLE.length; i++) {
+      const [sh, sm] = TIMETABLE[i][0].split(':').map(Number);
+      const [eh, em] = TIMETABLE[i][1].split(':').map(Number);
+      // 严格重叠（首尾相接不算），避免 18:00 的待办蹭进 16:25 那一格
+      if (Math.min(endMinutes, eh * 60 + em) > Math.max(startMinutes, sh * 60 + sm)) {
+        const key = `${day}-${i}`;
+        cells.set(key, [...(cells.get(key) ?? []), item]);
+        placed = true;
+      }
+    }
+    if (!placed) {
+      const key = String(day);
+      extraCells.set(key, [...(extraCells.get(key) ?? []), item]);
+    }
   }
   // 同格内按开始时间排序，避免渲染顺序随机
   for (const list of [...cells.values(), ...extraCells.values()]) {

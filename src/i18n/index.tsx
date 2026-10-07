@@ -8,6 +8,25 @@ type Locale = 'zh' | 'en';
 
 const messages: Record<Locale, LocaleMessages> = { zh, en };
 
+/**
+ * 启动时就定好语言，不能只放在 useEffect 里。
+ *
+ * dayjs 的全局 locale 决定了星期/月份名字（"Mon" vs "周一"、"August" vs "8月"），
+ * 它的默认值是英文。放在 effect 里要等首帧渲染完才生效，于是每次冷启动
+ * 都会先闪一下英文——课表格子和 antd 日期面板尤其明显，看起来像"偶发中英文混排"。
+ */
+function readInitialLocale(): Locale {
+  try {
+    const saved = localStorage.getItem('locale');
+    return saved === 'en' ? 'en' : 'zh';
+  } catch {
+    return 'zh';
+  }
+}
+
+const initialLocale = readInitialLocale();
+dayjs.locale(initialLocale === 'zh' ? 'zh-cn' : 'en');
+
 interface I18nContextType {
   locale: Locale;
   setLocale: (l: Locale) => void;
@@ -21,10 +40,7 @@ const I18nContext = createContext<I18nContextType>({
 });
 
 export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [locale, setLocaleState] = useState<Locale>(() => {
-    const saved = localStorage.getItem('locale');
-    return (saved === 'en' || saved === 'zh') ? saved : 'zh';
-  });
+  const [locale, setLocaleState] = useState<Locale>(initialLocale);
 
   const setLocale = useCallback((l: Locale) => {
     setLocaleState(l);

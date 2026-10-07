@@ -10,6 +10,7 @@ import * as offline from './offline';
 import { isSyncEnabled } from './client';
 import { ITDCWidgetPlugin } from '../capacitor/itdc-widget';
 import { dedupeEvents } from '../../shared/event-dedupe';
+import { widgetLocationLabel } from '../../shared/widget-display';
 
 const HIDDEN_CALENDARS_KEY = 'itdc_hidden_calendars';
 
@@ -173,7 +174,7 @@ function scheduleForDay(
         color: e.color || e.calendar_color || calendarColorById.get(e.calendar_id) || '#4c9aff',
         start: hhmm(occ.start),
         end: hhmm(occ.end),
-        location: e.location || '',
+        location: widgetLocationLabel(e),
         calendarId: e.calendar_id,
       });
     }

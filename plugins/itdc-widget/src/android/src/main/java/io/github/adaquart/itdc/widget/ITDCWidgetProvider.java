@@ -161,12 +161,15 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             String boardTitle = "";
             String dateText = "";
             JSONObject root = null;
+            boolean hasTodos = true;
             try {
                 root = new JSONObject(json);
                 boardTitle = root.optString("boardTitle", "");
                 String todayLabel = root.optString("todayLabel", "");
                 String tomorrowLabel = root.optString("tomorrowLabel", "");
                 String week = root.optString("weekLabel", "");
+                org.json.JSONArray todos = root.optJSONArray("todos");
+                hasTodos = todos != null && todos.length() > 0;
 
                 // 顶栏只放「第 N 周」：日期已经写在「今天 10.7 / 明天 10.8」的分栏标题里，
                 // 同一日期在两处出现没有意义。拿不到周次时再退回显示日期。
@@ -197,6 +200,14 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             rv.setOnClickPendingIntent(R.id.widget_todo_all_done,
                     ITDCWidgetActionReceiver.allDonePendingIntent(context));
 
+            // 没有待办就把整块待办区收起来（标题 + 分隔线 + 列表全隐藏）：
+            // 高一点的桌面尺寸下，一个空列表会白白吃掉三分之一的版面，
+            // 课表反而只露出一格半。收起后课表独占剩余高度，底部仍留一条可点区域进 App。
+            int todoSectionVisibility = hasTodos ? android.view.View.VISIBLE : android.view.View.GONE;
+            rv.setViewVisibility(R.id.widget_divider_horizontal, todoSectionVisibility);
+            rv.setViewVisibility(R.id.widget_todo_header_row, todoSectionVisibility);
+            rv.setViewVisibility(R.id.widget_todo_list, todoSectionVisibility);
+
             // 三个列表都通过 RemoteViewsService 提供数据 → 均可上下滑动
             bindList(context, rv, R.id.widget_today_list, appWidgetId, ITDCWidgetListService.LIST_TODAY);
             bindList(context, rv, R.id.widget_tomorrow_list, appWidgetId, ITDCWidgetListService.LIST_TOMORROW);
@@ -213,7 +224,6 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             rv.setOnClickPendingIntent(R.id.widget_content, openApp);
             rv.setOnClickPendingIntent(R.id.widget_board_title, openApp);
             rv.setOnClickPendingIntent(R.id.widget_date, openApp);
-            rv.setOnClickPendingIntent(R.id.widget_todo_footer, openApp);
             // 课程列表（今天/明天）里的每一条：点条目任意位置也进 App
             PendingIntent openAppTemplate = ITDCWidgetActionReceiver.openAppTemplatePendingIntent(context);
             rv.setPendingIntentTemplate(R.id.widget_today_list, openAppTemplate);

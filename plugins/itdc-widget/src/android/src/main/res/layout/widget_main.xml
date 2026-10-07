@@ -126,6 +126,7 @@
 
     <!-- 待办区标题 + 全部完成按钮 -->
     <LinearLayout
+        android:id="@+id/widget_todo_header_row"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -154,23 +155,16 @@
             android:text="@string/widget_all_done" />
     </LinearLayout>
 
-    <!-- 待办列表：独立滚动 -->
+    <!-- 待办列表：独立滚动。固定 88dp（约两行）：原来 120dp 在桌面上显得很肥，
+         课表只剩一格；剩下的高度全部留给课表。 -->
     <ListView
         android:id="@+id/widget_todo_list"
         android:layout_width="match_parent"
-        android:layout_height="120dp"
+        android:layout_height="88dp"
         android:divider="@null"
         android:dividerHeight="0dp"
         android:scrollbars="vertical"
         android:fadeScrollbars="false"
         android:listSelector="@android:color/transparent" />
-
-    <!-- 待办列表下方剩余白区：单独做可点击区域，避免 ListView 吞掉空白触摸 -->
-    <FrameLayout
-        android:id="@+id/widget_todo_footer"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:clickable="true" />
     </LinearLayout>
 </FrameLayout>

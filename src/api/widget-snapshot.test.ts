@@ -2,6 +2,7 @@
 // 1) 上过的课自动从"今天"栏消失（按结束时间过滤）
 // 2) 待办完成状态：快照基准 + 桌面本地改动的叠加，以及已完成排到末尾
 import { describe, it, expect } from 'vitest';
+import { widgetLocationLabel } from '../../shared/widget-display';
 
 // ---------- 课程过滤（与 ITDCWidgetListService.parseSchedule 同逻辑）----------
 interface Item { title: string; start: string; end: string }
@@ -128,5 +129,32 @@ describe('待办排序：完成的排末尾', () => {
       { id: 3, priority: 'important', done: false },
     ];
     expect(order(list)).toEqual([1, 3, 2]);
+  });
+});
+
+describe('小组件副标题：教室 + 老师', () => {
+  it('教务导入：去掉教学楼，拼上老师', () => {
+    expect(widgetLocationLabel({
+      location: '【东区1教】 - E1B205',
+      description: '张三\n1-16周\n1-2节',
+      source: 'cdut',
+    })).toBe('E1B205 · 张三');
+  });
+
+  it('教务导入但 description 是备注（带标点/太长）时只给教室', () => {
+    expect(widgetLocationLabel({
+      location: '【东区1教】 - E1B205',
+      description: '带好实验报告，别迟到',
+      source: 'cdut',
+    })).toBe('E1B205');
+  });
+
+  it('手动 / iCal 事件原样显示，不做拆分猜测', () => {
+    expect(widgetLocationLabel({ location: '会议室 - 302', source: 'manual' })).toBe('会议室 - 302');
+    expect(widgetLocationLabel({ location: '5417', description: '第十六周', source: 'ical' })).toBe('5417');
+  });
+
+  it('没有地点就是空串', () => {
+    expect(widgetLocationLabel({ location: '', source: 'cdut' })).toBe('');
   });
 });
