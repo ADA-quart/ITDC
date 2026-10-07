@@ -135,7 +135,7 @@ const TimetableGrid: React.FC<Props> = ({ weekStart, events, isDark, onSelectEve
   );
 
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div className="itdc-timetable-grid" style={{ overflowX: 'auto' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, minmax(46px, 1fr))', border, borderRadius: 10, overflow: 'hidden', background: cellBg }}>
         {/* 表头：周几 + 日期 */}
         <div style={{ background: headBg, borderBottom: border }} />

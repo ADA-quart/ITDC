@@ -23,3 +23,18 @@ body.itdc-has-bg-image .fc .fc-timegrid-col {
 body.itdc-has-bg-image .fc .fc-col-header-cell {
   background: var(--itdc-head-bg, transparent);
 }
+
+/*
+ * 长按事件要的是「拖动 / 长按删除」，不是浏览器那套选择文字 + 复制菜单。
+ * WebView 默认允许选中文字，长按事件标题时会弹出选择手柄与复制菜单，
+ * 触摸序列被它吃掉，拖动和长按删除就都不触发了。日历与课表格子里
+ * 没有需要复制的内容，整块禁掉选择。
+ */
+.fc,
+.fc *,
+.itdc-timetable-grid,
+.itdc-timetable-grid * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}

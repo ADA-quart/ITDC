@@ -6,7 +6,7 @@ import { Capacitor } from '@capacitor/core';
 import { schoolApi, calendarApi } from '../api/client';
 import { localSchoolApi } from '../api/school-cas';
 import type { CdutCourse } from '../api/client';
-import { expandWeeks } from '../../shared/cdut-parser';
+import { expandWeeks, resolveSectionsTime } from '../../shared/cdut-parser';
 import { colorForCourse } from '../../shared/course-colors';
 import { useI18n } from '../i18n';
 import { getCalendarCache } from '../api/offline';
@@ -39,7 +39,9 @@ function buildEvents(courses: CdutCourse[], weekStartDate: Date, schoolId: strin
   interface AggKey { name: string; teacher: string; location: string; sectionIndex: number; dayOfWeek: number; sections: string; }
   const aggMap = new Map<string, { key: AggKey; weeks: Set<number> }>();
   for (const c of courses) {
-    const aggKey = `${c.name}|${c.teacher}|${c.location}|${c.sectionIndex}|${c.dayOfWeek}`;
+    // 节次也进 key：同一格可能出现 "05-06节" 与 "05-06-07-08节" 两种，
+    // 合并会把连堂课的时间压回前半段
+    const aggKey = `${c.name}|${c.teacher}|${c.location}|${c.sectionIndex}|${c.dayOfWeek}|${c.sections}`;
     if (!aggMap.has(aggKey)) {
       aggMap.set(aggKey, {
         key: { name: c.name, teacher: c.teacher, location: c.location, sectionIndex: c.sectionIndex, dayOfWeek: c.dayOfWeek, sections: c.sections },
@@ -60,8 +62,11 @@ function buildEvents(courses: CdutCourse[], weekStartDate: Date, schoolId: strin
   }> = [];
 
   for (const { key, weeks } of aggMap.values()) {
-    const [sh, sm] = TIMETABLE[key.sectionIndex][0].split(':').map(Number);
-    const [eh, em] = TIMETABLE[key.sectionIndex][1].split(':').map(Number);
+    // 时间按「节次」原文算，不看格子序号：教务的 09-10-11 节是 19:10-21:35，
+    // 只按格子取会漏掉第 11 小节（显示到 20:45 就没了）
+    const { start: startHm, end: endHm } = resolveSectionsTime(key.sections, key.sectionIndex);
+    const [sh, sm] = startHm.split(':').map(Number);
+    const [eh, em] = endHm.split(':').map(Number);
     const sortedWeeks = [...weeks].sort((a, b) => a - b);
     const weekLabel = `第${sortedWeeks.join(',')}周`;
     for (const w of sortedWeeks) {
@@ -158,6 +163,12 @@ const SchoolImportModal: React.FC<Props> = ({ open, onClose, onImported }) => {
         : await schoolApi.timetable(sessionId, semester);
       if (r.courses.length === 0) { message.warning(t.schoolImport.noCourses); return; }
       const events = buildEvents(r.courses, weekStart.toDate(), schoolId);
+      // 同一学期重复导入：先把上一份同名的教务日历删掉（连带它的事件）。
+      // 否则旧事件还在，新课表叠上去，看起来像"重新导入没生效"。
+      const existing = (await getCalendarCache()).find(
+        (c) => c.name === `教务课表 ${semester}` && c.source === schoolId
+      );
+      if (existing) await calendarApi.delete(existing.id);
       // 建日历
       const newCalendar = await calendarApi.create({
         name: `教务课表 ${semester}`,

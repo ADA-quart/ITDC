@@ -881,16 +881,32 @@ const CalendarView: React.FC = () => {
                 el.style.borderStyle = 'dashed';
                 el.style.borderWidth = '1px';
               }
-              // 长按删除：触摸与鼠标都支持，点按（<600ms）不触发
+              // 长按删除：触摸与鼠标都支持，点按不触发。
+              //
+              // 口径是「按住不动」而不是「有没有进入拖拽状态」：FullCalendar 在
+              // eventLongPressDelay(250ms) 后就会进入拖拽态（手指还没动），
+              // 旧实现在那一刻就清掉删除计时器，于是移动端永远等不到删除确认。
+              // 现在按位移判断：移动超过 8px 视为在拖，取消删除；不动就 900ms 弹确认。
               if (info.event.extendedProps?.type === 'todo') return;
               const el = info.el as HTMLElement;
+              let startX = 0;
+              let startY = 0;
               const clear = () => {
                 if (longPressTimerRef.current !== null) {
                   window.clearTimeout(longPressTimerRef.current);
                   longPressTimerRef.current = null;
                 }
               };
-              const start = () => {
+              const pointOf = (ev: TouchEvent | MouseEvent) => {
+                const touch = (ev as TouchEvent).touches?.[0];
+                return touch
+                  ? { x: touch.clientX, y: touch.clientY }
+                  : { x: (ev as MouseEvent).clientX, y: (ev as MouseEvent).clientY };
+              };
+              const start = (ev: TouchEvent | MouseEvent) => {
+                const p = pointOf(ev);
+                startX = p.x;
+                startY = p.y;
                 clear();
                 longPressFiredRef.current = false;
                 longPressTimerRef.current = window.setTimeout(() => {
@@ -899,23 +915,21 @@ const CalendarView: React.FC = () => {
                   confirmDeleteEvent(String(info.event.id), info.event.title);
                 }, 900);
               };
+              const move = (ev: TouchEvent | MouseEvent) => {
+                const p = pointOf(ev);
+                if (Math.hypot(p.x - startX, p.y - startY) > 8) clear();
+              };
               el.addEventListener('touchstart', start, { passive: true });
+              el.addEventListener('touchmove', move, { passive: true });
               el.addEventListener('touchend', clear);
-              el.addEventListener('touchmove', clear);
               el.addEventListener('touchcancel', clear);
               el.addEventListener('mousedown', start);
+              el.addEventListener('mousemove', move);
               el.addEventListener('mouseup', clear);
               el.addEventListener('mouseleave', clear);
             }}
             eventDrop={handleEventDrop}
             eventResize={handleEventResize}
-            eventDragStart={() => {
-              // 开始拖拽就取消长按删除（FullCalendar 在触屏上也是"按住再拖"）
-              if (longPressTimerRef.current !== null) {
-                window.clearTimeout(longPressTimerRef.current);
-                longPressTimerRef.current = null;
-              }
-            }}
             // 手机上让日历铺满一整屏：高度按视口算（扣掉顶部新建按钮、日期行与底部导航），
             // 日历列表与导入/导出顺延到下一屏，往上滑即可看到
             height={isMobile ? 'calc(100dvh - 232px)' : 'auto'}

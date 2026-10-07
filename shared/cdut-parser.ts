@@ -123,6 +123,46 @@ export const TIMETABLE: readonly [string, string][] = [
 ];
 
 /**
+ * 教务「节次」里的小节号 → 上面这张表的行号。
+ *
+ * 教务写的是小节课号（"09-10-11节"），一格大课 = 2 小节，且下午/晚上连续：
+ * 01-02 = 第 1 大节、03-04 = 第 2 大节、05-06 = 第 4 大节（14:30-16:05）、
+ * 07-08 = 第 5 大节（16:25-18:00）、09-10 = 第 6 大节（19:10-20:45），
+ * 第 11 小节单独是第 7 大节（20:55-21:35）。
+ *
+ * 这张表是拿同一门课的 SimpleCDUT 导出（带真实时间）逐条比出来的：
+ * 09-10-11 节 ↔ 19:10-21:35、05-06-07-08 节 ↔ 14:30-18:00。
+ * 只按格子序号取时间会漏掉后半段（晚课显示到 20:45 就是这么来的）。
+ */
+export const SECTION_NUMBER_TO_SLOT: Record<number, number> = {
+  1: 0, 2: 0,
+  3: 1, 4: 1,
+  5: 3, 6: 3,
+  7: 4, 8: 4,
+  9: 5, 10: 5,
+  11: 6,
+};
+
+/** 按「节次」原文（如 "09-10-11节"）求真实起止时间；认不出来就退回格子序号 */
+export function resolveSectionsTime(
+  sections: string,
+  fallbackSlot: number
+): { start: string; end: string } {
+  const toSlot = (n: number) => SECTION_NUMBER_TO_SLOT[n];
+  const nums = (sections.match(/\d+/g) ?? [])
+    .map(Number)
+    .filter((n) => toSlot(n) !== undefined);
+  if (nums.length === 0) {
+    const slot = Math.max(0, Math.min(TIMETABLE.length - 1, fallbackSlot));
+    return { start: TIMETABLE[slot][0], end: TIMETABLE[slot][1] };
+  }
+  const slots = nums.map(toSlot);
+  const first = Math.min(...slots);
+  const last = Math.max(...slots);
+  return { start: TIMETABLE[first][0], end: TIMETABLE[last][1] };
+}
+
+/**
  * 判断一条事件是否应按"课程"处理。
  *
  * - 教务导入（source 为学校 id，如 cdut）：直接是课程；
