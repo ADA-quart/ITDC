@@ -43,6 +43,64 @@ describe('cdut-parser', () => {
     expect(parseTimetableHtml('')).toHaveLength(0);
   });
 
+  // 真实教务页面：一个格子里会并排多条课程记录（---------- 分隔），
+  // 而且每条记录在「隐藏简版块」里还重复一遍（没有 [节次]，应当忽略）。
+  // 老实现只取格子里第一条，导致同一时段其它课整门消失。
+  it('parses every entry in a cell with multiple stacked courses', () => {
+    const html = `
+<table><tr><td width="123" height="28" align="center" valign='top'>
+  <div id="X-2-1" style="display: none;position: relative" class="kbcontent1">
+    <font onmouseover='kbtc(this)' onmouseout='kbot(this)'>地球物理测井原理</font><br/>
+    <font onmouseover='kbtc(this)' onmouseout='kbot(this)' title='周次(节次)'>1-5(周)</font><br/>
+    <font onmouseover='kbtc(this)' onmouseout='kbot(this)' title='教室'>E1B203</font><br/>
+    <br/>----------------------<br>
+    <font onmouseover='kbtc(this)' onmouseout='kbot(this)'>电法勘探原理与方法</font><br/>
+    <font onmouseover='kbtc(this)' onmouseout='kbot(this)' title='周次(节次)'>7(周)</font><br/>
+    <font onmouseover='kbtc(this)' onmouseout='kbot(this)' title='教室'>5113</font><br/>
+  </div>
+  <div id="X-2-2" style="display: none;position: relative" class="kbcontent">
+    <font onmouseover='kbtc(this)' onmouseout='kbot(this)'>地球物理测井原理</font><br/>
+    <font title='教师' onmouseover='kbtc(this)' onmouseout='kbot(this)'>刘爱疆</font><br/>
+    <font title='周次(节次)' onmouseover='kbtc(this)' onmouseout='kbot(this)' >1-5(周)[07-08节]</font><br/>
+    <font title='教学楼' name='jxlmc' style='display:none;' onmouseover='kbtc(this)' onmouseout='kbot(this)' >【东区1教】</font><font title='教室' onmouseover='kbtc(this)' onmouseout='kbot(this)' >E1B203</font><br/>
+    ---------------------<br>
+    <font onmouseover='kbtc(this)' onmouseout='kbot(this)'>电法勘探原理与方法</font><br/>
+    <font title='教师' onmouseover='kbtc(this)' onmouseout='kbot(this)'>闵刚</font><br/>
+    <font title='周次(节次)' onmouseover='kbtc(this)' onmouseout='kbot(this)' >7(周)[07-08节]</font><br/>
+    <font title='教学楼' name='jxlmc' style='display:none;' onmouseover='kbtc(this)' onmouseout='kbot(this)' >【教学5楼】</font><font title='教室' onmouseover='kbtc(this)' onmouseout='kbot(this)' >5113</font><br/>
+    ---------------------<br>
+    <font onmouseover='kbtc(this)' onmouseout='kbot(this)'>电法勘探原理与方法</font><br/>
+    <font title='教师' onmouseover='kbtc(this)' onmouseout='kbot(this)'>闵刚</font><br/>
+    <font title='周次(节次)' onmouseover='kbtc(this)' onmouseout='kbot(this)' >10(周)[07-08节]</font><br/>
+    <font title='教室' onmouseover='kbtc(this)' onmouseout='kbot(this)' >5417</font><br/>
+  </div>
+</td></tr></table>`;
+    const courses = parseTimetableHtml(html);
+    // 简版块被忽略（没有 [节次]），完整块里的三条都保留
+    expect(courses.map((c) => `${c.name}@${c.weeks}`)).toEqual([
+      '地球物理测井原理@1-5(周)',
+      '电法勘探原理与方法@7(周)',
+      '电法勘探原理与方法@10(周)',
+    ]);
+    expect(courses[0].teacher).toBe('刘爱疆');
+    expect(courses[0].location).toBe('【东区1教】 - E1B203');
+    expect(courses[1].location).toBe('【教学5楼】 - 5113');
+    expect(courses[1].teacher).toBe('闵刚');
+  });
+
+  it('parses several week ranges inside one entry', () => {
+    const html = `
+<table><tr><td width="123" height="28" align="center" valign='top'>
+  <font onmouseover='kbtc(this)' onmouseout='kbot(this)'>Matlab基础知识与应用</font>
+  <font title='教师' onmouseover='kbtc(this)' onmouseout='kbot(this)'>刘炜</font>
+  <font title='周次(节次)' onmouseover='kbtc(this)' onmouseout='kbot(this)' >9-11(周)[09-10节]</font>
+  <font title='周次(节次)' onmouseover='kbtc(this)' onmouseout='kbot(this)' >12-14(周)[09-10节]</font>
+  <font title='教室' onmouseover='kbtc(this)' onmouseout='kbot(this)'>E2B202</font>
+</td></tr></table>`;
+    const courses = parseTimetableHtml(html);
+    expect(courses.map((c) => c.weeks)).toEqual(['9-11(周)', '12-14(周)']);
+  });
+
   it('parses semester options', () => {
     const html = '<option value="">2024-2025-1</option><option value="2024-2025-1">2024-2025 第一学期</option><option value="2024-2025-2">2024-2025 第二学期</option>';
     expect(parseSemesterOptions(html)).toEqual(['2024-2025-1', '2024-2025-2']);

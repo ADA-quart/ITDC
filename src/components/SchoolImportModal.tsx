@@ -6,6 +6,7 @@ import { Capacitor } from '@capacitor/core';
 import { schoolApi, calendarApi } from '../api/client';
 import { localSchoolApi } from '../api/school-cas';
 import type { CdutCourse } from '../api/client';
+import { expandWeeks } from '../../shared/cdut-parser';
 import { useI18n } from '../i18n';
 import { getCalendarCache } from '../api/offline';
 import {
@@ -31,22 +32,6 @@ const TIMETABLE: readonly [string, string][] = [
   ['16:25', '18:00'],
   ['19:10', '20:45'],
 ];
-
-/** 展开 "1-16" 或 "1-8,10-16" 或 "1,3,5" 为数字数组 */
-function expandWeeks(raw: string): number[] {
-  const out: number[] = [];
-  if (!raw) return out;
-  for (const seg of raw.replace(/周\s*$/, '').split(/[,，]/)) {
-    const m = /^(\d+)-(\d+)$/.exec(seg.trim());
-    if (m) {
-      for (let i = parseInt(m[1], 10); i <= parseInt(m[2], 10); i++) out.push(i);
-    } else {
-      const n = parseInt(seg.trim(), 10);
-      if (!isNaN(n)) out.push(n);
-    }
-  }
-  return out;
-}
 
 /** 聚合课程并展开周次为具体日期事件列表 */
 function buildEvents(courses: CdutCourse[], weekStartDate: Date, schoolId: string) {

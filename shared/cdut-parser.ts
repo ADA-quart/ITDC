@@ -23,27 +23,55 @@ export function parseTimetableHtml(html: string): CdutCourse[] {
 
   while ((match = cellRe.exec(html)) !== null) {
     index++;
-    const raw = match[1];
-    const nameM = /<font onmouseover='kbtc\(this\)' onmouseout='kbot\(this\)'\s*>(.*?)<\/font>/.exec(raw);
-    const name = (nameM?.[1] ?? '').replace(/<br\/>/g, '').trim();
-    if (!name) continue;
-
-    const teacherM = /<font title='教师' onmouseover='kbtc\(this\)' onmouseout='kbot\(this\)'\s*>(.*?)<\/font>/.exec(raw);
-    const weekM = /<font title='周次\(节次\)' onmouseover='kbtc\(this\)' onmouseout='kbot\(this\)'\s*>(.*?)\[(.*?)\]<\/font>/.exec(raw);
-    const buildingM = /<font title='教学楼' name='jxlmc' style='display:none;'\s*onmouseover='kbtc\(this\)' onmouseout='kbot\(this\)'\s*>(.*?)<\/font>/.exec(raw);
-    const roomM = /<font title='教室' onmouseover='kbtc\(this\)' onmouseout='kbot\(this\)'\s*>(.*?)<\/font>/.exec(raw);
-
-    courses.push({
-      name,
-      teacher: (teacherM?.[1] ?? '').trim(),
-      weeks: (weekM?.[1] ?? '').trim(),
-      sections: (weekM?.[2] ?? '').trim(),
-      location: [buildingM?.[1] ?? '', roomM?.[1] ?? ''].filter(Boolean).join(' - '),
-      dayOfWeek: (index % 7) + 1,
-      sectionIndex: Math.floor(index / 7),
-    });
+    const dayOfWeek = (index % 7) + 1;
+    const sectionIndex = Math.floor(index / 7);
+    // 一个格子里可能并排好几条课程记录（教务用 ---------- 分隔），每条各有自己的周次与教室；
+    // 每个格子里还会同时存在「隐藏简版块 kbcontent1」与「完整块 kbcontent」，
+    // 先按块切分，避免把简版的名字配到完整块的周次上
+    for (const block of match[1].split(/(?=<div[^>]*class="kbcontent)/i)) {
+      for (const entry of block.split(/-{5,}\s*<br\s*\/?>/i)) {
+        courses.push(...parseEntry(entry, dayOfWeek, sectionIndex));
+      }
+    }
   }
   return courses;
+}
+
+/**
+ * 解析一条课程记录。同一条记录里也常有多个周次段（同一门课拆成 1-3,6-11 周与 12 周），
+ * 每个周次段单独返回一条，交给上层合并——只取第一个正是过去「缺课」的原因。
+ */
+function parseEntry(raw: string, dayOfWeek: number, sectionIndex: number): CdutCourse[] {
+  const nameM = /<font onmouseover='kbtc\(this\)' onmouseout='kbot\(this\)'\s*>(.*?)<\/font>/.exec(raw);
+  const name = (nameM?.[1] ?? '').replace(/<br\/>/g, '').trim();
+  if (!name) return [];
+
+  // 周次可能写成 title 在前或在后（隐藏简版块是后者），两种都取；
+  // 只有带 [节次] 的才是完整记录，隐藏简版块没有方括号，正好用它过滤掉重复项
+  const weekEntries: Array<{ weeks: string; sections: string }> = [];
+  for (const m of raw.matchAll(/<font[^>]*title='周次\(节次\)'[^>]*>(.*?)<\/font>/g)) {
+    const text = m[1].replace(/<br\/>/g, '').trim();
+    const parts = /^(.*?)\[(.*?)\]$/.exec(text);
+    if (!parts) continue;
+    weekEntries.push({ weeks: parts[1].trim(), sections: parts[2].trim() });
+  }
+  if (weekEntries.length === 0) return [];
+
+  const teacherM = /<font title='教师'[^>]*>(.*?)<\/font>/.exec(raw);
+  const buildingM = /<font title='教学楼'[^>]*>(.*?)<\/font>/.exec(raw);
+  const roomM = /<font title='教室'[^>]*>(.*?)<\/font>/.exec(raw);
+  const teacher = (teacherM?.[1] ?? '').trim();
+  const location = [buildingM?.[1] ?? '', roomM?.[1] ?? ''].filter(Boolean).join(' - ');
+
+  return weekEntries.map((w) => ({
+    name,
+    teacher,
+    weeks: w.weeks,
+    sections: w.sections,
+    location,
+    dayOfWeek,
+    sectionIndex,
+  }));
 }
 
 /** 从课表页 <option> 中提取学期列表 */
@@ -63,16 +91,18 @@ export function parseSemesterOptions(html: string): string[] {
  */
 export function expandWeeks(raw: string): number[] {
   const weeks: number[] = [];
-  const cleaned = raw.replace(/[（(]?周[)）]?$/, '').trim();
-  if (!cleaned) return weeks;
-  for (const seg of cleaned.split(/[,，]/)) {
-    const rangeM = /^(\d+)-(\d+)$/.exec(seg.trim());
+  if (!raw) return weeks;
+  // 逐段去掉「周」及其括号：教务会写成 "1-3,6-11(周)" 甚至 "1-3,6-11(周),12(周)"
+  for (const rawSeg of raw.split(/[,，]/)) {
+    const seg = rawSeg.replace(/[（(]?\s*周\s*[)）]?/g, '').trim();
+    if (!seg) continue;
+    const rangeM = /^(\d+)\s*[-~－]\s*(\d+)$/.exec(seg);
     if (rangeM) {
       const lo = parseInt(rangeM[1], 10);
       const hi = parseInt(rangeM[2], 10);
-      for (let i = lo; i <= hi; i++) weeks.push(i);
+      if (hi >= lo) for (let i = lo; i <= hi; i++) weeks.push(i);
     } else {
-      const n = parseInt(seg.trim(), 10);
+      const n = parseInt(seg, 10);
       if (!isNaN(n)) weeks.push(n);
     }
   }
