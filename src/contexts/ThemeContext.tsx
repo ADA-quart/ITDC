@@ -19,6 +19,8 @@ interface ThemeContextType {
   /** 用户自定义外观（主题色 / 背景图 / 小组件配色） */
   appearance: AppearanceSettings;
   updateAppearance: (patch: Partial<AppearanceSettings>) => void;
+  /** 只把小组件相关字段恢复默认（保留主题色与背景图） */
+  resetWidgetAppearance: () => void;
   resetAppearance: () => Promise<void>;
   /** 背景图是否已从 IndexedDB 恢复（首次加载时为 false） */
   appearanceLoaded: boolean;
@@ -30,6 +32,7 @@ const ThemeContext = createContext<ThemeContextType>({
   isDark: false,
   appearance: DEFAULT_APPEARANCE,
   updateAppearance: () => {},
+  resetWidgetAppearance: () => {},
   resetAppearance: async () => {},
   appearanceLoaded: false,
 });
@@ -96,6 +99,17 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
+  const resetWidgetAppearance = useCallback(() => {
+    updateAppearance({
+      widgetFollowAccent: DEFAULT_APPEARANCE.widgetFollowAccent,
+      widgetAccent: DEFAULT_APPEARANCE.widgetAccent,
+      widgetPanelColor: DEFAULT_APPEARANCE.widgetPanelColor,
+      widgetPanelOpacity: DEFAULT_APPEARANCE.widgetPanelOpacity,
+      widgetScheme: DEFAULT_APPEARANCE.widgetScheme,
+      widgetUseBgImage: DEFAULT_APPEARANCE.widgetUseBgImage,
+    });
+  }, [updateAppearance]);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
     document.body.style.colorScheme = isDark ? 'dark' : 'light';
@@ -116,7 +130,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   return (
     <ThemeContext.Provider
-      value={{ mode, setMode, isDark, appearance, updateAppearance, resetAppearance, appearanceLoaded }}
+      value={{ mode, setMode, isDark, appearance, updateAppearance, resetWidgetAppearance, resetAppearance, appearanceLoaded }}
     >
       {children}
     </ThemeContext.Provider>

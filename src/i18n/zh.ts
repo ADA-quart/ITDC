@@ -328,7 +328,12 @@ const zh = {
     widgetApplied: '已应用到桌面小组件',
     widgetApplyFailed: '同步失败，请确认小组件已添加到桌面',
     appearanceReset: '恢复默认外观',
-    appearanceResetDone: '已恢复默认外观'
+    appearanceResetDone: '已恢复默认外观',
+    appearanceResetConfirm: '把主题色、背景图与小组件外观全部恢复默认？',
+    appearanceResetHint: '「恢复默认外观」会一并清除已上传的背景图',
+    widgetReset: '恢复小组件默认外观',
+    widgetResetConfirm: '把小组件外观恢复为默认？',
+    widgetResetDone: '小组件外观已恢复默认',
   },
 };
 

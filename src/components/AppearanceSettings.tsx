@@ -21,7 +21,7 @@ import {
  */
 const AppearanceSettings: React.FC = () => {
   const { t } = useI18n();
-  const { isDark, appearance, updateAppearance, resetAppearance } = useTheme();
+  const { isDark, appearance, updateAppearance, resetAppearance, resetWidgetAppearance } = useTheme();
   const isMobile = useIsMobile();
   const [processing, setProcessing] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -258,16 +258,31 @@ const AppearanceSettings: React.FC = () => {
               {t.settings.widgetApplyNow}
             </Button>
             <Popconfirm
-              title={t.settings.appearanceReset}
-              onConfirm={async () => {
-                await resetAppearance();
-                message.success(t.settings.appearanceResetDone);
+              title={t.settings.widgetResetConfirm}
+              onConfirm={() => {
+                resetWidgetAppearance();
+                message.success(t.settings.widgetResetDone);
               }}
             >
-              <Button danger>{t.settings.appearanceReset}</Button>
+              <Button>{t.settings.widgetReset}</Button>
             </Popconfirm>
           </Space>
         </div>
+      </div>
+
+      {/* ---------- 恢复全部外观 ---------- */}
+      <div>
+        <h4 style={sectionTitleStyle}>{t.settings.appearanceReset}</h4>
+        <p style={hintStyle}>{t.settings.appearanceResetHint}</p>
+        <Popconfirm
+          title={t.settings.appearanceResetConfirm}
+          onConfirm={async () => {
+            await resetAppearance();
+            message.success(t.settings.appearanceResetDone);
+          }}
+        >
+          <Button danger>{t.settings.appearanceReset}</Button>
+        </Popconfirm>
       </div>
     </div>
   );
