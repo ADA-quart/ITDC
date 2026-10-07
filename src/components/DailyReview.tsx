@@ -201,7 +201,7 @@ const DailyReview: React.FC = () => {
             type="primary"
             onClick={() => {
               setQuadrant(null);
-              window.location.hash = 'todos';
+              window.dispatchEvent(new CustomEvent('itdc-navigate', { detail: { page: 'todos' } }));
             }}
           >
             {t.review.goTodos}

@@ -113,7 +113,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const handler = () => {
       setSettingsTab('general');
-      window.location.hash = 'settings';
+      navigateTo('settings');
       setCurrentPage('settings');
     };
     window.addEventListener('itdc-open-settings', handler);
@@ -124,7 +124,7 @@ const App: React.FC = () => {
   // 应用被完全杀掉后点击小组件走的是冷启动，WebView 直接落到默认主页，不经过这里。
   useEffect(() => {
     const handler = () => {
-      window.location.hash = 'calendar';
+      navigateTo('calendar');
       setCurrentPage('calendar');
     };
     window.addEventListener('itdc-open-home', handler);
@@ -146,7 +146,10 @@ const App: React.FC = () => {
         const closer = top.querySelector<HTMLElement>('.ant-modal-close, .ant-btn-default');
         if (closer) { closer.click(); return; }
       }
-      if (canGoBack) { window.history.back(); return; }
+      // 底部导航切页不写历史（见 navigateTo），所以返回手势在任何页面都应当是「退出应用」。
+      // 这里刻意不调用 history.back()：实测 WebView 会把 hash 变更也算进 back/forward 列表，
+      // 一按返回就在「设置 ↔ 日历」之间来回走，永远退不出去（全面屏手势尤其明显）。
+      void canGoBack;
       void CapApp.exitApp();
     }).then((l) => { handle = l; });
     return () => { void handle?.remove(); };
@@ -162,10 +165,35 @@ const App: React.FC = () => {
       void ITDCWidgetPlugin.setServerUrl({ url }).catch(() => {});
     } catch {}
   }, []);
-  const handleMenuClick = (key: string) => {
-    window.location.hash = key;
+  /**
+   * 切页不写历史记录。
+   *
+   * 用 location.hash / location.replace 都会让 Android WebView 的 back/forward 列表增长，
+   * 而全面屏手势（从屏幕边缘滑）就是系统返回键，于是"滑一下返回"变成沿着切页历史往回走：
+   * 设置 → 日历 → 设置 → 日历……永远退不出去。replaceState 只改地址栏，不产生新条目。
+   * 底部导航按 Material 的惯例本来也不该进返回栈；弹窗仍优先被返回手势关闭。
+   */
+  const navigateTo = (key: string) => {
     setCurrentPage(key as PageKey);
+    try {
+      window.history.replaceState(null, '', `#${key}`);
+    } catch { /* 地址栏没更新不影响页面切换 */ }
   };
+
+  const handleMenuClick = (key: string) => {
+    navigateTo(key);
+  };
+
+  // 页面内部（如今日回顾弹窗里的「去待办管理」）请求切页，走同一条不写历史的路径
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const page = (e as CustomEvent<{ page?: string }>).detail?.page;
+      if (page) navigateTo(page);
+    };
+    window.addEventListener('itdc-navigate', handler);
+    return () => window.removeEventListener('itdc-navigate', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const renderContent = () => {
     switch (currentPage) {
