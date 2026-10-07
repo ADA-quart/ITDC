@@ -14,6 +14,7 @@
         android:contentDescription="@null" />
 
     <LinearLayout
+        android:id="@+id/widget_content"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
@@ -156,12 +157,19 @@
     <ListView
         android:id="@+id/widget_todo_list"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1.15"
+        android:layout_height="120dp"
         android:divider="@null"
         android:dividerHeight="0dp"
         android:scrollbars="vertical"
         android:fadeScrollbars="false"
         android:listSelector="@android:color/transparent" />
+
+    <!-- 待办列表下方剩余白区：单独做可点击区域，避免 ListView 吞掉空白触摸 -->
+    <FrameLayout
+        android:id="@+id/widget_todo_footer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clickable="true" />
     </LinearLayout>
 </FrameLayout>

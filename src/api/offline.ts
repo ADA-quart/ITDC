@@ -167,6 +167,50 @@ export async function saveCalendarCache(calendars: Calendar[]): Promise<void> {
   try { await set('calendars', calendars); } catch {}
 }
 
+/**
+ * 修复旧版本可能产生的重复日历 ID。
+ *
+ * 旧版本 iCal 导入用「最大 ID + 1」、本机创建日历用另一套自增序列，先导 iCal
+ * 再导教务时会撞出同一个 calendar_id。这里把重复项拆成新 ID，并按事件 source
+ * 把 iCal 事件与教务事件重新归属到各自日历。
+ */
+export async function repairDuplicateCalendarIds(): Promise<boolean> {
+  const calendars = await getCalendarCache();
+  if (calendars.length < 2) return false;
+  const events = await getEventCache();
+  const seen = new Set<number>();
+  let nextId = Math.max(0, ...calendars.map((c) => c.id), ...events.map((e) => e.calendar_id)) + 1;
+  let changed = false;
+
+  const nextCalendars = calendars.map((calendar) => {
+    if (!seen.has(calendar.id)) {
+      seen.add(calendar.id);
+      return calendar;
+    }
+    const oldId = calendar.id;
+    const newId = nextId++;
+    const isIcal = calendar.source === 'ical';
+    const isSchool = calendar.name.startsWith('教务课表')
+      || (!!calendar.source && calendar.source !== 'manual' && calendar.source !== 'ical');
+    for (const event of events) {
+      if (event.calendar_id !== oldId) continue;
+      const matches = isIcal
+        ? event.source === 'ical'
+        : isSchool
+          ? !!event.source && event.source !== 'ical' && event.source !== 'manual'
+          : event.source === 'manual';
+      if (matches) event.calendar_id = newId;
+    }
+    changed = true;
+    return { ...calendar, id: newId };
+  });
+
+  if (!changed) return false;
+  await saveCalendarCache(nextCalendars);
+  await saveEventCache(events);
+  return true;
+}
+
 export async function getEventCache(): Promise<CalendarEvent[]> {
   try {
     return asArray<CalendarEvent>(await get<CalendarEvent[]>('events'));
@@ -302,7 +346,7 @@ export function localCreateCalendar(data: Partial<Calendar>): Calendar {
     updated_at: now,
     name: data.name || 'New calendar',
     color: data.color || '#1890ff',
-    source: 'manual',
+    source: data.source || 'manual',
     created_at: now,
   };
 }

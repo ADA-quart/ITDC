@@ -119,7 +119,8 @@ const SchoolImportModal: React.FC<Props> = ({ open, onClose, onImported }) => {
       setSessionId(r.sessionId);
       setStudentId(r.studentId);
       setSemesters(r.semesters);
-      if (r.semesters.length > 0) setSemester(r.semesters[r.semesters.length - 1]);
+      // 教务返回的学期是按新到旧排列的，默认选第一个；选最后一个会默认到最老学期
+      if (r.semesters.length > 0) setSemester(r.semesters[0]);
       // 登录成功后按开关保存/清除凭据
       if (remember) await saveSchoolCreds(schoolId, user, pass);
       else await clearSchoolCreds(schoolId);

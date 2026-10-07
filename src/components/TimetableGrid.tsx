@@ -1,12 +1,12 @@
 /**
  * 课表视图：照课程表小程序那种「按大节排的格子」来渲染。
  *
- * 左边是节次与上下课时间，右边七列是周一到周日，中间插一道「午休」；
+ * 左边是节次与上下课时间，右边七列是周一到周日；
  * 课程块显示课名 + 教室，颜色沿用课程配色。数据直接复用日历事件，
  * 所以点击课程走的还是同一套详情弹窗。
  */
 import React from 'react';
-import type { Dayjs } from 'dayjs';
+import dayjs, { type Dayjs } from 'dayjs';
 import { TIMETABLE } from '../../shared/cdut-parser';
 import { useI18n } from '../i18n';
 import { secondaryTextColor, TOUCH_TARGET } from './ui';
@@ -39,15 +39,18 @@ const TimetableGrid: React.FC<Props> = ({ weekStart, events, isDark, onSelectEve
   const cells = new Map<string, GridItem[]>();
   for (const ev of events) {
     if (!ev?.start) continue;
-    const start = new Date(ev.start);
-    const minutes = start.getHours() * 60 + start.getMinutes();
+    const start = dayjs(ev.start);
+    const day = start.startOf('day').diff(weekStart.startOf('day'), 'day');
+    // 只渲染当前这一周。事件表里保存的是整学期逐周事件，
+    // 不过滤的话同一门课会从所有周次堆进同一个格子。
+    if (day < 0 || day > 6) continue;
+    const minutes = start.hour() * 60 + start.minute();
     let section = -1;
     for (let i = 0; i < TIMETABLE.length; i++) {
       const [h, m] = TIMETABLE[i][0].split(':').map(Number);
       if (minutes >= h * 60 + m) section = i;
     }
     if (section < 0) continue;
-    const day = (start.getDay() + 6) % 7; // 0=周一
     const key = `${day}-${section}`;
     const list = cells.get(key) ?? [];
     list.push({
@@ -85,14 +88,6 @@ const TimetableGrid: React.FC<Props> = ({ weekStart, events, isDark, onSelectEve
 
         {TIMETABLE.map(([start, end], section) => (
           <React.Fragment key={section}>
-            {/* 午休：插在第 3 大节之前（前两节是上午） */}
-            {section === 2 && (
-              <>
-                <div style={{ gridColumn: '1 / -1', background: isDark ? '#242424' : '#f5f5f5', borderBottom: border, padding: '3px 8px', fontSize: 11, color: secondaryTextColor(isDark), textAlign: 'center' }}>
-                  {t.calendar.lunchBreak}
-                </div>
-              </>
-            )}
             <div style={{ borderBottom: border, padding: '6px 4px', fontSize: 11, color: secondaryTextColor(isDark), lineHeight: 1.35, whiteSpace: 'nowrap' }}>
               <div style={{ fontWeight: 600, color: isDark ? '#ddd' : '#333' }}>{section + 1}</div>
               <div>{start}</div>

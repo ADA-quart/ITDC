@@ -25,6 +25,7 @@ import SchoolImportModal from './SchoolImportModal';
 import TimetableGrid from './TimetableGrid';
 import { getSelectedSchool } from '../api/school-prefs';
 import { syncClassReminders } from '../api/reminders';
+import { pushWidgetSnapshot } from '../api/widget-sync';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
@@ -33,6 +34,17 @@ import { findMergeTarget } from '../utils/calendar-merge';
 import { cardStyle, hintTextStyle, secondaryTextColor, TOUCH_TARGET, TYPE } from './ui';
 
 const CAL_VIEW_KEY = 'itdc_calendar_view';
+const HIDDEN_CALENDARS_KEY = 'itdc_hidden_calendars';
+
+function loadHiddenCalendars(): Set<number> {
+  try {
+    const raw = localStorage.getItem(HIDDEN_CALENDARS_KEY);
+    const ids = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(ids) ? ids.filter((id) => typeof id === 'number') : []);
+  } catch {
+    return new Set();
+  }
+}
 
 /** 该日期所在周的周一（与课表视图的列顺序一致） */
 function mondayOf(d: dayjs.Dayjs): dayjs.Dayjs {
@@ -72,7 +84,7 @@ const CalendarView: React.FC = () => {
   const isMobile = useIsMobile();
   const [events, setEvents] = useState<any[]>([]);
   const [calendars, setCalendars] = useState<Calendar[]>([]);
-  const [hiddenCalendars, setHiddenCalendars] = useState<Set<number>>(new Set());
+  const [hiddenCalendars, setHiddenCalendars] = useState<Set<number>>(loadHiddenCalendars);
   const [modalOpen, setModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [cdutOpen, setCdutOpen] = useState(false);
@@ -280,6 +292,14 @@ const CalendarView: React.FC = () => {
     // 隐藏日历变化时局部刷新；失败只影响刷新，不能冒泡成未处理拒绝导致白屏
     buildEvents(undefined, hiddenCalendars).catch((err) => console.warn('日历事件刷新失败:', err));
   }, [hiddenCalendars, buildEvents]);
+
+  // 小组件和日历视图保持同一套显隐规则；切开关后立刻重推快照。
+  useEffect(() => {
+    try {
+      localStorage.setItem(HIDDEN_CALENDARS_KEY, JSON.stringify([...hiddenCalendars]));
+    } catch { /* 存储失败不影响当前视图 */ }
+    void pushWidgetSnapshot();
+  }, [hiddenCalendars]);
 
   useEffect(() => {
     const handler = () => loadData();
@@ -541,9 +561,11 @@ const CalendarView: React.FC = () => {
   };
 
   const toggleCalendar = (id: number) => {
-    const next = new Set(hiddenCalendars);
-    if (next.has(id)) { next.delete(id); } else { next.add(id); }
-    setHiddenCalendars(next);
+    setHiddenCalendars((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); } else { next.add(id); }
+      return next;
+    });
   };
 
   const handleExportWeek = async () => {

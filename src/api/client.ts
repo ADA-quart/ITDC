@@ -337,6 +337,16 @@ export const todoApi = {
 };
 
 // ---------- 日历 ----------
+let calendarRepairPromise: Promise<void> | null = null;
+
+/** 本机数据只修复一次；并发调用共享同一个 Promise，避免 getAll/getEvents 互相踩写。 */
+function ensureCalendarIdsRepaired(): Promise<void> {
+  if (!calendarRepairPromise) {
+    calendarRepairPromise = offline.repairDuplicateCalendarIds().then(() => undefined);
+  }
+  return calendarRepairPromise;
+}
+
 export const calendarApi = {
   async getAll(): Promise<Calendar[]> {
     if (isSyncEnabled() && offline.isOnline()) {
@@ -350,6 +360,7 @@ export const calendarApi = {
         setOfflineMode(true);
       }
     }
+    await ensureCalendarIdsRepaired();
     return offline.getCalendarCache();
   },
 
@@ -369,7 +380,10 @@ export const calendarApi = {
     }
 
     const local = offline.localCreateCalendar(data);
-    if (isSyncEnabled()) local.id = nextIdFrom(cached);
+    // 本机模式也必须从现有缓存取最大 ID + 1：
+    // iCal 导入走同一套 nextIdFrom，若这里改用另一套自增序列会撞出重复 calendar_id，
+    // 表现为两个日历共享显隐状态，删一个把另一个的事件也删掉。
+    local.id = nextIdFrom(cached);
     await offline.saveCalendarCache([...cached, local]);
     return local;
   },
@@ -406,6 +420,7 @@ export const calendarApi = {
         setOfflineMode(true);
       }
     }
+    await ensureCalendarIdsRepaired();
     return offline.getEventCache();
   },
 
@@ -425,7 +440,8 @@ export const calendarApi = {
     }
 
     const local = offline.localCreateEvent(data);
-    if (isSyncEnabled()) local.id = nextIdFrom(cached);
+    // 与日历同理：本机模式统一用缓存最大 ID + 1，避免和 iCal/教务逐条导入撞 ID。
+    local.id = nextIdFrom(cached);
     await offline.saveEventCache([...cached, local]);
     return local;
   },
