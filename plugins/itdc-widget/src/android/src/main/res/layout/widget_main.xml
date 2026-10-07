@@ -126,7 +126,6 @@
 
     <!-- 待办区标题 + 全部完成按钮 -->
     <LinearLayout
-        android:id="@+id/widget_todo_header_row"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
