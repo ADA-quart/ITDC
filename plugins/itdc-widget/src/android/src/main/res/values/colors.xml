@@ -8,4 +8,6 @@
     <color name="widget_text_secondary">#FF6B6B6B</color>
     <color name="widget_text_empty">#FF9E9E9E</color>
     <color name="widget_section_label">#FF3D3D3D</color>
+    <!-- 已完成待办的「完成线」默认色，运行时会按明暗替换成 WidgetAppearance.textDone -->
+    <color name="widget_text_done">#FF9E9E9E</color>
 </resources>

@@ -1,12 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+  外层用 FrameLayout 是为了那条「完成线」：它是一条独立的细线，贯穿整行
+  （标题 + 中间的空白 + 右侧时间），而不是分别在标题和时间上各画一段
+  （那样看起来是断开的）。复选框位置不画线，从标题左边开始。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/todo_item_root"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:gravity="center_vertical"
-    android:paddingTop="5dp"
-    android:paddingBottom="5dp">
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp">
 
     <!--
       复选框：点按可直接完成待办。
@@ -62,4 +71,17 @@
         android:maxLines="1"
         android:textSize="11sp"
         android:textColor="@color/widget_text_secondary" />
-</LinearLayout>
+    </LinearLayout>
+
+    <!-- 完成线：勾选后显示，颜色与已完成的文字一致 -->
+    <ImageView
+        android:id="@+id/todo_strike"
+        android:layout_width="match_parent"
+        android:layout_height="1.5dp"
+        android:layout_gravity="center_vertical"
+        android:layout_marginStart="31dp"
+        android:layout_marginTop="1dp"
+        android:background="@color/widget_text_done"
+        android:visibility="gone"
+        android:contentDescription="@null" />
+</FrameLayout>

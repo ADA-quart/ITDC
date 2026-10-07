@@ -219,10 +219,13 @@ public class ITDCWidgetListService extends RemoteViewsService {
                         row.done ? WidgetAppearance.textDone(context) : WidgetAppearance.textPrimary(context));
                 rv.setTextColor(R.id.todo_meta, WidgetAppearance.textSecondary(context));
 
-                // 划线效果：已完成的标题加删除线并降低不透明度
-                int flags = row.done ? (Paint.STRIKE_THRU_TEXT_FLAG | Paint.ANTI_ALIAS_FLAG)
-                                     : Paint.ANTI_ALIAS_FLAG;
-                rv.setInt(R.id.todo_title, "setPaintFlags", flags);
+                // 已完成：用一条贯穿整行的细线，而不是给标题/时间各画一段删除线
+                // （两段之间隔着空白，看起来是断开的）。文字不再带 STRIKE_THRU。
+                rv.setInt(R.id.todo_title, "setPaintFlags", Paint.ANTI_ALIAS_FLAG);
+                rv.setViewVisibility(R.id.todo_strike, row.done ? View.VISIBLE : View.GONE);
+                if (row.done) {
+                    rv.setInt(R.id.todo_strike, "setBackgroundColor", WidgetAppearance.textDone(context));
+                }
 
                 StringBuilder meta = new StringBuilder();
                 if (!TextUtils.isEmpty(row.slot)) meta.append(row.slot);
@@ -232,10 +235,7 @@ public class ITDCWidgetListService extends RemoteViewsService {
                 }
                 rv.setTextViewText(R.id.todo_meta, meta.toString());
                 rv.setViewVisibility(R.id.todo_meta, meta.length() == 0 ? View.GONE : View.VISIBLE);
-                // 已完成的 meta 也加删除线，视觉上更统一
-                rv.setInt(R.id.todo_meta, "setPaintFlags",
-                        row.done ? (Paint.STRIKE_THRU_TEXT_FLAG | Paint.ANTI_ALIAS_FLAG)
-                                 : Paint.ANTI_ALIAS_FLAG);
+                rv.setInt(R.id.todo_meta, "setPaintFlags", Paint.ANTI_ALIAS_FLAG);
 
                 return rv;
             }
