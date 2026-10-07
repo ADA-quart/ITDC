@@ -88,6 +88,9 @@ const zh = {
     importFail: '课表导入失败',
     importBtn: '导入课表',
     cancel: '取消',
+    remember: '记住账号密码（下次自动登录）',
+    rememberHint: '密码保存在系统密钥库（Android Keystore），只在本机，不上传；取消勾选会立即删除',
+    autoLoggingIn: '正在用已保存的账号自动登录…',
   },
   todo: {
     all: '全部',

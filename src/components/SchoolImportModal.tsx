@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Modal, Input, Select, DatePicker, Button, message, Space, Typography } from 'antd';
+import React, { useEffect, useRef, useState } from 'react';
+import { Modal, Input, Select, DatePicker, Button, message, Space, Typography, Checkbox } from 'antd';
 import { LoginOutlined, ImportOutlined } from '@ant-design/icons';
 import { Dayjs } from 'dayjs';
 import { Capacitor } from '@capacitor/core';
@@ -8,6 +8,13 @@ import { localSchoolApi } from '../api/school-cas';
 import type { CdutCourse } from '../api/client';
 import { useI18n } from '../i18n';
 import { getCalendarCache } from '../api/offline';
+import {
+  clearSchoolCreds,
+  getRememberEnabled,
+  loadSchoolCreds,
+  saveSchoolCreds,
+  setRememberEnabled,
+} from '../api/school-creds';
 
 interface Props {
   open: boolean;
@@ -103,28 +110,51 @@ const SchoolImportModal: React.FC<Props> = ({ open, onClose, onImported }) => {
   const [schoolId, setSchoolId] = useState('cdut');
   const [loggingIn, setLoggingIn] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [remember, setRemember] = useState(getRememberEnabled());
+  const autoLoginTriedRef = useRef(false);
 
   const reset = () => {
     setSessionId(null); setStudentId(''); setSemesters([]); setSemester('');
     setPassword(''); setWeekStart(null);
   };
 
-  const handleLogin = async () => {
-    if (!username || !password) { message.warning(t.schoolImport.studentIdRequired); return; }
+  const handleLogin = async (userArg?: string, passArg?: string) => {
+    const user = userArg ?? username;
+    const pass = passArg ?? password;
+    if (!user || !pass) { message.warning(t.schoolImport.studentIdRequired); return; }
     setLoggingIn(true);
     try {
       const r = isNative
-        ? { sessionId: 'local', ...(await localSchoolApi.login(schoolId, username, password)) }
-        : await schoolApi.login(schoolId, username, password);
+        ? { sessionId: 'local', ...(await localSchoolApi.login(schoolId, user, pass)) }
+        : await schoolApi.login(schoolId, user, pass);
       setSessionId(r.sessionId);
       setStudentId(r.studentId);
       setSemesters(r.semesters);
       if (r.semesters.length > 0) setSemester(r.semesters[r.semesters.length - 1]);
+      // 登录成功后按开关保存/清除凭据
+      if (remember) await saveSchoolCreds(schoolId, user, pass);
+      else await clearSchoolCreds(schoolId);
       message.success(t.schoolImport.loginOk);
     } catch (err: any) {
-      message.error(err?.response?.data?.error || t.schoolImport.loginFail);
+      // 本机直连没有 HTTP 响应体，真实原因在 err.message 里（服务端模式才在 response 里）
+      message.error(err?.response?.data?.error || err?.message || t.schoolImport.loginFail);
     } finally { setLoggingIn(false); }
   };
+
+  // 打开弹窗：有记住的账号就直接自动登录，省得每次重输
+  useEffect(() => {
+    if (!open) { autoLoginTriedRef.current = false; return; }
+    if (autoLoginTriedRef.current) return;
+    autoLoginTriedRef.current = true;
+    void (async () => {
+      const creds = await loadSchoolCreds(schoolId);
+      if (!creds) return;
+      setUsername(creds.username);
+      setPassword(creds.password);
+      if (getRememberEnabled()) await handleLogin(creds.username, creds.password);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const handleImport = async () => {
     if (!sessionId || !semester || !weekStart) {
@@ -171,7 +201,7 @@ const SchoolImportModal: React.FC<Props> = ({ open, onClose, onImported }) => {
         </Button>,
       ] : [
         <Button key="cancel" onClick={onClose}>{t.schoolImport.cancel}</Button>,
-        <Button key="login" type="primary" icon={<LoginOutlined />} loading={loggingIn} onClick={handleLogin}>
+        <Button key="login" type="primary" icon={<LoginOutlined />} loading={loggingIn} onClick={() => handleLogin()}>
           {t.schoolImport.loginBtn}
         </Button>,
       ]}
@@ -188,8 +218,20 @@ const SchoolImportModal: React.FC<Props> = ({ open, onClose, onImported }) => {
             placeholder={t.schoolImport.password}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            onPressEnter={handleLogin}
+            onPressEnter={() => handleLogin()}
           />
+          <Checkbox
+            checked={remember}
+            onChange={(e) => {
+              setRemember(e.target.checked);
+              setRememberEnabled(e.target.checked);
+            }}
+          >
+            {t.schoolImport.remember}
+          </Checkbox>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            {t.schoolImport.rememberHint}
+          </Typography.Text>
         </Space>
       ) : (
         <Space direction="vertical" style={{ width: '100%' }} size={12}>

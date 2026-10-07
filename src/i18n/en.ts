@@ -90,6 +90,9 @@ const en: LocaleMessages = {
     importFail: 'Timetable import failed',
     importBtn: 'Import Timetable',
     cancel: 'Cancel',
+    remember: 'Remember me (auto login next time)',
+    rememberHint: 'Password is stored in the system keystore (Android Keystore), on this device only; unchecking deletes it immediately',
+    autoLoggingIn: 'Signing in with your saved account…',
   },
   todo: {
     all: 'All',
