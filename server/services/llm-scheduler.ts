@@ -3,7 +3,12 @@ import { LLMProvider, LLMConfig } from '../llm/provider.js';
 import { createProvider } from '../llm/index.js';
 import { ScheduledItem } from './scheduler.js';
 import { looksLikeCourse } from '../../shared/cdut-parser.js';
-import { findProtectedWindow } from '../../shared/schedule-policy.js';
+import {
+  WORK_START_HOUR,
+  WORK_END_HOUR,
+  LATE_START_HOUR,
+  findProtectedWindow,
+} from '../../shared/schedule-policy.js';
 import { decrypt, isEncrypted } from '../utils/crypto.js';
 import { debug } from '../utils/debug.js';
 import {
@@ -125,8 +130,11 @@ function validateSchedule(items: ScheduledItem[]): { valid: boolean; errors: str
     const itemStart = new Date(item.start);
     const itemEnd = new Date(item.end);
 
-    const startHour = itemStart.getHours();
-    if (startHour >= 23 || startHour < 7) {
+    const startMinutes = itemStart.getHours() * 60 + itemStart.getMinutes();
+    const endMinutes = itemEnd.getHours() * 60 + itemEnd.getMinutes();
+    if (startMinutes < WORK_START_HOUR * 60 || endMinutes > WORK_END_HOUR * 60) {
+      errors.push(`待办 "${item.title}" 被安排在深夜时段`);
+    } else if (startMinutes >= LATE_START_HOUR * 60) {
       errors.push(`待办 "${item.title}" 被安排在深夜时段`);
     }
     // 与本地校验保持一致：已经过去的时段写进库等于永远做不了

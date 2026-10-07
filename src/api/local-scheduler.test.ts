@@ -70,10 +70,11 @@ describe('splitIntoSegments', () => {
 });
 
 describe('work hours helpers', () => {
-  it('treats 8:00-23:00 as within work hours', () => {
+  it('treats 8:00-22:00 as within work hours', () => {
     expect(isWithinWorkHours(at(1, 8))).toBe(true);
     expect(isWithinWorkHours(at(1, 7))).toBe(false);
-    expect(isWithinWorkHours(at(1, 22))).toBe(true);
+    expect(isWithinWorkHours(at(1, 21))).toBe(true);
+    expect(isWithinWorkHours(at(1, 22))).toBe(false);
     expect(isWithinWorkHours(at(1, 6))).toBe(false);
     expect(isWithinWorkHours(at(1, 23))).toBe(false);
   });
@@ -141,7 +142,7 @@ describe('generateScheduleLocally', () => {
     const start = new Date(schedule[0].start);
     const end = new Date(schedule[0].end);
     expect(start.getHours()).toBeGreaterThanOrEqual(8);
-    expect(end.getHours()).toBeLessThanOrEqual(23);
+    expect(end.getHours()).toBeLessThanOrEqual(22);
   });
 
   it('ignores todos that are not pending', () => {
@@ -360,6 +361,52 @@ describe('generateScheduleLocally', () => {
     expect(new Date(schedule[0].start).getHours()).toBe(8);
   });
 
+  it('does not start new work after 21:00', () => {
+    const schedule = generateScheduleLocally(
+      [makeTodo({ estimated_minutes: 30 })],
+      [],
+      { now: at(1, 21, 30) }
+    );
+    expect(schedule).toHaveLength(1);
+    const start = new Date(schedule[0].start);
+    expect(start.getDate()).toBe(at(2, 8).getDate());
+    expect(start.getHours()).toBe(8);
+  });
+
+  it('does not schedule after a late class ends at 21:45', () => {
+    const lateClass = makeEvent({
+      id: 88,
+      source: 'cdut',
+      start_time: at(1, 19).toISOString(),
+      end_time: at(1, 21, 45).toISOString(),
+    });
+    const schedule = generateScheduleLocally(
+      [makeTodo({ estimated_minutes: 60 })],
+      [lateClass],
+      { now: at(1, 19, 30) }
+    );
+    expect(schedule).toHaveLength(1);
+    const start = new Date(schedule[0].start);
+    expect(start.getDate()).toBe(at(2, 8).getDate());
+    expect(start.getHours()).toBe(8);
+  });
+
+  it('still allows early-evening work before the 21:00 cutoff', () => {
+    const ending20 = makeEvent({
+      id: 89,
+      source: 'cdut',
+      start_time: at(1, 18).toISOString(),
+      end_time: at(1, 20).toISOString(),
+    });
+    const schedule = generateScheduleLocally(
+      [makeTodo({ estimated_minutes: 30 })],
+      [ending20],
+      { now: at(1, 20) }
+    );
+    expect(schedule).toHaveLength(1);
+    expect(new Date(schedule[0].start).getHours()).toBe(20);
+  });
+
   it('labels split segments with (i/N)', () => {
     const schedule = generateScheduleLocally([makeTodo({ estimated_minutes: 200 })], []);
     expect(schedule.length).toBeGreaterThan(1);
@@ -465,5 +512,19 @@ describe('validateScheduleLocally', () => {
     ];
     const result = validateScheduleLocally(items, []);
     expect(result.errors.some(e => e.includes('午餐'))).toBe(true);
+  });
+
+  it('flags a late-night start', () => {
+    const items = [
+      {
+        todo_id: 1,
+        title: '深夜任务',
+        start: at(1, 21, 30).toISOString(),
+        end: at(1, 22, 0).toISOString(),
+        priority: 'normal' as const,
+      },
+    ];
+    const result = validateScheduleLocally(items, []);
+    expect(result.errors.some(e => e.startsWith('安排在深夜时段'))).toBe(true);
   });
 });

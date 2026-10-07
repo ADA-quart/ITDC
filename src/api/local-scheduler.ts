@@ -6,6 +6,7 @@ import { looksLikeCourse } from '../../shared/cdut-parser';
 import {
   WORK_START_HOUR,
   WORK_END_HOUR,
+  LATE_START_HOUR,
   MIN_USABLE_GAP_MINUTES,
   SLOT_BUFFER_MINUTES,
   findProtectedWindow,
@@ -105,6 +106,12 @@ export function findNextFreeSlot(
 
   while (start < maxDate && attempts < maxAttempts) {
     attempts++;
+    // 21:00 之后不开始新任务（晚课 21:45 下课就更不该排）
+    if (start.getHours() >= LATE_START_HOUR) {
+      start.setDate(start.getDate() + 1);
+      start.setHours(WORK_START_HOUR, 0, 0, 0);
+      continue;
+    }
     const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
 
     if (end.getHours() >= WORK_END_HOUR || !isWithinWorkHours(start)) {
@@ -189,6 +196,7 @@ export function findNextClassSlot(
   for (const cls of classSlots) {
     let cursor = new Date(Math.max(cls.start, advanceToWorkHours(new Date(currentStart)).getTime()));
     while (cursor.getTime() + needMs <= cls.end) {
+      if (cursor.getHours() >= LATE_START_HOUR) break;
       const end = new Date(cursor.getTime() + durationMinutes * 60000);
       if (deadline && end > deadline) return null;
       const protectedWindow = findProtectedWindow(cursor, end);
@@ -428,8 +436,13 @@ export function validateScheduleLocally(
     const start = new Date(item.start);
     const end = new Date(item.end);
     const todo = todoById.get(item.todo_id);
-    if (start.getHours() < WORK_START_HOUR || end.getHours() > WORK_END_HOUR) {
+    const startMinutes = start.getHours() * 60 + start.getMinutes();
+    const endMinutes = end.getHours() * 60 + end.getMinutes();
+    if (startMinutes < WORK_START_HOUR * 60 || endMinutes > WORK_END_HOUR * 60) {
       errors.push(`超出工作时段：${item.title}`);
+    }
+    if (startMinutes >= LATE_START_HOUR * 60) {
+      errors.push(`安排在深夜时段：${item.title}`);
     }
     const protectedWindow = findProtectedWindow(start, end);
     if (protectedWindow) {

@@ -3,6 +3,7 @@ import { looksLikeCourse } from '../../shared/cdut-parser.js';
 import {
   WORK_START_HOUR,
   WORK_END_HOUR,
+  LATE_START_HOUR,
   MIN_USABLE_GAP_MINUTES,
   SLOT_BUFFER_MINUTES,
   findProtectedWindow,
@@ -141,6 +142,12 @@ export function findNextFreeSlot(
 
   while (start < maxDate && attempts < maxAttempts) {
     attempts++;
+    if (start.getHours() >= LATE_START_HOUR) {
+      start = new Date(start);
+      start.setDate(start.getDate() + 1);
+      start.setHours(WORK_START_HOUR, 0, 0, 0);
+      continue;
+    }
     const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
 
     if (end.getHours() >= WORK_END_HOUR || !isWithinWorkHours(start)) {
@@ -222,6 +229,7 @@ export function findNextClassSlot(
   for (const cls of classSlots) {
     let cursor = new Date(Math.max(cls.start, advanceToWorkHours(new Date(currentStart)).getTime()));
     while (cursor.getTime() + needMs <= cls.end) {
+      if (cursor.getHours() >= LATE_START_HOUR) break;
       const end = new Date(cursor.getTime() + durationMinutes * 60000);
       if (deadline && end > deadline) return null;
       const protectedWindow = findProtectedWindow(cursor, end);

@@ -5,7 +5,10 @@
 
 /** 不排早于 8:00 的任务：7 点排待办属于打扰而不是帮助 */
 export const WORK_START_HOUR = 8;
-export const WORK_END_HOUR = 23;
+/** 22:00 前必须结束：不排到 23:00/24:00 */
+export const WORK_END_HOUR = 22;
+/** 21:00 之后不再开始新任务：晚课结束就直接休息 */
+export const LATE_START_HOUR = 21;
 /** 两节课之间的空档小于这个值就不排任务（5/25 分钟课间不硬塞） */
 export const MIN_USABLE_GAP_MINUTES = 30;
 /** 任务结束到下一个日程之间至少留 5 分钟缓冲 */

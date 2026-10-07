@@ -48,9 +48,9 @@ describe('isWithinWorkHours', () => {
     d.setHours(8, 0, 0, 0);
     expect(isWithinWorkHours(d)).toBe(true);
   });
-  it('returns false at the exact work end (23:00)', () => {
+  it('returns false at the exact work end (22:00)', () => {
     const d = new Date();
-    d.setHours(23, 0, 0, 0);
+    d.setHours(22, 0, 0, 0);
     expect(isWithinWorkHours(d)).toBe(false);
   });
 });
