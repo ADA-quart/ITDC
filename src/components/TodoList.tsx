@@ -262,7 +262,7 @@ const TodoList: React.FC = () => {
               <div key={priority} style={{ marginBottom: 16 }}>
                 <div style={{ marginBottom: 8, fontWeight: 'bold' }}>
                   <Badge color={PRIORITY_COLORS[priority as Priority]} text={priorityLabels[priority as Priority]} />
-                  <span style={{ marginLeft: 8, color: isDark ? '#bbb' : '#999', fontWeight: 'normal', fontSize: 12 }}>({items.length})</span>
+                  <span style={{ marginLeft: 8, color: isDark ? '#a6a6a6' : '#666', fontWeight: 'normal', fontSize: 12 }}>({items.length})</span>
                 </div>
                 <List
                   dataSource={items}
@@ -306,7 +306,7 @@ const TodoList: React.FC = () => {
                               {statusLabels[todo.status]}
                             </Tag>
                             {todo.deadline && (
-                              <span style={{ fontSize: 12, color: todo.status === 'done' ? (isDark ? '#bbb' : '#999') : (new Date(todo.deadline) < new Date() ? '#f5222d' : (isDark ? '#bbb' : '#999')) }}>
+                              <span style={{ fontSize: 12, color: todo.status === 'done' ? (isDark ? '#a6a6a6' : '#666') : (new Date(todo.deadline) < new Date() ? '#f5222d' : (isDark ? '#a6a6a6' : '#666')) }}>
                                 {getDeadlineCountdown(todo.deadline, t.todo)}
                               </span>
                             )}

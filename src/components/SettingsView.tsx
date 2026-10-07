@@ -18,6 +18,8 @@ import {
   isAndroid,
   syncClassReminders,
   requestClassReminderPermission,
+  getClassReminderSilent,
+  setClassReminderSilent,
 } from '../api/reminders';
 import {
   CLASS_LEAD_OPTIONS,
@@ -27,7 +29,7 @@ import {
   setClassReminderLeadMin,
 } from '../api/class-reminders';
 import AppearanceSettings from './AppearanceSettings';
-import { cardStyle, sectionTitleStyle } from './ui';
+import { cardStyle, hintTextStyle, sectionTitleStyle } from './ui';
 
 interface Props {
   /** 打开时要定位到的标签页，由「去设置」这类入口指定 */
@@ -92,6 +94,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
   const [schoolId, setSchoolId] = useState<string>('');
   const [classReminderOn, setClassReminderOn] = useState(getClassReminderEnabled());
   const [classLeadMin, setClassLeadMin] = useState(getClassReminderLeadMin());
+  const [classReminderSilent, setClassReminderSilentState] = useState(getClassReminderSilent());
   // 表单是否已按「当前启用的配置」对齐过：只做一次，避免打断用户正在输入的内容
   const formSeeded = useRef(false);
 
@@ -500,7 +503,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
                     {t.settings.fetchModels}
                   </Button>
                 </Space.Compact>
-                <div style={{ fontSize: 12, color: isDark ? '#999' : '#888', marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: isDark ? '#a6a6a6' : '#666', marginTop: 4 }}>
                   {t.settings.modelHint}
                 </div>
               </Form.Item>
@@ -535,7 +538,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
       label: t.settings.promptTemplate,
       children: (
         <div>
-          <div style={{ marginBottom: 8, color: isDark ? '#bbb' : '#999', fontSize: 12 }}>
+          <div style={{ marginBottom: 8, color: isDark ? '#a6a6a6' : '#666', fontSize: 12 }}>
             {t.settings.llmPromptHint}
           </div>
           <Input.TextArea
@@ -649,7 +652,22 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
                     label: `${t.settings.classReminderLead} ${m} ${t.settings.classReminderMinutes}`,
                   }))}
                 />
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <Switch
+                    size="small"
+                    checked={classReminderSilent}
+                    disabled={!classReminderOn}
+                    onChange={async (on) => {
+                      setClassReminderSilent(on);
+                      setClassReminderSilentState(on);
+                      await resyncClassReminders();
+                      message.success(t.settings.classReminderSaved);
+                    }}
+                  />
+                  {t.settings.classReminderSilent}
+                </span>
               </Space>
+              <p style={{ ...hintTextStyle(isDark), marginTop: 8 }}>{t.settings.classReminderSilentHint}</p>
             </div>
           )}
           <div>

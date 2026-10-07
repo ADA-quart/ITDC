@@ -113,7 +113,7 @@ const DailyReview: React.FC = () => {
                 <div style={{ width: 10, height: Math.round((x.created / maxTrend) * 130), backgroundColor: '#1890ff', borderRadius: 2 }} />
                 <div style={{ width: 10, height: Math.round((x.done / maxTrend) * 130), backgroundColor: '#52c41a', borderRadius: 2 }} />
               </div>
-              <div style={{ fontSize: 10, color: isDark ? '#666' : '#999' }}>
+              <div style={{ fontSize: 11, color: isDark ? '#a6a6a6' : '#666' }}>
                 {idx === trend.length - 1 ? t.review.today : x.dayKey.slice(5)}
               </div>
             </div>

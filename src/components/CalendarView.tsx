@@ -515,8 +515,9 @@ const CalendarView: React.FC = () => {
               const room = shortRoom((arg.event.extendedProps as any)?.location);
               return (
                 <div style={{ lineHeight: 1.15, overflow: 'hidden', padding: '1px 2px' }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, wordBreak: 'break-word' }}>{arg.event.title}</div>
-                  {room && <div style={{ fontSize: 10, opacity: 0.85, marginTop: 2 }}>{room}</div>}
+                  {/* 字号下限对齐 Apple HIG 的 11pt / Material 的 label small */}
+                  <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.25, wordBreak: 'break-word' }}>{arg.event.title}</div>
+                  {room && <div style={{ fontSize: 11, lineHeight: 1.2, opacity: 0.9, marginTop: 1 }}>{room}</div>}
                 </div>
               );
             }}

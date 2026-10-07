@@ -25,6 +25,7 @@ import { ITDCWidgetPlugin } from './capacitor/itdc-widget';
 import { pushWidgetSnapshot, consumeWidgetDoneQueue } from './api/widget-sync';
 import { useI18n } from './i18n';
 import { TOUCH_TARGET, withAlpha } from './components/ui';
+import { FONT_STACK, tabularNums } from './components/ui';
 import { useTheme } from './contexts/ThemeContext';
 import { useIsMobile } from './hooks/useIsMobile';
 
@@ -192,6 +193,9 @@ const App: React.FC = () => {
       borderRadius: isMobile ? 12 : 8,
       controlHeight: isMobile ? 40 : 32,
       fontSize: 14,
+      // 中文界面：系统字体栈 + 稍宽的行高（中文比拉丁字母更吃行距）
+      fontFamily: FONT_STACK,
+      lineHeight: 1.6,
     },
     components: {
       Modal: { borderRadiusLG: 14 },
@@ -247,7 +251,8 @@ const App: React.FC = () => {
     return (
       <ConfigProvider locale={antdLocale} theme={themeConfig}>
         {backgroundLayer}
-        <Layout style={{ minHeight: '100vh', background: 'transparent' }}>
+        {/* tabular-nums：时间/日期/计数在一列里对齐 */}
+        <Layout style={{ minHeight: '100vh', background: 'transparent', ...tabularNums }}>
           <Content
             style={{
               padding: 12,

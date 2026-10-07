@@ -11,6 +11,10 @@ const REMINDER_KEY = 'itdc_reminder_enabled';
 // 通知权限是否已经弹过窗（用户拒绝后不再每次启动都打扰；设置里手动开启会重置）
 const PERM_ASKED_KEY = 'itdc_class_reminder_perm_asked';
 const CLASS_CHANNEL_ID = 'class-reminders';
+// Android 的通知渠道创建后不能改重要性，所以「响铃 / 静默」用两个渠道，
+// 由设置里的开关决定排程时走哪个
+const CLASS_CHANNEL_SILENT_ID = 'class-reminders-silent';
+const CLASS_SILENT_KEY = 'itdc_class_reminder_silent';
 // 本地通知最多提前 90 天，超出则不排程（Android 对过远的定时通知行为不一致）
 const MAX_AHEAD_MS = 90 * 24 * 3600_000;
 
@@ -32,6 +36,19 @@ export function getReminderEnabled(): boolean {
 
 export function setReminderEnabled(on: boolean): void {
   try { localStorage.setItem(REMINDER_KEY, String(on)); } catch {}
+}
+
+/** 上课提醒是否静默（只显示在通知栏，不响铃不震动） */
+export function getClassReminderSilent(): boolean {
+  try { return localStorage.getItem(CLASS_SILENT_KEY) === 'true'; } catch { return false; }
+}
+
+export function setClassReminderSilent(on: boolean): void {
+  try { localStorage.setItem(CLASS_SILENT_KEY, String(on)); } catch {}
+}
+
+function classChannelId(): string {
+  return getClassReminderSilent() ? CLASS_CHANNEL_SILENT_ID : CLASS_CHANNEL_ID;
 }
 
 // 提醒时间：优先已排程开始时间，其次截止时间；必须在未来且不超过 MAX_AHEAD_MS
@@ -154,13 +171,19 @@ export async function syncClassReminders(events: CalendarEvent[]): Promise<void>
       if (!ok) return;
     }
 
-    // 独立通知渠道，用户可单独调节/静音上课提醒
+    // 独立通知渠道（响铃 / 静默各一个），用户也能在系统里单独调
     try {
       await LocalNotifications.createChannel({
         id: CLASS_CHANNEL_ID,
         name: '上课提醒',
         description: '上课前的课程与教室提醒',
         importance: 4,
+      });
+      await LocalNotifications.createChannel({
+        id: CLASS_CHANNEL_SILENT_ID,
+        name: '上课提醒（静默）',
+        description: '只在通知栏显示，不响铃、不震动',
+        importance: 2,
       });
     } catch { /* 渠道已存在或平台不支持，不影响排程 */ }
 
@@ -169,7 +192,7 @@ export async function syncClassReminders(events: CalendarEvent[]): Promise<void>
         id: p.id,
         title: p.title,
         body: p.body,
-        channelId: CLASS_CHANNEL_ID,
+        channelId: classChannelId(),
         schedule: { at: p.at, allowWhileIdle: true },
       })),
     });

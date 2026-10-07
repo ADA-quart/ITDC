@@ -262,6 +262,8 @@ const zh = {
     classReminderMinutes: '分钟',
     classReminderSaved: '上课提醒设置已保存',
     classReminderNoPerm: '未获得通知权限，系统不会显示上课提醒',
+    classReminderSilent: '静默提醒',
+    classReminderSilentHint: '开启后只显示在通知栏，不响铃、不震动（也可以到系统通知设置里单独调整这个渠道）',
     widgetSection: '桌面小组件',
     widgetLocalHint: '小组件已支持仅本机模式：打开 App 后会推送今日安排，无需连接服务器。',
     batteryTitle: '保持小组件刷新',

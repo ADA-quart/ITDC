@@ -257,6 +257,8 @@ const en: LocaleMessages = {
     classReminderMinutes: 'min before',
     classReminderSaved: 'Class reminder setting saved',
     classReminderNoPerm: 'Notification permission is off, so class reminders will not appear',
+    classReminderSilent: 'Silent',
+    classReminderSilentHint: 'Only show in the notification shade, no sound or vibration (you can also tune this channel in system notification settings)',
     widgetSection: 'Home screen widget',
     widgetLocalHint: 'The widget works in this-device-only mode: opening the app pushes today\'s schedule, no server needed.',
     batteryTitle: 'Keep the widget refreshed',
