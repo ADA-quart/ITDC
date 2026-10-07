@@ -181,6 +181,8 @@ public class ITDCWidgetListService extends RemoteViewsService {
                 RemoteViews empty = new RemoteViews(context.getPackageName(), R.layout.widget_empty_item);
                 empty.setTextViewText(R.id.empty_text, emptyText);
                 empty.setTextColor(R.id.empty_text, WidgetAppearance.textEmpty(context));
+                // 空白提示也能点开 App，避免"点了没反应"
+                ITDCWidgetActionReceiver.bindOpenAppFillIn(empty, R.id.empty_text);
                 return empty;
             }
 
@@ -210,6 +212,8 @@ public class ITDCWidgetListService extends RemoteViewsService {
                 ITDCWidgetActionReceiver.bindFillIn(rv, R.id.todo_check, row.id, row.done);
                 // 整行也可点，命中区域更大，体验更好
                 ITDCWidgetActionReceiver.bindFillIn(rv, R.id.todo_title, row.id, row.done);
+                // 勾选框与标题以外的部分（备注、行尾空白）：点开 App
+                ITDCWidgetActionReceiver.bindOpenAppFillIn(rv, R.id.todo_item_root);
 
                 rv.setTextViewText(R.id.todo_title, row.title);
                 rv.setTextColor(R.id.todo_title,
@@ -238,6 +242,8 @@ public class ITDCWidgetListService extends RemoteViewsService {
             }
 
             RemoteViews rv = new RemoteViews(context.getPackageName(), R.layout.widget_course_item);
+            // 课程条目任意位置都能点开 App
+            ITDCWidgetActionReceiver.bindOpenAppFillIn(rv, R.id.course_item_root);
             rv.setTextViewText(R.id.course_title, row.title);
             rv.setTextViewText(R.id.course_meta, row.location);
             rv.setViewVisibility(R.id.course_meta, TextUtils.isEmpty(row.location) ? View.GONE : View.VISIBLE);

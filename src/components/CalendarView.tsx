@@ -26,6 +26,18 @@ import { syncClassReminders } from '../api/reminders';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { swipeDirection } from '../utils/swipe';
+
+const CAL_VIEW_KEY = 'itdc_calendar_view';
+
+/** 记住上次用的日历视图：手机首次默认单日，桌面默认周视图 */
+function resolveInitialView(isMobile: boolean): string {
+  try {
+    const saved = localStorage.getItem(CAL_VIEW_KEY);
+    if (saved === 'timeGridDay' || saved === 'timeGridWeek' || saved === 'dayGridMonth') return saved;
+  } catch { /* 读取失败用默认值 */ }
+  return isMobile ? 'timeGridDay' : 'timeGridWeek';
+}
 
 const CalendarView: React.FC = () => {
   const { t, locale } = useI18n();
@@ -46,6 +58,9 @@ const CalendarView: React.FC = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const settingsPromptedRef = useRef(false);
   const calendarRef = useRef<FullCalendar>(null);
+  const swipeRef = useRef<HTMLDivElement | null>(null);
+  // 初始视图只取一次：之后由用户自己切换，viewDidMount 会把选择记下来
+  const [calView] = useState(() => resolveInitialView(isMobile));
 
   const hiddenCalendarsRef = useRef<Set<number>>(hiddenCalendars);
   hiddenCalendarsRef.current = hiddenCalendars;
@@ -138,6 +153,41 @@ const CalendarView: React.FC = () => {
     window.addEventListener('todo-data-changed', handler);
     return () => window.removeEventListener('todo-data-changed', handler);
   }, [loadData]);
+
+  // 手机上左右滑动翻页：日视图滑一天、周视图滑一周，省得反复点箭头
+  useEffect(() => {
+    const el = swipeRef.current;
+    if (!el) return;
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+    const onStart = (e: TouchEvent) => {
+      tracking = e.touches.length === 1;
+      if (!tracking) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (!tracking) return;
+      tracking = false;
+      const t = e.changedTouches[0];
+      if (!t) return;
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      const dir = swipeDirection(dx, dy);
+      if (!dir) return;
+      const api = calendarRef.current?.getApi();
+      if (!api) return;
+      if (dir === 'next') api.next(); else api.prev();
+    };
+    // 捕获阶段 + passive：既能在 FullCalendar 内部处理前拿到手势，也不影响它自己的滚动
+    el.addEventListener('touchstart', onStart, { capture: true, passive: true });
+    el.addEventListener('touchend', onEnd, { capture: true, passive: true });
+    return () => {
+      el.removeEventListener('touchstart', onStart, true);
+      el.removeEventListener('touchend', onEnd, true);
+    };
+  }, []);
 
   const handleDateSelect = (selectInfo: any) => {
     form.setFieldsValue({
@@ -370,26 +420,33 @@ const CalendarView: React.FC = () => {
         <div style={{ marginBottom: 12 }}>
           <Button type="primary" icon={<PlusOutlined />} block={isMobile} onClick={() => { form.resetFields(); form.setFieldsValue({ calendar_id: calendars.length > 0 ? calendars[0].id : undefined }); setModalOpen(true); }}>{t.calendar.newEvent}</Button>
         </div>
-        <FullCalendar
-          ref={calendarRef}
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, rrulePlugin]}
-          initialView={isMobile ? 'timeGridDay' : 'timeGridWeek'}
-          locale={locale === 'zh' ? zhCnLocale : enLocale}
-          headerToolbar={isMobile
-            ? { left: 'prev,next', center: 'title', right: 'today' }
-            : { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' }}
-          events={events}
-          selectable
-          editable
-          select={handleDateSelect}
-          eventClick={handleEventClick}
-          eventDrop={handleEventDrop}
-          eventResize={handleEventResize}
-          height={isMobile ? 520 : 'auto'}
-          allDaySlot={true}
-          slotMinTime="07:00:00"
-          slotMaxTime="23:00:00"
-        />
+        {/* 滑动容器：手机上左右滑即可翻到上一天/下一天（周视图则翻一周） */}
+        <div ref={swipeRef}>
+          <FullCalendar
+            ref={calendarRef}
+            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, rrulePlugin]}
+            initialView={calView}
+            locale={locale === 'zh' ? zhCnLocale : enLocale}
+            headerToolbar={isMobile
+              ? { left: 'prev,next', center: 'title', right: 'today timeGridDay,timeGridWeek' }
+              : { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' }}
+            viewDidMount={(arg) => {
+              // 记住用户在手机/桌面上选的视图，下次打开沿用
+              try { localStorage.setItem(CAL_VIEW_KEY, arg.view.type); } catch { /* 忽略存储失败 */ }
+            }}
+            events={events}
+            selectable
+            editable
+            select={handleDateSelect}
+            eventClick={handleEventClick}
+            eventDrop={handleEventDrop}
+            eventResize={handleEventResize}
+            height={isMobile ? 520 : 'auto'}
+            allDaySlot={true}
+            slotMinTime="07:00:00"
+            slotMaxTime="23:00:00"
+          />
+        </div>
       </div>
       </div>
 

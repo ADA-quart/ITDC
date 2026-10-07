@@ -24,8 +24,10 @@ public class ITDCWidgetActionReceiver extends BroadcastReceiver {
 
     public static final String ACTION_TOGGLE_DONE = "io.github.adaquart.itdc.WIDGET_TOGGLE_DONE";
     public static final String ACTION_ALL_DONE = "io.github.adaquart.itdc.WIDGET_ALL_DONE";
+    public static final String ACTION_OPEN_APP = "io.github.adaquart.itdc.WIDGET_OPEN_APP";
     public static final String EXTRA_TODO_ID = "todo_id";
     public static final String EXTRA_TARGET_DONE = "target_done";
+    public static final String EXTRA_OPEN_APP = "open_app";
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -33,7 +35,10 @@ public class ITDCWidgetActionReceiver extends BroadcastReceiver {
         String action = intent.getAction();
 
         try {
-            if (ACTION_TOGGLE_DONE.equals(action)) {
+            if (ACTION_OPEN_APP.equals(action) || intent.getBooleanExtra(EXTRA_OPEN_APP, false)) {
+                // 点小组件上的空白处/课程条目：打开 App 并回到主页
+                launchApp(context);
+            } else if (ACTION_TOGGLE_DONE.equals(action)) {
                 int todoId = intent.getIntExtra(EXTRA_TODO_ID, -1);
                 boolean targetDone = intent.getBooleanExtra(EXTRA_TARGET_DONE, true);
                 if (todoId < 0) return;
@@ -47,6 +52,25 @@ public class ITDCWidgetActionReceiver extends BroadcastReceiver {
             }
         } catch (Exception e) {
             Log.e(TAG, "onReceive failed", e);
+        }
+    }
+
+    /**
+     * 打开 App 主页。
+     *
+     * 集合型子项只能用 fill-in + broadcast 模板（改成 Activity 模板会丢掉待办勾选），
+     * 所以这里由接收器转一下。用户刚点过小组件（前台启动器发来的 PendingIntent），
+     * 后台启动 Activity 的白名单仍然生效。
+     */
+    private static void launchApp(Context context) {
+        try {
+            Intent launch = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+            if (launch == null) return;
+            launch.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            launch.putExtra(ITDCWidgetProvider.EXTRA_OPEN_HOME, true);
+            context.startActivity(launch);
+        } catch (Exception e) {
+            Log.e(TAG, "launchApp failed", e);
         }
     }
 
@@ -104,6 +128,20 @@ public class ITDCWidgetActionReceiver extends BroadcastReceiver {
         return PendingIntent.getBroadcast(context, 999002, it, flags);
     }
 
+    /**
+     * 课程列表（今天/明天）的 PendingIntent 模板：点条目任意位置都打开 App。
+     * 同样必须 FLAG_MUTABLE，否则子项的 fill-in 合并不进来。
+     */
+    static PendingIntent openAppTemplatePendingIntent(Context context) {
+        Intent it = new Intent(context, ITDCWidgetActionReceiver.class);
+        it.setAction(ACTION_OPEN_APP);
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            flags |= PendingIntent.FLAG_MUTABLE;
+        }
+        return PendingIntent.getBroadcast(context, 999003, it, flags);
+    }
+
     /** 构造"全部完成"的 PendingIntent（该按钮不在集合里，可直接绑定） */
     static PendingIntent allDonePendingIntent(Context context) {
         Intent it = new Intent(context, ITDCWidgetActionReceiver.class);
@@ -120,6 +158,13 @@ public class ITDCWidgetActionReceiver extends BroadcastReceiver {
         Intent fillIn = new Intent();
         fillIn.putExtra(EXTRA_TODO_ID, todoId);
         fillIn.putExtra(EXTRA_TARGET_DONE, !currentlyDone);
+        rv.setOnClickFillInIntent(viewId, fillIn);
+    }
+
+    /** 给课程条目/空白区域的子视图绑定"打开 App"的点击填充 */
+    static void bindOpenAppFillIn(android.widget.RemoteViews rv, int viewId) {
+        Intent fillIn = new Intent();
+        fillIn.putExtra(EXTRA_OPEN_APP, true);
         rv.setOnClickFillInIntent(viewId, fillIn);
     }
 }

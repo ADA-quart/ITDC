@@ -206,9 +206,16 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             rv.setPendingIntentTemplate(R.id.widget_todo_list,
                     ITDCWidgetActionReceiver.todoTemplatePendingIntent(context));
 
-            // 打开 App：绑在标题与日期上，避免整块背景抢走列表的滚动手势
-            rv.setOnClickPendingIntent(R.id.widget_board_title, openAppIntent(context));
-            rv.setOnClickPendingIntent(R.id.widget_date, openAppIntent(context));
+            // 打开 App：整块背景 + 标题 + 日期都能点。
+            // 列表区域（ListView）自己消费触摸，不会因为根布局可点而影响滚动。
+            PendingIntent openApp = openAppIntent(context);
+            rv.setOnClickPendingIntent(R.id.widget_root, openApp);
+            rv.setOnClickPendingIntent(R.id.widget_board_title, openApp);
+            rv.setOnClickPendingIntent(R.id.widget_date, openApp);
+            // 课程列表（今天/明天）里的每一条：点条目任意位置也进 App
+            PendingIntent openAppTemplate = ITDCWidgetActionReceiver.openAppTemplatePendingIntent(context);
+            rv.setPendingIntentTemplate(R.id.widget_today_list, openAppTemplate);
+            rv.setPendingIntentTemplate(R.id.widget_tomorrow_list, openAppTemplate);
 
             AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
             awm.updateAppWidget(appWidgetId, rv);
