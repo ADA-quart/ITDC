@@ -28,7 +28,7 @@ import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { swipeDirection } from '../utils/swipe';
-import { cardStyle, TOUCH_TARGET } from './ui';
+import { cardStyle, hintTextStyle, secondaryTextColor, TOUCH_TARGET, TYPE } from './ui';
 
 const CAL_VIEW_KEY = 'itdc_calendar_view';
 
@@ -83,6 +83,9 @@ const CalendarView: React.FC = () => {
   const [calView] = useState(() => resolveInitialView(isMobile));
   const [calViewType, setCalViewType] = useState(calView);
   const [calTitle, setCalTitle] = useState('');
+  const [detailEvent, setDetailEvent] = useState<any | null>(null);
+  const longPressFiredRef = useRef(false);
+  const longPressTimerRef = useRef<number | null>(null);
 
   const hiddenCalendarsRef = useRef<Set<number>>(hiddenCalendars);
   hiddenCalendarsRef.current = hiddenCalendars;
@@ -165,6 +168,11 @@ const CalendarView: React.FC = () => {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // 卸载时清掉长按计时器，避免页面切走后仍然弹出删除确认
+  useEffect(() => () => {
+    if (longPressTimerRef.current !== null) window.clearTimeout(longPressTimerRef.current);
+  }, []);
+
   useEffect(() => {
     getSelectedSchool().then((id) => setSchoolEnabled(!!id)).catch(() => {});
     const handler = () => getSelectedSchool().then((id) => setSchoolEnabled(!!id)).catch(() => {});
@@ -227,20 +235,30 @@ const CalendarView: React.FC = () => {
     setModalOpen(true);
   };
 
-  const handleEventClick = (clickInfo: any) => {
-    const props = clickInfo.event.extendedProps;
-    if (props.type === 'todo') return;
+  // 点一下＝看详情（周视图里格子太小，内容只有点开才看得全）；
+  // 删除挪到长按，避免误触把课删掉
+  const confirmDeleteEvent = (eventId: string, title: string) => {
     Modal.confirm({
       title: t.calendar.deleteEvent,
-      content: t.calendar.confirmDelete + ' "' + clickInfo.event.title + '" ?',
+      content: `${t.calendar.confirmDelete} "${title}" ?`,
       okText: t.calendar.delete,
       cancelText: t.calendar.cancel,
       onOk: async () => {
-        await calendarApi.deleteEvent(Number(clickInfo.event.id));
+        await calendarApi.deleteEvent(Number(eventId));
+        setDetailEvent(null);
         loadData();
         message.success(t.calendar.delete);
       },
     });
+  };
+
+  const handleEventClick = (clickInfo: any) => {
+    // 长按刚触发过删除，就别再弹详情
+    if (longPressFiredRef.current) {
+      longPressFiredRef.current = false;
+      return;
+    }
+    setDetailEvent(clickInfo.event);
   };
 
   const handleEventDrop = async (dropInfo: any) => {
@@ -526,8 +544,42 @@ const CalendarView: React.FC = () => {
             editable
             select={handleDateSelect}
             eventClick={handleEventClick}
+            eventDidMount={(info) => {
+              // 长按删除：触摸与鼠标都支持，点按（<600ms）不触发
+              if (info.event.extendedProps?.type === 'todo') return;
+              const el = info.el as HTMLElement;
+              const clear = () => {
+                if (longPressTimerRef.current !== null) {
+                  window.clearTimeout(longPressTimerRef.current);
+                  longPressTimerRef.current = null;
+                }
+              };
+              const start = () => {
+                clear();
+                longPressFiredRef.current = false;
+                longPressTimerRef.current = window.setTimeout(() => {
+                  longPressTimerRef.current = null;
+                  longPressFiredRef.current = true;
+                  confirmDeleteEvent(String(info.event.id), info.event.title);
+                }, 700);
+              };
+              el.addEventListener('touchstart', start, { passive: true });
+              el.addEventListener('touchend', clear);
+              el.addEventListener('touchmove', clear);
+              el.addEventListener('touchcancel', clear);
+              el.addEventListener('mousedown', start);
+              el.addEventListener('mouseup', clear);
+              el.addEventListener('mouseleave', clear);
+            }}
             eventDrop={handleEventDrop}
             eventResize={handleEventResize}
+            eventDragStart={() => {
+              // 开始拖拽就取消长按删除（FullCalendar 在触屏上也是"按住再拖"）
+              if (longPressTimerRef.current !== null) {
+                window.clearTimeout(longPressTimerRef.current);
+                longPressTimerRef.current = null;
+              }
+            }}
             height={isMobile ? 520 : 'auto'}
             allDaySlot={true}
             slotMinTime="07:00:00"
@@ -536,6 +588,59 @@ const CalendarView: React.FC = () => {
         </div>
       </div>
       </div>
+
+      {/* 事件 / 待办详情：点一下日历里的条目打开 */}
+      <Modal
+        open={!!detailEvent}
+        title={detailEvent?.extendedProps?.type === 'todo' ? t.calendar.todoDetailTitle : t.calendar.detailTitle}
+        onCancel={() => setDetailEvent(null)}
+        footer={[
+          detailEvent?.extendedProps?.type === 'todo' ? null : (
+            <Button
+              key="delete"
+              danger
+              onClick={() => confirmDeleteEvent(String(detailEvent.id), detailEvent.title)}
+            >
+              {t.calendar.delete}
+            </Button>
+          ),
+          <Button key="close" type="primary" onClick={() => setDetailEvent(null)}>{t.calendar.close}</Button>,
+        ].filter(Boolean)}
+      >
+        {detailEvent && (() => {
+          const p = detailEvent.extendedProps || {};
+          const isTodo = p.type === 'todo';
+          const todoStatus = p.status === 'done' ? t.todo.done : p.status === 'scheduled' ? t.todo.scheduled : t.todo.pending;
+          const rows: Array<[string, React.ReactNode]> = isTodo
+            ? [
+                [t.calendar.detailStatus, todoStatus],
+                [t.calendar.detailEstimate, p.estimated_minutes ? `${p.estimated_minutes} ${t.todo.minutes}` : '-'],
+                [t.calendar.detailScheduled, p.scheduled_start && p.scheduled_end
+                  ? `${dayjs(p.scheduled_start).format('MM/DD HH:mm')} - ${dayjs(p.scheduled_end).format('HH:mm')}`
+                  : '-'],
+                [t.calendar.detailDeadline, p.deadline ? dayjs(p.deadline).format('YYYY-MM-DD HH:mm') : '-'],
+                [t.calendar.detailNotes, p.description || '-'],
+              ]
+            : [
+                [t.calendar.detailTime, `${dayjs(detailEvent.start).format('YYYY-MM-DD HH:mm')} - ${dayjs(detailEvent.end).format('HH:mm')}`],
+                [t.calendar.detailLocation, p.location || '-'],
+                [t.calendar.detailCalendar, p.calendar_name || calendarsRef.current.find((c) => c.id === p.calendar_id)?.name || '-'],
+                [t.calendar.detailNotes, (p.description || '').split('\n').filter(Boolean).join(' · ') || '-'],
+              ];
+          return (
+            <div>
+              <div style={{ ...TYPE.bodyLarge, fontWeight: 600, marginBottom: 12 }}>{detailEvent.title}</div>
+              {rows.map(([label, value]) => (
+                <div key={label} style={{ display: 'flex', gap: 12, marginBottom: 8, alignItems: 'flex-start' }}>
+                  <span style={{ color: secondaryTextColor(isDark), minWidth: 48 }}>{label}</span>
+                  <span style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{value}</span>
+                </div>
+              ))}
+              {!isTodo && <p style={{ ...hintTextStyle(isDark), marginTop: 12 }}>{t.calendar.holdHint}</p>}
+            </div>
+          );
+        })()}
+      </Modal>
 
       <Modal title={t.calendar.newEvent} open={modalOpen} onOk={handleSubmit} onCancel={() => { setModalOpen(false); form.resetFields(); }} okText={t.calendar.createEvent} cancelText={t.calendar.cancel}>
         <Form form={form} layout="vertical">

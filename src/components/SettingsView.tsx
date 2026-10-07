@@ -654,7 +654,6 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
                 />
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                   <Switch
-                    size="small"
                     checked={classReminderSilent}
                     disabled={!classReminderOn}
                     onChange={async (on) => {
