@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, Form, Input, Select, Button, Table, Tag, message, Space, Popconfirm, Tabs, Spin, Alert, AutoComplete, Tooltip } from 'antd';
+import { Modal, Form, Input, Select, Button, Table, Tag, message, Space, Popconfirm, Tabs, Spin, Alert, AutoComplete, Tooltip, Switch } from 'antd';
 import { SyncOutlined } from '@ant-design/icons';
-import { settingsApi, api, setApiBase, getApiBase, isSyncEnabled } from '../api/client';
+import { settingsApi, api, setApiBase, getApiBase, isSyncEnabled, calendarApi } from '../api/client';
 import { Capacitor } from '@capacitor/core';
 import { ITDCWidgetPlugin } from '../capacitor/itdc-widget';
 import { pushWidgetSnapshot, setWidgetMode } from '../api/widget-sync';
@@ -14,6 +14,18 @@ import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { getSelectedSchool, setSelectedSchool } from '../api/school-prefs';
+import {
+  isAndroid,
+  syncClassReminders,
+  requestClassReminderPermission,
+} from '../api/reminders';
+import {
+  CLASS_LEAD_OPTIONS,
+  getClassReminderEnabled,
+  getClassReminderLeadMin,
+  setClassReminderEnabled,
+  setClassReminderLeadMin,
+} from '../api/class-reminders';
 import AppearanceSettings from './AppearanceSettings';
 
 interface Props {
@@ -77,6 +89,8 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
   const [testingServer, setTestingServer] = useState(false);
   const [debugLog, setDebugLog] = useState('');
   const [schoolId, setSchoolId] = useState<string>('');
+  const [classReminderOn, setClassReminderOn] = useState(getClassReminderEnabled());
+  const [classLeadMin, setClassLeadMin] = useState(getClassReminderLeadMin());
   // 表单是否已按「当前启用的配置」对齐过：只做一次，避免打断用户正在输入的内容
   const formSeeded = useRef(false);
 
@@ -413,6 +427,16 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
     },
   ];
 
+  // 设置变化后立刻按本机课表事件重排上课提醒（不依赖日历页面是否挂载）
+  const resyncClassReminders = async () => {
+    try {
+      const evts = await calendarApi.getEvents();
+      await syncClassReminders(Array.isArray(evts) ? evts : []);
+    } catch (err) {
+      console.warn('上课提醒重排失败:', err);
+    }
+  };
+
   const tabItems = [
     {
       key: 'llm',
@@ -588,6 +612,44 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
               ]}
             />
           </div>
+          {isAndroid() && (
+            <div>
+              <h4>{t.settings.classReminder}</h4>
+              <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 12 }}>
+                {t.settings.classReminderHint}
+              </p>
+              <Space wrap>
+                <Switch
+                  checked={classReminderOn}
+                  onChange={async (on) => {
+                    setClassReminderEnabled(on);
+                    setClassReminderOn(on);
+                    if (on) {
+                      const ok = await requestClassReminderPermission();
+                      if (!ok) message.warning(t.settings.classReminderNoPerm);
+                    }
+                    await resyncClassReminders();
+                    message.success(t.settings.classReminderSaved);
+                  }}
+                />
+                <Select
+                  value={classLeadMin}
+                  disabled={!classReminderOn}
+                  style={{ width: 150 }}
+                  onChange={async (v) => {
+                    setClassReminderLeadMin(v);
+                    setClassLeadMin(v);
+                    await resyncClassReminders();
+                    message.success(t.settings.classReminderSaved);
+                  }}
+                  options={CLASS_LEAD_OPTIONS.map((m) => ({
+                    value: m,
+                    label: `${t.settings.classReminderLead} ${m} ${t.settings.classReminderMinutes}`,
+                  }))}
+                />
+              </Space>
+            </div>
+          )}
           <div>
             <h4>{t.settings.dataMode}</h4>
             <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 12 }}>

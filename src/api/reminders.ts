@@ -1,8 +1,16 @@
 import { Capacitor } from '@capacitor/core';
-import type { Todo } from '../types';
+import type { Todo, CalendarEvent } from '../types';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import {
+  CLASS_NOTIFICATION_ID_BASE,
+  getClassReminderEnabled,
+  planClassReminders,
+} from './class-reminders';
 
 const REMINDER_KEY = 'itdc_reminder_enabled';
+// 通知权限是否已经弹过窗（用户拒绝后不再每次启动都打扰；设置里手动开启会重置）
+const PERM_ASKED_KEY = 'itdc_class_reminder_perm_asked';
+const CLASS_CHANNEL_ID = 'class-reminders';
 // 本地通知最多提前 90 天，超出则不排程（Android 对过远的定时通知行为不一致）
 const MAX_AHEAD_MS = 90 * 24 * 3600_000;
 
@@ -78,7 +86,9 @@ export async function cancelTodoReminder(id: number): Promise<void> {
 export async function syncAllReminders(todos: Todo[]): Promise<void> {
   try {
     if (!isAndroid()) return;
-    await LocalNotifications.cancelAll();
+    // 只清理待办命名空间（id < CLASS_NOTIFICATION_ID_BASE）的通知，
+    // 避免把上课提醒一起取消（两套排程互相独立）
+    await cancelPendingWhere((id) => id < CLASS_NOTIFICATION_ID_BASE);
     for (const todo of todos) {
       if (getReminderEnabled() && reminderTimeFor(todo)) {
         await scheduleTodoReminder(todo);
@@ -86,5 +96,84 @@ export async function syncAllReminders(todos: Todo[]): Promise<void> {
     }
   } catch (err) {
     console.warn('syncAllReminders failed:', err);
+  }
+}
+
+// ---------- 上课提醒（教务课表导入的课程） ----------
+
+/** 取消满足条件的已排程通知；查询失败时按「没有待取消」处理 */
+async function cancelPendingWhere(keep: (id: number) => boolean): Promise<void> {
+  try {
+    const pending = await LocalNotifications.getPending();
+    const targets = (pending.notifications ?? [])
+      .filter((n) => keep(n.id))
+      .map((n) => ({ id: n.id }));
+    if (targets.length > 0) {
+      await LocalNotifications.cancel({ notifications: targets });
+    }
+  } catch (err) {
+    console.warn('cancelPendingWhere failed:', err);
+  }
+}
+
+/** 请求通知权限；用户拒绝后记录标记，避免每次启动重复弹窗 */
+export async function requestClassReminderPermission(): Promise<boolean> {
+  try {
+    if (!isAndroid()) return false;
+    const cur = await LocalNotifications.checkPermissions();
+    if (cur.display === 'granted') return true;
+    const res = await LocalNotifications.requestPermissions();
+    try { localStorage.setItem(PERM_ASKED_KEY, 'true'); } catch {}
+    return res.display === 'granted';
+  } catch (err) {
+    console.warn('requestClassReminderPermission failed:', err);
+    return false;
+  }
+}
+
+/**
+ * 按最新日历事件重排上课提醒：先清掉本命名空间旧排程，再为未来 90 天内的
+ * 课表事件逐个排程（通知内容＝课程名 + 时间 + 教室 + 教师）。
+ */
+export async function syncClassReminders(events: CalendarEvent[]): Promise<void> {
+  try {
+    if (!isAndroid()) return;
+    await cancelPendingWhere((id) => id >= CLASS_NOTIFICATION_ID_BASE);
+    if (!getClassReminderEnabled()) return;
+
+    const plans = planClassReminders(events);
+    if (plans.length === 0) return;
+
+    // 权限：Android 13+ 首次需要用户授权；已拒绝过就不再自动弹窗
+    let asked = false;
+    try { asked = localStorage.getItem(PERM_ASKED_KEY) === 'true'; } catch {}
+    const perm = await LocalNotifications.checkPermissions().catch(() => null);
+    if (perm && perm.display !== 'granted') {
+      if (asked) return;
+      const ok = await requestClassReminderPermission();
+      if (!ok) return;
+    }
+
+    // 独立通知渠道，用户可单独调节/静音上课提醒
+    try {
+      await LocalNotifications.createChannel({
+        id: CLASS_CHANNEL_ID,
+        name: '上课提醒',
+        description: '上课前的课程与教室提醒',
+        importance: 4,
+      });
+    } catch { /* 渠道已存在或平台不支持，不影响排程 */ }
+
+    await LocalNotifications.schedule({
+      notifications: plans.map((p) => ({
+        id: p.id,
+        title: p.title,
+        body: p.body,
+        channelId: CLASS_CHANNEL_ID,
+        schedule: { at: p.at, allowWhileIdle: true },
+      })),
+    });
+  } catch (err) {
+    console.warn('syncClassReminders failed:', err);
   }
 }

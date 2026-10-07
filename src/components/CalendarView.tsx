@@ -22,6 +22,7 @@ import { TODO_PALETTE } from '../types';
 import ImportModal from './ImportModal';
 import SchoolImportModal from './SchoolImportModal';
 import { getSelectedSchool } from '../api/school-prefs';
+import { syncClassReminders } from '../api/reminders';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
@@ -107,6 +108,8 @@ const CalendarView: React.FC = () => {
         setCalendars(newCals);
       }
       buildEvents(evts, hiddenCalendarsRef.current);
+      // 上课提醒排程：按最新课表事件重排（Android 端本地通知，不依赖服务器）
+      void syncClassReminders(Array.isArray(evts) ? evts : []);
     } catch (err) {
       console.warn('日历数据加载失败:', err);
       message.error(t.calendar.dataLoadFailed);
