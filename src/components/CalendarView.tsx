@@ -31,6 +31,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { swipeDirection } from '../utils/swipe';
 import { findMergeTarget } from '../utils/calendar-merge';
+import { dedupeEvents } from '../../shared/event-dedupe';
 import { cardStyle, hintTextStyle, secondaryTextColor, TOUCH_TARGET, TYPE } from './ui';
 
 const CAL_VIEW_KEY = 'itdc_calendar_view';
@@ -181,8 +182,7 @@ const CalendarView: React.FC = () => {
     const todoList: Todo[] = Array.isArray(rawTodos) ? rawTodos : [];
     // 事件颜色优先级：事件自己的颜色（课程配色）→ 服务器回传的日历色 → 本地日历色
     const colorByCalendarId = new Map(calendarsRef.current.map((c) => [c.id, c.color]));
-    const fcEvents = eventList
-      .filter((e: CalendarEvent) => !hidden.has(e.calendar_id))
+    const fcEvents = dedupeEvents(eventList.filter((e: CalendarEvent) => !hidden.has(e.calendar_id)))
       .map((e: CalendarEvent) => {
         const color = e.color || e.calendar_color || colorByCalendarId.get(e.calendar_id) || '#1890ff';
         return {

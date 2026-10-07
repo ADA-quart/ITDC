@@ -9,6 +9,7 @@ import type { CalendarEvent, Todo } from '../types';
 import * as offline from './offline';
 import { isSyncEnabled } from './client';
 import { ITDCWidgetPlugin } from '../capacitor/itdc-widget';
+import { dedupeEvents } from '../../shared/event-dedupe';
 
 const HIDDEN_CALENDARS_KEY = 'itdc_hidden_calendars';
 
@@ -222,7 +223,8 @@ export async function buildWidgetSnapshot(): Promise<WidgetSnapshot> {
   const events = await offline.getEventCache();
   const calendars = await offline.getCalendarCache();
   const hiddenCalendarIds = getHiddenCalendarIds();
-  const visibleEvents = events.filter((event) => !hiddenCalendarIds.has(event.calendar_id));
+  // 同一门课被教务 + 多个 iCal 重复导入时，小组件也只显示一条
+  const visibleEvents = dedupeEvents(events.filter((event) => !hiddenCalendarIds.has(event.calendar_id)));
 
   const calendarColorById = new Map(calendars.map((c) => [c.id, c.color]));
   const calendarNameById = new Map(calendars.map((c) => [c.id, c.name]));
