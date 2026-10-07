@@ -3,14 +3,15 @@
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_bg">
+    android:background="@drawable/widget_bg_tint"
+    android:clipToOutline="true">
 
     <!-- 与主布局共用同一组 id，外观逻辑无需为提示页写第二套 -->
     <ImageView
         android:id="@+id/widget_bg_image"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:scaleType="fitXY"
+        android:scaleType="centerCrop"
         android:contentDescription="@null" />
 
     <TextView

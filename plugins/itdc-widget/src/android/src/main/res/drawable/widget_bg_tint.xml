@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 可着色的圆角底：RemoteViews 只负责 tint，圆角轮廓由布局的 clipToOutline 用来裁剪图片 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#FFFFFFFF" />
+    <corners android:radius="26dp" />
+</shape>

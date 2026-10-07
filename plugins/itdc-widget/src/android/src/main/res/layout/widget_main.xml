@@ -3,14 +3,15 @@
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_bg">
+    android:background="@drawable/widget_bg_tint"
+    android:clipToOutline="true">
 
     <!-- 用户自定义背景层：位图由 ITDCWidgetProvider 在渲染时下发（圆角 + 底色/照片 + 透明度） -->
     <ImageView
         android:id="@+id/widget_bg_image"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:scaleType="fitXY"
+        android:scaleType="centerCrop"
         android:contentDescription="@null" />
 
     <LinearLayout

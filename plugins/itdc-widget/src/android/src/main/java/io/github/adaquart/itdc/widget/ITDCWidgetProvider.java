@@ -271,6 +271,31 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
      */
     private static void applyAppearance(Context context, RemoteViews rv, int appWidgetId) {
         try {
+            // Android 12+：圆角和面板色交给根布局（保留 ShapeDrawable 的圆角），
+            // 图片层用 centerCrop 等比填满，位图尺寸和桌面尺寸不一致也不会拉伸。
+            if (Build.VERSION.SDK_INT >= 31) {
+                boolean hasImage = WidgetAppearance.hasImage(context);
+                // 有图时根底色透明，让壁纸从图片透明度里透出来；无图时才是用户的面板色
+                int rootTint = hasImage ? 0x00000000 : WidgetAppearance.panelColorWithAlpha(context);
+                rv.setColorStateList(
+                        R.id.widget_root,
+                        "setBackgroundTintList",
+                        android.content.res.ColorStateList.valueOf(rootTint));
+                if (hasImage) {
+                    android.graphics.Bitmap photo = WidgetAppearance.croppedPhotoBitmap(context, appWidgetId);
+                    if (photo != null) {
+                        rv.setImageViewBitmap(R.id.widget_bg_image, photo);
+                        rv.setInt(R.id.widget_bg_image, "setImageAlpha", WidgetAppearance.imageAlpha(context));
+                        rv.setViewVisibility(R.id.widget_bg_image, android.view.View.VISIBLE);
+                    } else {
+                        rv.setViewVisibility(R.id.widget_bg_image, android.view.View.GONE);
+                    }
+                } else {
+                    rv.setViewVisibility(R.id.widget_bg_image, android.view.View.GONE);
+                }
+                return;
+            }
+            // 旧系统回退：位图一次性画好圆角 + 底色/照片 + 透明度
             rv.setInt(R.id.widget_root, "setBackgroundColor", Color.TRANSPARENT);
             android.graphics.Bitmap bitmap = WidgetAppearance.backgroundBitmap(context, appWidgetId);
             if (bitmap != null) {

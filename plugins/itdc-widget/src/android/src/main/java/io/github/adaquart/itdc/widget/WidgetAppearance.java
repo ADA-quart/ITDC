@@ -74,6 +74,8 @@ final class WidgetAppearance {
     private static final int MAX_PIXELS_OPAQUE = 160_000;
     private static final int MAX_PIXELS_TRANSLUCENT = 80_000;
     private static final int MAX_SIDE_PX = 720;
+    /** 新路径（centerCrop）的方形裁切预算：约 0.96MB，仍低于 Binder 事务上限 */
+    private static final int MAX_CROP_PIXELS = 240_000;
 
     private WidgetAppearance() {}
 
@@ -222,8 +224,54 @@ final class WidgetAppearance {
         return withAlpha(panelColor(context), Math.round(opacity * 255f / 100f));
     }
 
-    private static boolean hasImage(Context context) {
+    static boolean hasImage(Context context) {
         return prefs(context).getBoolean(KEY_HAS_IMAGE, false) && imageFile(context).exists();
+    }
+
+    /** 图片层透明度（0-255），由「面板不透明度」控制 */
+    static int imageAlpha(Context context) {
+        int opacity = prefs(context).getInt(KEY_OPACITY, DEFAULT_OPACITY);
+        return Math.round(Math.max(0, Math.min(100, opacity)) * 255f / 100f);
+    }
+
+    /**
+     * 头像式裁切（现代路径）：返回一张以焦点为中心的等比方形裁切图。
+     *
+     * 图片层用 centerCrop 填满小组件，小部件实际尺寸再怎么变也都只做等比缩放，
+     * 不会再因为位图尺寸和桌面尺寸不一致而被 fitXY 拉伸。
+     */
+    static Bitmap croppedPhotoBitmap(Context context, int appWidgetId) {
+        Bitmap photo = null;
+        try {
+            photo = decodePhoto(context, 720, 720, false);
+            if (photo == null) return null;
+            int bw = photo.getWidth();
+            int bh = photo.getHeight();
+            if (bw <= 0 || bh <= 0) return photo;
+            int focusX = prefs(context).getInt(KEY_FOCUS_X, 50);
+            int focusY = prefs(context).getInt(KEY_FOCUS_Y, 50);
+            float zoom = prefs(context).getFloat(KEY_ZOOM, 1f);
+            float z = Math.max(1f, Math.min(3f, zoom));
+            int side = Math.max(1, Math.min(Math.min(bw, bh), Math.round(Math.min(bw, bh) / z)));
+            int cx = Math.round(bw * Math.max(0, Math.min(100, focusX)) / 100f);
+            int cy = Math.round(bh * Math.max(0, Math.min(100, focusY)) / 100f);
+            int left = Math.max(0, Math.min(bw - side, cx - side / 2));
+            int top = Math.max(0, Math.min(bh - side, cy - side / 2));
+            // 裁切结果直接进 RemoteViews，必须压到 Binder 事务安全范围内，
+            // 否则部分桌面会抛 TransactionTooLargeException 让整个小组件变空白。
+            int delivery = Math.min(side, (int) Math.floor(Math.sqrt(MAX_CROP_PIXELS)));
+            Bitmap cropped = Bitmap.createBitmap(photo, left, top, side, side);
+            if (cropped != photo) photo.recycle();
+            if (delivery < side) {
+                Bitmap scaled = Bitmap.createScaledBitmap(cropped, delivery, delivery, true);
+                if (scaled != cropped) cropped.recycle();
+                return scaled;
+            }
+            return cropped;
+        } catch (Exception e) {
+            Log.e(TAG, "croppedPhotoBitmap failed", e);
+            return photo;
+        }
     }
 
     private static int withAlpha(int color, int alpha) {
@@ -284,22 +332,41 @@ final class WidgetAppearance {
         }
     }
 
-    /** 照片按目标宽高做裁切；focusX/focusY（0-100）定位置，zoom（1-3）放大取局部 */
+    /**
+     * 照片按目标宽高做裁切；focusX/focusY（0-100）定位置，zoom（1-3）放大取局部。
+     *
+     * 关键：放大时裁切框的宽和高必须同比缩小，保持与目标区域相同的宽高比，
+     * 否则画到小组件里会被拉伸（上一版只缩了一个方向，脸就被横向拉宽了）。
+     */
     private static Rect cropRect(Bitmap photo, int width, int height, int focusX, int focusY, float zoom) {
         int bw = photo.getWidth();
         int bh = photo.getHeight();
         if (bw <= 0 || bh <= 0) return new Rect(0, 0, 1, 1);
 
         float z = Math.max(1f, Math.min(3f, zoom));
-        int cropWidth = Math.max(1, Math.round(bh * (float) width / height / z));
-        if (cropWidth <= bw) {
-            int left = Math.round((bw - cropWidth) * Math.max(0, Math.min(100, focusX)) / 100f);
-            return new Rect(left, 0, left + cropWidth, bh);
+        float targetAspect = (float) width / height;
+        float baseWidth;
+        float baseHeight;
+        if (bw / (float) bh > targetAspect) {
+            // 图片比目标更宽：以高度为基准，左右裁
+            baseHeight = bh;
+            baseWidth = bh * targetAspect;
+        } else {
+            // 图片比目标更高：以宽度为基准，上下裁
+            baseWidth = bw;
+            baseHeight = bw / targetAspect;
         }
-        int cropHeight = Math.max(1, Math.round(bw * (float) height / width / z));
-        int top = Math.round(
-                Math.max(0, bh - cropHeight) * Math.max(0, Math.min(100, focusY)) / 100f);
-        return new Rect(0, top, bw, Math.min(bh, top + cropHeight));
+        float cropWidth = Math.max(1f, Math.min(bw, baseWidth / z));
+        float cropHeight = Math.max(1f, Math.min(bh, baseHeight / z));
+        float fx = Math.max(0, Math.min(100, focusX)) / 100f;
+        float fy = Math.max(0, Math.min(100, focusY)) / 100f;
+        float left = (bw - cropWidth) * fx;
+        float top = (bh - cropHeight) * fy;
+        return new Rect(
+                Math.round(left),
+                Math.round(top),
+                Math.round(left + cropWidth),
+                Math.round(top + cropHeight));
     }
 
     /** 小组件宽度（像素），用于把圆角半径换算到位图坐标系 */
