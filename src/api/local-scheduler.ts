@@ -104,8 +104,13 @@ export function findNextFreeSlot(
 }
 
 /** 依据本地待办与日程生成排程方案；纯函数，便于测试 */
-export function generateScheduleLocally(todos: Todo[], events: CalendarEvent[]): ScheduledItem[] {
-  const now = new Date();
+export function generateScheduleLocally(
+  todos: Todo[],
+  events: CalendarEvent[],
+  /** 仅测试用：固定"现在"，让排程结果可复现（不传则取真实时间） */
+  options: { now?: Date } = {},
+): ScheduledItem[] {
+  const now = options.now ?? new Date();
   const scheduleEnd = new Date(now.getTime() + HORIZON_DAYS * 24 * 60 * 60 * 1000);
 
   const pending = todos
@@ -137,6 +142,19 @@ export function generateScheduleLocally(todos: Todo[], events: CalendarEvent[]):
   const result: ScheduledItem[] = [];
   const newBusySlots: BusySlot[] = [...busySlots];
   let continuousWorkMinutes = 0;
+  // 上一段工作的结束时间：连续工作满 2 小时后，休息要接在「刚干完的那一段」后面。
+  // 以前这里取的是所有忙碌块里最晚的结束时间，日历里只要有远期课程，休息就会落到几天之后，
+  // 结果既没让人休息，又在无关时间点挖了个 15 分钟的空洞。
+  let lastWorkEnd: Date | null = null;
+
+  /** 记一段已排的工作，并在与上一段之间隔了一整段休息时重新计算连续时长 */
+  const noteWork = (start: Date, minutes: number) => {
+    if (lastWorkEnd && start.getTime() - lastWorkEnd.getTime() >= BREAK_DURATION_MINUTES * 60 * 1000) {
+      continuousWorkMinutes = 0;
+    }
+    continuousWorkMinutes += minutes;
+    lastWorkEnd = new Date(start.getTime() + minutes * 60 * 1000);
+  };
 
   for (const todo of pending) {
     const searchStart = new Date(now.getTime());
@@ -148,14 +166,9 @@ export function generateScheduleLocally(todos: Todo[], events: CalendarEvent[]):
         : [todo.estimated_minutes];
     const totalSegments = segmentMinutes.length;
 
-    if (continuousWorkMinutes >= BREAK_AFTER_MINUTES && newBusySlots.length > 0) {
+    if (continuousWorkMinutes >= BREAK_AFTER_MINUTES) {
       const breakStart = findNextFreeSlot(
-        new Date(
-          Math.max(
-            ...newBusySlots.map((s) => new Date(s.end).getTime()),
-            searchStart.getTime()
-          )
-        ),
+        lastWorkEnd ?? searchStart,
         BREAK_DURATION_MINUTES,
         newBusySlots,
         null
@@ -186,7 +199,7 @@ export function generateScheduleLocally(todos: Todo[], events: CalendarEvent[]):
       start: firstSlotStart.toISOString(),
       end: firstSlotEnd.toISOString(),
     });
-    continuousWorkMinutes += segmentMinutes[0];
+    noteWork(firstSlotStart, segmentMinutes[0]);
 
     for (let i = 1; i < segmentMinutes.length; i++) {
       const lastEnd = newBusySlots[newBusySlots.length - 1].end;
@@ -218,7 +231,7 @@ export function generateScheduleLocally(todos: Todo[], events: CalendarEvent[]):
       });
 
       insertBusySlot(newBusySlots, { start: segStart.toISOString(), end: segEnd.toISOString() });
-      continuousWorkMinutes += segmentMinutes[i];
+      noteWork(segStart, segmentMinutes[i]);
     }
   }
 

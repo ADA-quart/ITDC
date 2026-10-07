@@ -140,6 +140,17 @@ export function generateSchedule(): ScheduledItem[] {
   const result: ScheduledItem[] = [];
   const newBusySlots: BusySlot[] = [...busySlots];
   let continuousWorkMinutes = 0;
+  // 与客户端同一处修正：休息接在「刚干完的那一段」之后，
+  // 而不是所有忙碌块里最晚的结束时间（日历有远期事件时会落到几天后）
+  let lastWorkEnd: Date | null = null;
+
+  const noteWork = (start: Date, minutes: number) => {
+    if (lastWorkEnd && start.getTime() - lastWorkEnd.getTime() >= BREAK_DURATION_MINUTES * 60 * 1000) {
+      continuousWorkMinutes = 0;
+    }
+    continuousWorkMinutes += minutes;
+    lastWorkEnd = new Date(start.getTime() + minutes * 60 * 1000);
+  };
 
   for (const todo of todos) {
     const searchStart = new Date(now.getTime());
@@ -153,7 +164,7 @@ export function generateSchedule(): ScheduledItem[] {
 
     if (continuousWorkMinutes >= BREAK_AFTER_MINUTES) {
       const breakStart = findNextFreeSlot(
-        new Date(Math.max(...newBusySlots.map(s => new Date(s.end).getTime()), searchStart.getTime())),
+        lastWorkEnd ?? searchStart,
         BREAK_DURATION_MINUTES,
         newBusySlots,
         null
@@ -184,7 +195,7 @@ export function generateSchedule(): ScheduledItem[] {
     });
 
     insertBusySlot(newBusySlots, { start: firstSlotStart.toISOString(), end: firstSlotEnd.toISOString() });
-    continuousWorkMinutes += segmentMinutes[0];
+    noteWork(firstSlotStart, segmentMinutes[0]);
 
     for (let i = 1; i < segmentMinutes.length; i++) {
       const breakStart = findNextFreeSlot(
@@ -219,7 +230,7 @@ export function generateSchedule(): ScheduledItem[] {
       });
 
       insertBusySlot(newBusySlots, { start: segStart.toISOString(), end: segEnd.toISOString() });
-      continuousWorkMinutes += segmentMinutes[i];
+      noteWork(segStart, segmentMinutes[i]);
     }
   }
 

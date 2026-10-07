@@ -100,6 +100,34 @@ describe('findNextFreeSlot', () => {
 });
 
 describe('generateScheduleLocally', () => {
+  // 回归：以前休息的起点取「所有忙碌块里最晚的结束时间」，
+  // 日历里只要有远期事件，15 分钟休息就会被丢到几天之后 —— 连干 3 小时也没休息，
+  // 还在无关时间点挖了个空洞
+  it('places the 2-hour break right after the block that triggered it', () => {
+    // 固定"现在"为周一 09:00，保证三段 90 分钟能连在一起排
+    const monday9 = at(1, 9);
+    const farFutureClass = makeEvent({
+      start_time: at(3, 10).toISOString(),
+      end_time: at(3, 11).toISOString(),
+    });
+    const schedule = generateScheduleLocally(
+      [
+        makeTodo({ id: 1, estimated_minutes: 90 }),
+        makeTodo({ id: 2, estimated_minutes: 90 }),
+        makeTodo({ id: 3, estimated_minutes: 90 }),
+      ],
+      [farFutureClass],
+      { now: monday9 }
+    );
+    expect(schedule).toHaveLength(3);
+    const secondEnd = new Date(schedule[1].end).getTime();
+    const thirdStart = new Date(schedule[2].start).getTime();
+    // 前两段排满 2 小时后必须先休息 15 分钟，第三段才能开始
+    expect(thirdStart - secondEnd).toBe(15 * 60 * 1000);
+    // 而且这个休息不该跑到远期课程那边去
+    expect(thirdStart - monday9.getTime()).toBeLessThan(4 * 60 * 60 * 1000);
+  });
+
   it('schedules pending todos inside work hours', () => {
     const schedule = generateScheduleLocally([makeTodo({ estimated_minutes: 60 })], []);
     expect(schedule.length).toBe(1);

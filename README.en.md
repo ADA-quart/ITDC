@@ -56,7 +56,7 @@ Press “Generate plan”: the engine reads every open todo plus your existing e
 | ⚡ Algorithmic | Deterministic, on-device, instant | Predictable, reproducible plans |
 | 🧠 LLM | Lets a model read the intent of each task | Vague or complex task descriptions |
 
-The algorithmic mode sorts by priority quadrant, then by deadline, works only inside 07:00–23:00, avoids existing events and already-scheduled todos, caps each block at 90 minutes and inserts breaks for long tasks. Afterwards it validates conflicts, out-of-hours blocks, deadlines and past times — problems are listed instead of silently written.
+The algorithmic mode sorts by priority quadrant, then by deadline, works only inside 07:00–23:00, avoids existing events and already-scheduled todos, and caps each block at 90 minutes. After two hours of continuous work it leaves a 15-minute gap before the next block (a natural gap of 15+ minutes counts as rest already taken). Afterwards it validates conflicts, out-of-hours blocks, deadlines and past times — problems are listed instead of silently written.
 
 The LLM mode **works without any server too**: the app builds the prompt itself and calls the provider directly. OpenAI, DeepSeek, Ollama, LM Studio and any OpenAI-compatible endpoint are supported, and the prompt template is editable. API keys are encrypted with the **Android Keystore** (the browser build falls back to local plaintext and says so in Settings).
 
