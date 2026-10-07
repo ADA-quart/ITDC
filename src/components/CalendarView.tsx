@@ -640,6 +640,18 @@ const CalendarView: React.FC = () => {
                 </div>
               );
             }}
+            dayHeaderContent={(arg) => {
+              // 周视图顶部：写成「11.1」而不是「11月1日周六」，窄列里放得下
+              if (arg.view.type !== 'timeGridWeek') return true;
+              const d = dayjs(arg.date);
+              const weekday = '日一二三四五六'[d.day()];
+              return (
+                <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
+                  <span style={{ fontWeight: 600 }}>{d.format('M.D')}</span>
+                  <span style={{ fontSize: 11, opacity: 0.75 }}>周{weekday}</span>
+                </span>
+              );
+            }}
             events={events}
             selectable
             editable

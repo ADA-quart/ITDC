@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import dayjs from 'dayjs';
+import 'dayjs/locale/zh-cn';
 import zh, { LocaleMessages } from './zh';
 import en from './en';
 
@@ -34,6 +36,9 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
     document.title = locale === 'zh' ? '智能日历与待办规划' : 'Smart Calendar & Todo Planner';
+    // antd 的日期/时间面板月份与星期名来自 dayjs 的 locale（不是 ConfigProvider），
+    // 不设这一行，中文界面下面板会一直显示 August / Mon 这种英文
+    dayjs.locale(locale === 'zh' ? 'zh-cn' : 'en');
   }, [locale]);
 
   return (
