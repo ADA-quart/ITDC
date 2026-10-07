@@ -210,9 +210,8 @@ public class ITDCWidgetListService extends RemoteViewsService {
                 // 集合型小组件里子项不能用 setOnClickPendingIntent（系统会忽略），
                 // 必须用 fill-in intent，配合 provider 上的 setPendingIntentTemplate。
                 ITDCWidgetActionReceiver.bindFillIn(rv, R.id.todo_check, row.id, row.done);
-                // 整行也可点，命中区域更大，体验更好
-                ITDCWidgetActionReceiver.bindFillIn(rv, R.id.todo_title, row.id, row.done);
-                // 勾选框与标题以外的部分（备注、行尾空白）：点开 App
+                // 只有勾选框负责"完成"，其余位置（标题、时间、行尾空白）一律打开 App。
+                // 标题自己不绑 fill-in，触摸会落到下面这个根布局上。
                 ITDCWidgetActionReceiver.bindOpenAppFillIn(rv, R.id.todo_item_root);
 
                 rv.setTextViewText(R.id.todo_title, row.title);
