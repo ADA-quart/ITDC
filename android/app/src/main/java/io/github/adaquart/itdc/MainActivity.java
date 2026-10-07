@@ -1,7 +1,9 @@
 package io.github.adaquart.itdc;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.res.Configuration;
+import android.content.pm.PackageInfo;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -19,12 +21,14 @@ import io.github.adaquart.itdc.widget.ITDCWidgetProvider;
 public class MainActivity extends BridgeActivity {
 
     private static final String TAG = "ITDCMainActivity";
+    private static final String PREFS = "itdc_native";
+    private static final String KEY_LAST_VERSION_CODE = "last_version_code";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         applySystemBarInsets();
-        clearWebViewCache();
+        clearWebViewCacheAfterUpdate();
     }
 
     /**
@@ -33,13 +37,28 @@ public class MainActivity extends BridgeActivity {
      * 前端资源虽然打包在 APK 里，但 WebView 仍会按 URL 缓存 index.html 与 js：
      * 覆盖安装后它可能继续用旧缓存，表现为"装了新版本功能却没变"。
      */
-    private void clearWebViewCache() {
+    private void clearWebViewCacheAfterUpdate() {
         try {
             Bridge bridge = getBridge();
             WebView webView = bridge != null ? bridge.getWebView() : null;
-            if (webView != null) webView.clearCache(true);
+            if (webView == null) return;
+
+            PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+            long current = android.os.Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode;
+            SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+            long last = prefs.getLong(KEY_LAST_VERSION_CODE, -1L);
+            prefs.edit().putLong(KEY_LAST_VERSION_CODE, current).apply();
+
+            // 版本没变就只清缓存；版本变了说明刚覆盖安装，清完再重载一次，
+            // 免得第一次打开仍然是缓存里的旧前端（"装了新版功能却没变"）
+            webView.clearCache(true);
+            if (last != current) {
+                webView.postDelayed(() -> {
+                    try { webView.reload(); } catch (Exception ignored) {}
+                }, 800);
+            }
         } catch (Exception e) {
-            Log.e(TAG, "clearWebViewCache failed", e);
+            Log.e(TAG, "clearWebViewCacheAfterUpdate failed", e);
         }
     }
 
