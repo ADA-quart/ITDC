@@ -28,6 +28,7 @@ import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { swipeDirection } from '../utils/swipe';
+import { findMergeTarget } from '../utils/calendar-merge';
 import { cardStyle, hintTextStyle, secondaryTextColor, TOUCH_TARGET, TYPE } from './ui';
 
 const CAL_VIEW_KEY = 'itdc_calendar_view';
@@ -86,6 +87,47 @@ const CalendarView: React.FC = () => {
   const [detailEvent, setDetailEvent] = useState<any | null>(null);
   const longPressFiredRef = useRef(false);
   const longPressTimerRef = useRef<number | null>(null);
+  // 事件 id → DOM 元素，融合动画需要知道"融进哪一滴"的位置
+  const eventElsRef = useRef<Map<string, HTMLElement>>(new Map());
+
+  /**
+   * 水滴融合动画：待办缩成一个圆点滑进课程中心，课程像水面一样弹一下，并荡开一圈涟漪。
+   * 用 Web Animations API 直接跑，不引入样式文件。
+   */
+  const playMergeAnimation = (fromEl?: HTMLElement | null, toEl?: HTMLElement | null) => {
+    if (!fromEl || !toEl || typeof fromEl.animate !== 'function') return;
+    const from = fromEl.getBoundingClientRect();
+    const to = toEl.getBoundingClientRect();
+    if (!from.width || !to.width) return;
+    const dx = (to.left + to.width / 2) - (from.left + from.width / 2);
+    const dy = (to.top + to.height / 2) - (from.top + from.height / 2);
+
+    fromEl.animate(
+      [
+        { transform: 'translate(0,0) scale(1)', borderRadius: '6px', opacity: 1 },
+        { transform: `translate(${dx * 0.55}px, ${dy * 0.55}px) scale(0.55)`, borderRadius: '45%', opacity: 0.9, offset: 0.72 },
+        { transform: `translate(${dx}px, ${dy}px) scale(0.15)`, borderRadius: '50%', opacity: 0 },
+      ],
+      { duration: 430, easing: 'cubic-bezier(.34,1.26,.64,1)', fill: 'forwards' }
+    );
+    toEl.animate(
+      [
+        { transform: 'scale(1)' },
+        { transform: 'scale(1.06)', offset: 0.4 },
+        { transform: 'scale(1)' },
+      ],
+      { duration: 520, easing: 'cubic-bezier(.34,1.56,.64,1)' }
+    );
+
+    const ripple = document.createElement('div');
+    ripple.style.cssText = `position:fixed;left:${to.left}px;top:${to.top}px;width:${to.width}px;height:${to.height}px;`
+      + 'border-radius:8px;border:2px solid rgba(255,255,255,.85);pointer-events:none;z-index:9999;';
+    document.body.appendChild(ripple);
+    ripple.animate(
+      [{ transform: 'scale(1)', opacity: 0.75 }, { transform: 'scale(1.35)', opacity: 0 }],
+      { duration: 520, easing: 'ease-out' }
+    ).finished.finally(() => ripple.remove());
+  };
 
   const hiddenCalendarsRef = useRef<Set<number>>(hiddenCalendars);
   hiddenCalendarsRef.current = hiddenCalendars;
@@ -135,7 +177,39 @@ const CalendarView: React.FC = () => {
           extendedProps: { type: 'todo', ...todo },
         };
       });
-    setEvents([...fcEvents, ...todoEvents]);
+
+    // 「拖进去就融成一滴」：整段落在课程/日程里的待办不再单独占一格，
+    // 改挂到那个事件上（角标显示数量，点开详情能看到具体要做什么）
+    const mergedByEventId = new Map<string, typeof todoEvents>();
+    const standaloneTodos: typeof todoEvents = [];
+    for (const todoEvent of todoEvents) {
+      const target = findMergeTarget({ start: todoEvent.start, end: todoEvent.end }, fcEvents);
+      if (!target) {
+        standaloneTodos.push(todoEvent);
+        continue;
+      }
+      const list = mergedByEventId.get(target.id) ?? [];
+      list.push(todoEvent);
+      mergedByEventId.set(target.id, list);
+    }
+    const mergedEvents = fcEvents.map((e) => {
+      const merged = mergedByEventId.get(e.id);
+      if (!merged || merged.length === 0) return e;
+      return {
+        ...e,
+        extendedProps: {
+          ...e.extendedProps,
+          mergedTodos: merged.map((m) => ({
+            id: m.extendedProps.id as number,
+            title: String(m.title).replace(t.calendar.todoPrefix, ''),
+            start: m.start,
+            end: m.end,
+            color: m.backgroundColor,
+          })),
+        },
+      };
+    });
+    setEvents([...mergedEvents, ...standaloneTodos]);
   }, [t]);
 
   const calInitRef = useRef({ done: false });
@@ -261,15 +335,42 @@ const CalendarView: React.FC = () => {
     setDetailEvent(clickInfo.event);
   };
 
+  /** 把待办从课程里移出来：清掉排期并回到待办列表（再拖进去就再融合） */
+  const handleUnmerge = async (todoId: number) => {
+    try {
+      await todoApi.update(todoId, { scheduled_start: null, scheduled_end: null, status: 'pending' });
+      message.success(t.calendar.unlinked);
+      setDetailEvent(null);
+      await loadData();
+    } catch {
+      message.error(t.calendar.eventMoveFailed);
+    }
+  };
+
   const handleEventDrop = async (dropInfo: any) => {
     const props = dropInfo.event.extendedProps;
     if (props.type === 'todo') {
+      const startStr = dropInfo.event.startStr;
+      const endStr = dropInfo.event.endStr;
+      // 整段落进某节课/某个日程里 → 融合成一滴，不再单独占一格
+      const target = findMergeTarget(
+        { start: startStr, end: endStr },
+        (events as any[]).filter((e) => e.extendedProps?.type !== 'todo')
+      );
       try {
         await todoApi.update(props.id, {
-          scheduled_start: dropInfo.event.startStr,
-          scheduled_end: dropInfo.event.endStr,
+          scheduled_start: startStr,
+          scheduled_end: endStr,
         });
-        message.success(t.calendar.eventMoved);
+        if (target) {
+          playMergeAnimation(dropInfo.el, eventElsRef.current.get(String(target.id)));
+          message.success(t.calendar.mergedInto.replace('{name}', String(target.title)));
+          // 等融合动画放完再重排，动画不会被打断
+          window.setTimeout(() => { void loadData(); }, 430);
+        } else {
+          message.success(t.calendar.eventMoved);
+          await loadData();
+        }
       } catch {
         message.error(t.calendar.eventMoveFailed);
         dropInfo.revert();
@@ -545,6 +646,17 @@ const CalendarView: React.FC = () => {
             select={handleDateSelect}
             eventClick={handleEventClick}
             eventDidMount={(info) => {
+              eventElsRef.current.set(String(info.event.id), info.el as HTMLElement);
+              // 融合了待办的课程挂一个小角标，显示里面有几个待办
+              const mergedCount = ((info.event.extendedProps?.mergedTodos as unknown[] | undefined) ?? []).length;
+              if (mergedCount > 0) {
+                const badge = document.createElement('span');
+                badge.textContent = `${mergedCount}`;
+                badge.title = t.calendar.mergedBadge.replace('{n}', String(mergedCount));
+                badge.style.cssText = 'position:absolute;right:2px;bottom:1px;font-size:10px;line-height:1;'
+                  + 'padding:1px 4px;border-radius:6px;background:rgba(255,255,255,.9);color:#333;pointer-events:none;';
+                (info.el as HTMLElement).appendChild(badge);
+              }
               // 待办用虚线的次要样式，和课程/日程区分开（拖进课程时段也不会抢视线）
               if (info.event.extendedProps?.type === 'todo') {
                 const el = info.el as HTMLElement;
@@ -635,12 +747,9 @@ const CalendarView: React.FC = () => {
                 [t.calendar.detailCalendar, p.calendar_name || calendarsRef.current.find((c) => c.id === p.calendar_id)?.name || '-'],
                 [t.calendar.detailNotes, (p.description || '').split('\n').filter(Boolean).join(' · ') || '-'],
               ];
-          // 这节课/这段时间里安排的待办：拖进来之后点开课程就能看到该做什么
-          const blockTodos = isTodo
-            ? []
-            : (events as any[]).filter((ev) => ev.extendedProps?.type === 'todo'
-                && new Date(ev.start) < new Date(detailEvent.end)
-                && new Date(ev.end) > new Date(detailEvent.start));
+          // 融合进这段时间的待办：拖进来之后点开课程就能看到该做什么
+          const blockTodos: Array<{ id: number; title: string; start: string; end: string; color: string }> =
+            isTodo ? [] : ((p.mergedTodos as any[]) ?? []);
           return (
             <div>
               <div style={{ ...TYPE.bodyLarge, fontWeight: 600, marginBottom: 12 }}>{detailEvent.title}</div>
@@ -658,13 +767,16 @@ const CalendarView: React.FC = () => {
                   ) : (
                     blockTodos.map((ev) => (
                       <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                        <span style={{ width: 8, height: 8, borderRadius: 4, background: ev.backgroundColor, flexShrink: 0 }} />
+                        <span style={{ width: 8, height: 8, borderRadius: 4, background: ev.color, flexShrink: 0 }} />
                         <span style={{ flex: 1, minWidth: 0, wordBreak: 'break-word' }}>
-                          {String(ev.title).replace(t.calendar.todoPrefix, '')}
+                          {ev.title}
                         </span>
                         <span style={{ ...TYPE.caption, color: secondaryTextColor(isDark), whiteSpace: 'nowrap' }}>
                           {dayjs(ev.start).format('HH:mm')}–{dayjs(ev.end).format('HH:mm')}
                         </span>
+                        <Button size="small" type="link" onClick={() => handleUnmerge(ev.id)}>
+                          {t.calendar.unlinkTodo}
+                        </Button>
                       </div>
                     ))
                   )}
