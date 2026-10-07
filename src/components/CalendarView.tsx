@@ -545,6 +545,12 @@ const CalendarView: React.FC = () => {
             select={handleDateSelect}
             eventClick={handleEventClick}
             eventDidMount={(info) => {
+              // 待办用虚线的次要样式，和课程/日程区分开（拖进课程时段也不会抢视线）
+              if (info.event.extendedProps?.type === 'todo') {
+                const el = info.el as HTMLElement;
+                el.style.borderStyle = 'dashed';
+                el.style.borderWidth = '1px';
+              }
               // 长按删除：触摸与鼠标都支持，点按（<600ms）不触发
               if (info.event.extendedProps?.type === 'todo') return;
               const el = info.el as HTMLElement;
@@ -582,6 +588,8 @@ const CalendarView: React.FC = () => {
             }}
             height={isMobile ? 520 : 'auto'}
             allDaySlot={true}
+            // 待办拖进课程时段时并排显示，而不是盖住课程（课程优先，待办不占课的位置）
+            slotEventOverlap={false}
             slotMinTime="07:00:00"
             slotMaxTime="23:00:00"
           />
@@ -627,6 +635,12 @@ const CalendarView: React.FC = () => {
                 [t.calendar.detailCalendar, p.calendar_name || calendarsRef.current.find((c) => c.id === p.calendar_id)?.name || '-'],
                 [t.calendar.detailNotes, (p.description || '').split('\n').filter(Boolean).join(' · ') || '-'],
               ];
+          // 这节课/这段时间里安排的待办：拖进来之后点开课程就能看到该做什么
+          const blockTodos = isTodo
+            ? []
+            : (events as any[]).filter((ev) => ev.extendedProps?.type === 'todo'
+                && new Date(ev.start) < new Date(detailEvent.end)
+                && new Date(ev.end) > new Date(detailEvent.start));
           return (
             <div>
               <div style={{ ...TYPE.bodyLarge, fontWeight: 600, marginBottom: 12 }}>{detailEvent.title}</div>
@@ -636,6 +650,26 @@ const CalendarView: React.FC = () => {
                   <span style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{value}</span>
                 </div>
               ))}
+              {!isTodo && (
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ ...TYPE.section, marginBottom: 6 }}>{t.calendar.classTodos}</div>
+                  {blockTodos.length === 0 ? (
+                    <p style={hintTextStyle(isDark)}>{t.calendar.classTodosHint}</p>
+                  ) : (
+                    blockTodos.map((ev) => (
+                      <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: 4, background: ev.backgroundColor, flexShrink: 0 }} />
+                        <span style={{ flex: 1, minWidth: 0, wordBreak: 'break-word' }}>
+                          {String(ev.title).replace(t.calendar.todoPrefix, '')}
+                        </span>
+                        <span style={{ ...TYPE.caption, color: secondaryTextColor(isDark), whiteSpace: 'nowrap' }}>
+                          {dayjs(ev.start).format('HH:mm')}–{dayjs(ev.end).format('HH:mm')}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
               {!isTodo && <p style={{ ...hintTextStyle(isDark), marginTop: 12 }}>{t.calendar.holdHint}</p>}
             </div>
           );
