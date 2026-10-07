@@ -6,8 +6,8 @@
     "minSdkVersion": 24,
     "targetSdkVersion": 35,
     "allowMixedContent": true,
-    "versionCode": 19,
-    "versionName": "1.8.2"
+    "versionCode": 20,
+    "versionName": "1.8.3"
   },
   "plugins": {
     "PushNotifications": {},
