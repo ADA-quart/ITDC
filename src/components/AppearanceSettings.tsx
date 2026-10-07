@@ -5,7 +5,7 @@ import { Capacitor } from '@capacitor/core';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../i18n';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { sectionTitleStyle } from './ui';
+import { sectionTitleStyle, withAlpha } from './ui';
 import {
   ACCENT_PRESETS,
   compressImageToDataUrl,
@@ -127,8 +127,9 @@ const AppearanceSettings: React.FC = () => {
                 height: 110,
                 borderRadius: 8,
                 backgroundImage: `url(${appearance.bgImage})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
+                backgroundSize: appearance.bgFit === 'contain' ? 'contain' : 'cover',
+                backgroundPosition: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
+                backgroundRepeat: 'no-repeat',
                 border: `1px solid ${isDark ? '#303030' : '#e8e8e8'}`,
                 flexShrink: 0,
               }}
@@ -148,6 +149,57 @@ const AppearanceSettings: React.FC = () => {
                 value={appearance.bgBlur}
                 onChange={(value) => updateAppearance({ bgBlur: value })}
               />
+              <div style={{ fontSize: 13 }}>{t.settings.backgroundFit}</div>
+              <Space style={{ marginBottom: 8 }}>
+                <Button
+                  size='small'
+                  type={appearance.bgFit === 'cover' ? 'primary' : 'default'}
+                  onClick={() => updateAppearance({ bgFit: 'cover' })}
+                >
+                  {t.settings.fitCover}
+                </Button>
+                <Button
+                  size='small'
+                  type={appearance.bgFit === 'contain' ? 'primary' : 'default'}
+                  onClick={() => updateAppearance({ bgFit: 'contain' })}
+                >
+                  {t.settings.fitContain}
+                </Button>
+              </Space>
+              <div style={{ ...hintStyle, marginTop: 0 }}>{t.settings.fitHint}</div>
+              <div style={{ fontSize: 13 }}>{t.settings.focusPoint}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 30px)', gap: 6, marginTop: 4 }}>
+                {[0, 50, 100].flatMap((y) => [0, 50, 100].map((x) => {
+                  const active = appearance.bgFocusX === x && appearance.bgFocusY === y;
+                  return (
+                    <button
+                      key={`${x}-${y}`}
+                      type='button'
+                      aria-label={`focus-${x}-${y}`}
+                      onClick={() => updateAppearance({ bgFocusX: x, bgFocusY: y })}
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 6,
+                        border: `1px solid ${active ? appearance.accent : (isDark ? '#444' : '#ddd')}`,
+                        background: active ? withAlpha(appearance.accent, 0.25) : (isDark ? '#262626' : '#fafafa'),
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <span style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: 3,
+                        background: active ? appearance.accent : (isDark ? '#888' : '#bbb'),
+                      }} />
+                    </button>
+                  );
+                }))}
+              </div>
+              <div style={{ ...hintStyle, marginTop: 6 }}>{t.settings.focusHint}</div>
             </div>
           </div>
         )}

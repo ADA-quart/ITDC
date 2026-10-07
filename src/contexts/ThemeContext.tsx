@@ -129,6 +129,44 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     document.documentElement.style.setProperty('--itdc-accent', appearance.accent);
   }, [appearance.accent]);
 
+  // 有自定义背景图时把卡片/课表格子玻璃化：图片透出来，文字仍有底可读
+  useEffect(() => {
+    const root = document.documentElement;
+    const glass = !!appearance.bgImage;
+    document.body.classList.toggle('itdc-has-bg-image', glass);
+    root.style.setProperty(
+      '--itdc-card-bg',
+      glass
+        ? (isDark ? 'rgba(18, 18, 20, 0.62)' : 'rgba(255, 255, 255, 0.62)')
+        : (isDark ? '#1f1f1f' : '#fff')
+    );
+    root.style.setProperty('--itdc-card-blur', glass ? 'blur(14px)' : 'none');
+    root.style.setProperty(
+      '--itdc-cell-bg',
+      glass
+        ? (isDark ? 'rgba(18, 18, 20, 0.44)' : 'rgba(255, 255, 255, 0.44)')
+        : (isDark ? '#1b1b1b' : '#fff')
+    );
+    root.style.setProperty(
+      '--itdc-head-bg',
+      glass
+        ? (isDark ? 'rgba(30, 30, 32, 0.62)' : 'rgba(255, 255, 255, 0.58)')
+        : (isDark ? '#232323' : '#fafafa')
+    );
+    root.style.setProperty(
+      '--itdc-border',
+      glass
+        ? (isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(0, 0, 0, 0.10)')
+        : (isDark ? '#303030' : '#ececec')
+    );
+    root.style.setProperty(
+      '--itdc-nav-bg',
+      glass
+        ? (isDark ? 'rgba(18, 18, 20, 0.80)' : 'rgba(255, 255, 255, 0.80)')
+        : (isDark ? '#1f1f1f' : '#fff')
+    );
+  }, [appearance.bgImage, isDark]);
+
   // 外观变化推给桌面小组件。150ms 防抖：拖动不透明度滑块时不必每帧重建一次桌面视图。
   useEffect(() => {
     const timer = setTimeout(() => {

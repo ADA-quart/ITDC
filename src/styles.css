@@ -1,0 +1,25 @@
+/*
+ * 有自定义背景图时（body.itdc-has-bg-image），日历网格与 FullCalendar
+ * 一起玻璃化：背景透明/半透明，让图片透出来；课程块保持自己的实色。
+ */
+body.itdc-has-bg-image .fc {
+  --fc-page-bg-color: transparent;
+  --fc-border-color: var(--itdc-border, rgba(127, 127, 127, 0.25));
+  --fc-neutral-bg-color: transparent;
+  --fc-today-bg-color: rgba(22, 119, 255, 0.12);
+  --fc-list-event-hover-bg-color: rgba(127, 127, 127, 0.08);
+  background: transparent;
+}
+
+body.itdc-has-bg-image .fc .fc-scrollgrid,
+body.itdc-has-bg-image .fc .fc-scrollgrid-section > td,
+body.itdc-has-bg-image .fc .fc-col-header,
+body.itdc-has-bg-image .fc .fc-daygrid-day,
+body.itdc-has-bg-image .fc .fc-timegrid-slot,
+body.itdc-has-bg-image .fc .fc-timegrid-col {
+  background: transparent;
+}
+
+body.itdc-has-bg-image .fc .fc-col-header-cell {
+  background: var(--itdc-head-bg, transparent);
+}

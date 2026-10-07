@@ -8,6 +8,8 @@ import { kvGet, kvSet } from './offline';
 
 /** 小组件明暗：auto 跟随系统，light/dark 由用户指定 */
 export type WidgetScheme = 'auto' | 'light' | 'dark';
+/** 背景图填充方式：cover 铺满并裁切，contain 完整显示并留边 */
+export type BgFit = 'cover' | 'contain';
 
 export interface AppearanceSettings {
   /** 应用主题色：#RRGGBB */
@@ -18,6 +20,11 @@ export interface AppearanceSettings {
   bgOpacity: number;
   /** 背景图高斯模糊 0-20 px */
   bgBlur: number;
+  /** 背景图填充方式 */
+  bgFit: BgFit;
+  /** 背景图焦点（0-100，50 为居中）：cover 时决定保留哪一边 */
+  bgFocusX: number;
+  bgFocusY: number;
   /** 小组件主题色是否跟随应用主题色 */
   widgetFollowAccent: boolean;
   /** 小组件单独的主题色（widgetFollowAccent=false 时生效） */
@@ -49,6 +56,9 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
   bgImage: null,
   bgOpacity: 100,
   bgBlur: 0,
+  bgFit: 'cover',
+  bgFocusX: 50,
+  bgFocusY: 50,
   widgetFollowAccent: true,
   widgetAccent: '#4C9AFF',
   widgetPanelColor: null,
@@ -86,6 +96,9 @@ export function sanitizeAppearance(raw: unknown): AppearanceSettings {
     bgImage: typeof o.bgImage === 'string' && o.bgImage.startsWith('data:image/') ? o.bgImage : null,
     bgOpacity: clamp(o.bgOpacity, 0, 100, DEFAULT_APPEARANCE.bgOpacity),
     bgBlur: clamp(o.bgBlur, 0, 20, DEFAULT_APPEARANCE.bgBlur),
+    bgFit: o.bgFit === 'contain' ? 'contain' : 'cover',
+    bgFocusX: clamp(o.bgFocusX, 0, 100, DEFAULT_APPEARANCE.bgFocusX),
+    bgFocusY: clamp(o.bgFocusY, 0, 100, DEFAULT_APPEARANCE.bgFocusY),
     widgetFollowAccent: o.widgetFollowAccent !== false,
     widgetAccent: hex(o.widgetAccent, DEFAULT_APPEARANCE.widgetAccent),
     widgetPanelColor: typeof o.widgetPanelColor === 'string' && HEX_RE.test(o.widgetPanelColor)
@@ -216,6 +229,9 @@ export async function pushWidgetAppearance(settings: AppearanceSettings): Promis
     panelOpacity: settings.widgetPanelOpacity,
     scheme: settings.widgetScheme,
     hasImage: !!wanted,
+    fit: settings.bgFit,
+    focusX: settings.bgFocusX,
+    focusY: settings.bgFocusY,
     ...(image ? { image } : {}),
   });
 

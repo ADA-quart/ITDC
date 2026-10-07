@@ -78,9 +78,9 @@ const TimetableGrid: React.FC<Props> = ({ weekStart, events, isDark, onSelectEve
     list.sort((a, b) => String(a.event.start).localeCompare(String(b.event.start)));
   }
 
-  const border = `1px solid ${isDark ? '#303030' : '#ececec'}`;
-  const cellBg = isDark ? '#1b1b1b' : '#fff';
-  const headBg = isDark ? '#232323' : '#fafafa';
+  const border = `1px solid var(--itdc-border, ${isDark ? '#303030' : '#ececec'})`;
+  const cellBg = `var(--itdc-cell-bg, ${isDark ? '#1b1b1b' : '#fff'})`;
+  const headBg = `var(--itdc-head-bg, ${isDark ? '#232323' : '#fafafa'})`;
 
   const renderBlock = (item: GridItem, key: string) => (
     <button

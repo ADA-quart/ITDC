@@ -236,6 +236,11 @@ const App: React.FC = () => {
   const hasBgImage = !!appearance.bgImage;
   const pageBg = hasBgImage ? 'transparent' : (isDark ? '#141414' : '#f5f5f5');
 
+  // contain 模式图片会留边，给 body 一个主题底色，避免露出突兀的白/黑
+  useEffect(() => {
+    document.body.style.background = isDark ? '#141414' : '#f5f5f5';
+  }, [isDark]);
+
   const backgroundLayer = hasBgImage ? (
     <div
       aria-hidden
@@ -245,8 +250,9 @@ const App: React.FC = () => {
         zIndex: -1,
         pointerEvents: 'none',
         backgroundImage: `url(${appearance.bgImage})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
+        backgroundSize: appearance.bgFit === 'contain' ? 'contain' : 'cover',
+        backgroundPosition: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
+        backgroundRepeat: 'no-repeat',
         opacity: Math.max(0.1, appearance.bgOpacity / 100),
         // 模糊会在边缘采样到透明，放大一点盖住四角暗边
         filter: appearance.bgBlur ? `blur(${appearance.bgBlur}px)` : undefined,
@@ -299,7 +305,8 @@ const App: React.FC = () => {
             bottom: 0,
             left: 0,
             right: 0,
-            background: isDark ? '#1f1f1f' : '#fff',
+        background: `var(--itdc-nav-bg, ${isDark ? '#1f1f1f' : '#fff'})`,
+        backdropFilter: 'var(--itdc-card-blur, none)',
             borderTop: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
             display: 'flex',
             justifyContent: 'space-around',

@@ -56,7 +56,9 @@ export function cardStyle(
   opts: { padding?: number } = {},
 ): CSSProperties {
   return {
-    background: isDark ? '#1f1f1f' : '#fff',
+    // 有自定义背景图时由 ThemeContext 写入玻璃化变量，让图片透出来
+    background: `var(--itdc-card-bg, ${isDark ? '#1f1f1f' : '#fff'})`,
+    backdropFilter: 'var(--itdc-card-blur, none)',
     borderRadius: CARD_RADIUS,
     padding: opts.padding ?? (isMobile ? 16 : 24),
     boxShadow: isDark ? 'none' : '0 1px 2px rgba(0,0,0,0.03), 0 2px 8px rgba(0,0,0,0.05)',

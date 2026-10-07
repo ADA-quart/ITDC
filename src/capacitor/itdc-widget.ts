@@ -14,6 +14,10 @@ export interface ItdcWidgetPluginInterface {
     panelOpacity: number;
     scheme: 'auto' | 'light' | 'dark';
     hasImage: boolean;
+    /** 背景图填充方式与焦点（0-100） */
+    fit: 'cover' | 'contain';
+    focusX: number;
+    focusY: number;
     image?: string;
   }): Promise<void>;
   /** 查询是否已排除电池优化（澎湃 OS / MIUI 会冻结后台导致小组件不刷新） */
