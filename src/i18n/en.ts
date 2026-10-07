@@ -20,6 +20,7 @@ const en: LocaleMessages = {
     viewDay: 'Day',
     viewWeek: 'Week',
     viewTimetable: 'Grid',
+    extraTime: 'Outside',
     todoTag: 'Todo',
     today: 'Today',
     detailTitle: 'Event details',

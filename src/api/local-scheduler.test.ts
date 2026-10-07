@@ -208,6 +208,112 @@ describe('generateScheduleLocally', () => {
     expect(new Date(schedule[0].start) >= at(1, 12)).toBe(true);
   });
 
+  it('does not double-book two in-class todos inside the same class', () => {
+    const classEvent = makeEvent({
+      id: 99,
+      title: '水课',
+      source: 'cdut',
+      start_time: at(1, 14, 30).toISOString(),
+      end_time: at(1, 16, 30).toISOString(),
+    });
+    const schedule = generateScheduleLocally(
+      [
+        makeTodo({ id: 1, title: 'A', estimated_minutes: 45, can_do_in_class: true }),
+        makeTodo({ id: 2, title: 'B', estimated_minutes: 45, can_do_in_class: true }),
+      ],
+      [classEvent],
+      { now: at(1, 15) }
+    );
+    expect(schedule).toHaveLength(2);
+    const [first, second] = [...schedule].sort((a, b) => a.start.localeCompare(b.start));
+    // 第二条必须排在第一条结束后，不能因为"两段都在课内"就重叠
+    expect(new Date(second.start).getTime() >= new Date(first.end).getTime()).toBe(true);
+  });
+
+  it('treats an iCal course with classroom and aligned time as in-class allowed', () => {
+    const icalCourse = makeEvent({
+      id: 77,
+      title: '重磁勘探原理与方法',
+      source: 'ical',
+      location: 'E1B205',
+      start_time: at(1, 14, 30).toISOString(),
+      end_time: at(1, 16, 5).toISOString(),
+    });
+    const schedule = generateScheduleLocally(
+      [makeTodo({ id: 1, estimated_minutes: 45, can_do_in_class: true })],
+      [icalCourse],
+      { now: at(1, 15) }
+    );
+    expect(schedule).toHaveLength(1);
+    const start = new Date(schedule[0].start);
+    const end = new Date(schedule[0].end);
+    expect(start >= at(1, 14, 30) && end <= at(1, 16, 5)).toBe(true);
+  });
+
+  it('skips tiny gaps between classes', () => {
+    // 10:00 下课，10:25 上下一节：25 分钟课间不排 15 分钟任务
+    const shortGap = [
+      makeEvent({ id: 1, source: 'cdut', start_time: at(1, 8).toISOString(), end_time: at(1, 10).toISOString() }),
+      makeEvent({ id: 2, source: 'cdut', start_time: at(1, 10, 25).toISOString(), end_time: at(1, 12).toISOString() }),
+    ];
+    const scheduled = generateScheduleLocally(
+      [makeTodo({ estimated_minutes: 15 })],
+      shortGap,
+      { now: at(1, 10) }
+    );
+    expect(scheduled).toHaveLength(1);
+    expect(new Date(scheduled[0].start) >= at(1, 12)).toBe(true);
+
+    // 5 分钟课间同样跳过
+    const fiveMinuteGap = [
+      makeEvent({ id: 1, source: 'cdut', start_time: at(1, 8).toISOString(), end_time: at(1, 10).toISOString() }),
+      makeEvent({ id: 2, source: 'cdut', start_time: at(1, 10, 5).toISOString(), end_time: at(1, 12).toISOString() }),
+    ];
+    const scheduled2 = generateScheduleLocally(
+      [makeTodo({ estimated_minutes: 15 })],
+      fiveMinuteGap,
+      { now: at(1, 10) }
+    );
+    expect(new Date(scheduled2[0].start) >= at(1, 12)).toBe(true);
+  });
+
+  it('still uses a gap that is long enough and leaves a buffer', () => {
+    // 10:00-11:10 有 70 分钟空档，60 分钟任务可以排，并留出 10 分钟缓冲
+    const events = [
+      makeEvent({ id: 1, source: 'cdut', start_time: at(1, 8).toISOString(), end_time: at(1, 10).toISOString() }),
+      makeEvent({ id: 2, source: 'cdut', start_time: at(1, 11, 10).toISOString(), end_time: at(1, 12).toISOString() }),
+    ];
+    const scheduled = generateScheduleLocally(
+      [makeTodo({ estimated_minutes: 60 })],
+      events,
+      { now: at(1, 10) }
+    );
+    expect(scheduled).toHaveLength(1);
+    expect(new Date(scheduled[0].start).getHours()).toBe(10);
+    expect(new Date(scheduled[0].end).getHours()).toBe(11);
+  });
+
+  it('uses a later class window for a second in-class todo', () => {
+    const events = [
+      makeEvent({ id: 1, source: 'cdut', start_time: at(1, 14, 30).toISOString(), end_time: at(1, 16, 5).toISOString() }),
+      makeEvent({ id: 2, source: 'cdut', start_time: at(1, 16, 25).toISOString(), end_time: at(1, 18, 0).toISOString() }),
+    ];
+    const schedule = generateScheduleLocally(
+      [
+        makeTodo({ id: 1, title: 'A', estimated_minutes: 45, can_do_in_class: true }),
+        makeTodo({ id: 2, title: 'B', estimated_minutes: 45, can_do_in_class: true }),
+      ],
+      events,
+      { now: at(1, 15) }
+    );
+    expect(schedule).toHaveLength(2);
+    const b = schedule.find((s) => s.title === 'B');
+    expect(b).toBeTruthy();
+    // 第一节课剩余时间不够，B 应该用第二节课（16:25-18:00），而不是跳到 18:00 之后
+    expect(new Date(b!.start) >= at(1, 16, 25)).toBe(true);
+    expect(new Date(b!.end) <= at(1, 18, 0)).toBe(true);
+  });
+
   it('labels split segments with (i/N)', () => {
     const schedule = generateScheduleLocally([makeTodo({ estimated_minutes: 200 })], []);
     expect(schedule.length).toBeGreaterThan(1);

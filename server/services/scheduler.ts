@@ -1,4 +1,5 @@
 import db from '../db/index.js';
+import { looksLikeCourse } from '../../shared/cdut-parser.js';
 
 export interface ScheduledItem {
   todo_id: number;
@@ -11,6 +12,8 @@ export interface ScheduledItem {
 interface BusySlot {
   start: string;
   end: string;
+  /** 是否是课程事件：只有课内可做的待办才允许与它重叠 */
+  isClass?: boolean;
 }
 
 interface TodoItem {
@@ -33,37 +36,32 @@ const BREAK_AFTER_MINUTES = 120;
 const BREAK_DURATION_MINUTES = 15;
 const MAX_SEGMENT_MINUTES = 90;
 const MIN_SEGMENT_MINUTES = 15;
-
-/** 课程判定：source 为学校 id（如 cdut）的是教务课表，manual/ical 不是课程 */
-export function isClassSource(source: string | null | undefined): boolean {
-  const s = (source || '').toLowerCase();
-  return !!s && s !== 'manual' && s !== 'ical';
-}
+/** 两节课之间的空档小于这个值就不排任务 */
+const MIN_USABLE_GAP_MINUTES = 30;
+/** 任务结束到下一个日程之间至少留 5 分钟缓冲 */
+const SLOT_BUFFER_MINUTES = 5;
 
 function getBusySlots(startDate: Date, endDate: Date): BusySlot[] {
   const events = db.prepare(
-    'SELECT start_time, end_time FROM events WHERE start_time < ? AND end_time > ?'
-  ).all(endDate.toISOString(), startDate.toISOString()) as { start_time: string; end_time: string }[];
+    'SELECT start_time, end_time, source, location FROM events WHERE start_time < ? AND end_time > ?'
+  ).all(endDate.toISOString(), startDate.toISOString()) as {
+    start_time: string; end_time: string; source: string | null; location: string | null;
+  }[];
 
   const scheduledTodos = db.prepare(
     "SELECT scheduled_start, scheduled_end FROM todos WHERE status = 'scheduled' AND scheduled_start IS NOT NULL AND scheduled_start < ? AND scheduled_end > ?"
   ).all(endDate.toISOString(), startDate.toISOString()) as { scheduled_start: string; scheduled_end: string }[];
 
   const busy: BusySlot[] = [
-    ...events.map(e => ({ start: e.start_time, end: e.end_time })),
-    ...scheduledTodos.map(t => ({ start: t.scheduled_start!, end: t.scheduled_end! })),
+    ...events.map(e => ({
+      start: e.start_time,
+      end: e.end_time,
+      isClass: looksLikeCourse(e),
+    })),
+    ...scheduledTodos.map(t => ({ start: t.scheduled_start!, end: t.scheduled_end!, isClass: false })),
   ];
 
   return busy.sort((a, b) => a.start.localeCompare(b.start));
-}
-
-function getCourseSlots(startDate: Date, endDate: Date): BusySlot[] {
-  const events = db.prepare(
-    'SELECT start_time, end_time, source FROM events WHERE start_time < ? AND end_time > ?'
-  ).all(endDate.toISOString(), startDate.toISOString()) as { start_time: string; end_time: string; source: string | null }[];
-  return events
-    .filter((e) => isClassSource(e.source))
-    .map((e) => ({ start: e.start_time, end: e.end_time }));
 }
 
 /**
@@ -129,7 +127,7 @@ export function findNextFreeSlot(
   durationMinutes: number,
   busySlots: BusySlot[],
   deadline: Date | null,
-  flexibleSlots: BusySlot[] = []
+  allowClassOverlap = false
 ): Date | null {
   let start = new Date(currentStart);
   start = advanceToWorkHours(start);
@@ -155,17 +153,21 @@ export function findNextFreeSlot(
     }
 
     let conflict = false;
+    let allowedWindowEnd: number | null = null;
     for (const slot of busySlots) {
       const slotStart = new Date(slot.start);
       const slotEnd = new Date(slot.end);
       if (start < slotEnd && end > slotStart) {
-        // can_do_in_class 的待办允许整段落在课程里（之后会融合进课程）
-        const insideFlexible = flexibleSlots.some((f) => {
-          const fStart = new Date(f.start);
-          const fEnd = new Date(f.end);
-          return start >= fStart && end <= fEnd;
-        });
-        if (insideFlexible) continue;
+        // can_do_in_class 的待办允许整段落在课程里（之后会融合进课程）；
+        // 但冲突块本身必须是课程，否则会与另一条已排待办重叠。
+        const allowedInsideClass = allowClassOverlap && slot.isClass
+          && start >= slotStart && end <= slotEnd;
+        if (allowedInsideClass) {
+          allowedWindowEnd = allowedWindowEnd === null
+            ? slotEnd.getTime()
+            : Math.min(allowedWindowEnd, slotEnd.getTime());
+          continue;
+        }
         conflict = true;
         start = new Date(Math.max(start.getTime(), slotEnd.getTime()));
         start = advanceToWorkHours(start);
@@ -174,10 +176,63 @@ export function findNextFreeSlot(
     }
 
     if (!conflict) {
+      const nextBoundary = busySlots.find((s) => new Date(s.start).getTime() >= end.getTime());
+      const dayEnd = new Date(start);
+      dayEnd.setHours(WORK_END_HOUR, 0, 0, 0);
+      const nextBoundaryMs = nextBoundary ? new Date(nextBoundary.start).getTime() : dayEnd.getTime();
+      const windowEndMs = Math.min(
+        allowedWindowEnd === null ? Number.POSITIVE_INFINITY : allowedWindowEnd,
+        nextBoundaryMs,
+        dayEnd.getTime()
+      );
+      const availableMinutes = (windowEndMs - start.getTime()) / 60000;
+      if (availableMinutes < MIN_USABLE_GAP_MINUTES
+        || availableMinutes < durationMinutes + SLOT_BUFFER_MINUTES) {
+        start = advanceToWorkHours(new Date(windowEndMs));
+        continue;
+      }
       return start;
     }
   }
 
+  return null;
+}
+
+/** 课内可做：在所有课程窗口里找最早能完整放下的一段（与客户端逻辑一致） */
+export function findNextClassSlot(
+  currentStart: Date,
+  durationMinutes: number,
+  busySlots: BusySlot[],
+  deadline: Date | null
+): Date | null {
+  const classSlots = busySlots
+    .filter((s) => s.isClass)
+    .map((s) => ({ start: new Date(s.start).getTime(), end: new Date(s.end).getTime() }))
+    .sort((a, b) => a.start - b.start);
+  const needMs = (durationMinutes + SLOT_BUFFER_MINUTES) * 60000;
+
+  for (const cls of classSlots) {
+    let cursor = new Date(Math.max(cls.start, advanceToWorkHours(new Date(currentStart)).getTime()));
+    while (cursor.getTime() + needMs <= cls.end) {
+      const end = new Date(cursor.getTime() + durationMinutes * 60000);
+      if (deadline && end > deadline) return null;
+      const blockers = busySlots.filter((s) => {
+        if (s.isClass) return false;
+        const sStart = new Date(s.start).getTime();
+        const sEnd = new Date(s.end).getTime();
+        return cursor.getTime() < sEnd && end.getTime() > sStart;
+      });
+      if (blockers.length === 0) {
+        const availableMinutes = (cls.end - cursor.getTime()) / 60000;
+        if (availableMinutes >= MIN_USABLE_GAP_MINUTES) return cursor;
+      } else {
+        const latestEnd = Math.max(...blockers.map((s) => new Date(s.end).getTime()));
+        cursor = advanceToWorkHours(new Date(latestEnd));
+        continue;
+      }
+      break;
+    }
+  }
   return null;
 }
 
@@ -187,7 +242,6 @@ export function generateSchedule(): ScheduledItem[] {
 
   const todos = getPendingTodos();
   const busySlots = getBusySlots(now, scheduleEnd);
-  const courseSlots = getCourseSlots(now, scheduleEnd);
   const result: ScheduledItem[] = [];
   const newBusySlots: BusySlot[] = [...busySlots];
   const streak = workStreakBefore(busySlots, now);
@@ -207,7 +261,17 @@ export function generateSchedule(): ScheduledItem[] {
   for (const todo of todos) {
     const searchStart = new Date(now.getTime());
     const deadline = todo.deadline ? new Date(todo.deadline) : null;
-    const flexibleSlots = todo.can_do_in_class ? courseSlots : [];
+    const allowClassOverlap = !!todo.can_do_in_class;
+    const pickStart = (from: Date, minutes: number): Date | null => {
+      const normal = findNextFreeSlot(from, minutes, newBusySlots, deadline, allowClassOverlap);
+      const inClass = allowClassOverlap
+        ? findNextClassSlot(from, minutes, newBusySlots, deadline)
+        : null;
+      if (normal && inClass) {
+        return normal.getTime() <= inClass.getTime() ? normal : inClass;
+      }
+      return normal ?? inClass;
+    };
 
     const needsSplit = todo.estimated_minutes > MAX_SEGMENT_MINUTES;
     const segmentMinutes = needsSplit
@@ -233,7 +297,7 @@ export function generateSchedule(): ScheduledItem[] {
       continuousWorkMinutes = 0;
     }
 
-    const firstSlotStart = findNextFreeSlot(searchStart, segmentMinutes[0], newBusySlots, deadline, flexibleSlots);
+    const firstSlotStart = pickStart(searchStart, segmentMinutes[0]);
 
     if (!firstSlotStart) continue;
 
@@ -267,12 +331,9 @@ export function generateSchedule(): ScheduledItem[] {
         continuousWorkMinutes = 0;
       }
 
-      const segStart = findNextFreeSlot(
+      const segStart = pickStart(
         new Date(newBusySlots[newBusySlots.length - 1].end),
-        segmentMinutes[i],
-        newBusySlots,
-        deadline,
-        flexibleSlots
+        segmentMinutes[i]
       );
 
       if (!segStart) break;

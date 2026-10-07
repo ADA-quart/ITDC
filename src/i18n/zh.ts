@@ -18,6 +18,7 @@ const zh = {
     viewDay: '日',
     viewWeek: '周',
     viewTimetable: '课表',
+    extraTime: '课外',
     todoTag: '待办',
     today: '今天',
     detailTitle: '事件详情',

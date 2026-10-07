@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseTimetableHtml, parseSemesterOptions, expandWeeks, sectionTime } from './cdut-parser';
+import { parseTimetableHtml, parseSemesterOptions, expandWeeks, sectionTime, looksLikeCourse } from './cdut-parser';
 
 const SAMPLE_HTML = `
 <table>
@@ -128,5 +128,18 @@ describe('cdut-parser', () => {
     expect(start.getMinutes()).toBe(10);
     expect(end.getHours()).toBe(9);
     expect(end.getMinutes()).toBe(45);
+  });
+
+  it('教务事件与"带教室且对齐节次"的 iCal 事件算课程', () => {
+    const cdut = { source: 'cdut', start_time: new Date(2026, 9, 8, 14, 30).toISOString(), end_time: new Date(2026, 9, 8, 16, 5).toISOString(), location: 'E1B205' };
+    expect(looksLikeCourse(cdut)).toBe(true);
+
+    const icalCourse = { source: 'ical', start_time: new Date(2026, 9, 8, 14, 30).toISOString(), end_time: new Date(2026, 9, 8, 16, 5).toISOString(), location: 'E1B205' };
+    expect(looksLikeCourse(icalCourse)).toBe(true);
+
+    // 普通 iCal 日程：没有教室，或时间不对齐节次，都不算课程
+    expect(looksLikeCourse({ ...icalCourse, location: null })).toBe(false);
+    expect(looksLikeCourse({ ...icalCourse, start_time: new Date(2026, 9, 8, 14, 10).toISOString() })).toBe(false);
+    expect(looksLikeCourse({ ...icalCourse, source: 'manual' })).toBe(false);
   });
 });

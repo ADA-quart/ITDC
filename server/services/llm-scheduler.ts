@@ -1,7 +1,8 @@
 import db from '../db/index.js';
 import { LLMProvider, LLMConfig } from '../llm/provider.js';
 import { createProvider } from '../llm/index.js';
-import { ScheduledItem, isClassSource } from './scheduler.js';
+import { ScheduledItem } from './scheduler.js';
+import { looksLikeCourse } from '../../shared/cdut-parser.js';
 import { decrypt, isEncrypted } from '../utils/crypto.js';
 import { debug } from '../utils/debug.js';
 import {
@@ -56,13 +57,13 @@ function buildPrompt(): { system: string; user: string } {
   const now = new Date();
   const scheduleHorizon = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString();
   const events = db.prepare(
-    'SELECT title, start_time, end_time, rrule, source FROM events WHERE start_time < ? ORDER BY start_time DESC LIMIT 100'
+    'SELECT title, start_time, end_time, rrule, source, location FROM events WHERE start_time < ? ORDER BY start_time DESC LIMIT 100'
   ).all(scheduleHorizon).map((e: any) => ({
     title: e.title,
     start_time: e.start_time,
     end_time: e.end_time,
     rrule: e.rrule,
-    is_class: isClassSource(e.source),
+    is_class: looksLikeCourse(e),
   }));
   const scheduledTodos = db.prepare(
     "SELECT title, scheduled_start, scheduled_end FROM todos WHERE status = 'scheduled' AND scheduled_start IS NOT NULL ORDER BY scheduled_start DESC LIMIT 50"
@@ -81,10 +82,11 @@ export { buildPrompt };
 
 function validateSchedule(items: ScheduledItem[]): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-  const events = db.prepare('SELECT start_time, end_time, source FROM events').all() as {
+  const events = db.prepare('SELECT start_time, end_time, source, location FROM events').all() as {
     start_time: string;
     end_time: string;
     source: string | null;
+    location: string | null;
   }[];
   const scheduledTodos = db.prepare(
     "SELECT scheduled_start, scheduled_end FROM todos WHERE status = 'scheduled' AND scheduled_start IS NOT NULL"
@@ -94,7 +96,7 @@ function validateSchedule(items: ScheduledItem[]): { valid: boolean; errors: str
     ...events.map(e => ({
       start: new Date(e.start_time),
       end: new Date(e.end_time),
-      isClass: isClassSource(e.source),
+      isClass: looksLikeCourse(e),
     })),
     ...scheduledTodos.map(t => ({
       start: new Date(t.scheduled_start!),

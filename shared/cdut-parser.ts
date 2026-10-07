@@ -119,6 +119,41 @@ export const TIMETABLE: readonly [string, string][] = [
   ['19:10', '20:45'],
 ];
 
+/**
+ * 判断一条事件是否应按"课程"处理。
+ *
+ * - 教务导入（source 为学校 id，如 cdut）：直接是课程；
+ * - iCal 导入（source === 'ical'）：只有带教室、且起止时间精确落在标准节次
+ *   边界上才视为课程——这样 SimpleCDUT 之类导出的课表也能用「课内可做」，
+ *   而普通 iCal 日程（会议、生日）不会被误判；
+ * - 手动事件（source === 'manual'）：不是课程。
+ */
+export function looksLikeCourse(event: {
+  source?: string | null;
+  start_time: string;
+  end_time: string;
+  location?: string | null;
+}): boolean {
+  const source = (event.source || '').toLowerCase();
+  if (source && source !== 'manual' && source !== 'ical') return true;
+  if (source !== 'ical') return false;
+  if (!event.location || !event.location.trim()) return false;
+
+  const start = new Date(event.start_time);
+  const end = new Date(event.end_time);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+  const startMinutes = start.getHours() * 60 + start.getMinutes();
+  const endMinutes = end.getHours() * 60 + end.getMinutes();
+  if (endMinutes <= startMinutes) return false;
+  const toMinutes = (t: string) => {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  };
+  const startOk = TIMETABLE.some(([s]) => toMinutes(s) === startMinutes);
+  const endOk = TIMETABLE.some(([, e]) => toMinutes(e) === endMinutes);
+  return startOk && endOk;
+}
+
 /** 节次索引对应的事件起止时间，返回 ISO 字符串 */
 export function sectionTime(sectionIndex: number, date: Date): { start: string; end: string } {
   const [sh, sm] = TIMETABLE[sectionIndex][0].split(':').map(Number);
