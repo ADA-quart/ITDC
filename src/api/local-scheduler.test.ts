@@ -70,8 +70,9 @@ describe('splitIntoSegments', () => {
 });
 
 describe('work hours helpers', () => {
-  it('treats 7:00-23:00 as within work hours', () => {
-    expect(isWithinWorkHours(at(1, 7))).toBe(true);
+  it('treats 8:00-23:00 as within work hours', () => {
+    expect(isWithinWorkHours(at(1, 8))).toBe(true);
+    expect(isWithinWorkHours(at(1, 7))).toBe(false);
     expect(isWithinWorkHours(at(1, 22))).toBe(true);
     expect(isWithinWorkHours(at(1, 6))).toBe(false);
     expect(isWithinWorkHours(at(1, 23))).toBe(false);
@@ -79,14 +80,14 @@ describe('work hours helpers', () => {
 
   it('rolls late night to next morning', () => {
     const next = advanceToWorkHours(at(1, 23, 30));
-    expect(next.getHours()).toBe(7);
-    expect(next.getDate()).toBe(at(2, 7).getDate());
+    expect(next.getHours()).toBe(8);
+    expect(next.getDate()).toBe(at(2, 8).getDate());
   });
 
-  it('pulls early morning forward to 7:00 same day', () => {
+  it('pulls early morning forward to 8:00 same day', () => {
     const next = advanceToWorkHours(at(1, 5));
-    expect(next.getHours()).toBe(7);
-    expect(next.getDate()).toBe(at(1, 7).getDate());
+    expect(next.getHours()).toBe(8);
+    expect(next.getDate()).toBe(at(1, 8).getDate());
   });
 });
 
@@ -110,8 +111,8 @@ describe('generateScheduleLocally', () => {
   // 日历里只要有远期事件，15 分钟休息就会被丢到几天之后 —— 连干 3 小时也没休息，
   // 还在无关时间点挖了个空洞
   it('places the 2-hour break right after the block that triggered it', () => {
-    // 固定"现在"为周一 09:00，保证三段 90 分钟能连在一起排
-    const monday9 = at(1, 9);
+    // 固定"现在"为周一 13:00：避开午餐与晚餐保护时段，三段 90 分钟能连排
+    const monday13 = at(1, 13);
     const farFutureClass = makeEvent({
       start_time: at(3, 10).toISOString(),
       end_time: at(3, 11).toISOString(),
@@ -123,7 +124,7 @@ describe('generateScheduleLocally', () => {
         makeTodo({ id: 3, estimated_minutes: 90 }),
       ],
       [farFutureClass],
-      { now: monday9 }
+      { now: monday13 }
     );
     expect(schedule).toHaveLength(3);
     const secondEnd = new Date(schedule[1].end).getTime();
@@ -131,7 +132,7 @@ describe('generateScheduleLocally', () => {
     // 前两段排满 2 小时后必须先休息 15 分钟，第三段才能开始
     expect(thirdStart - secondEnd).toBe(15 * 60 * 1000);
     // 而且这个休息不该跑到远期课程那边去
-    expect(thirdStart - monday9.getTime()).toBeLessThan(4 * 60 * 60 * 1000);
+    expect(thirdStart - monday13.getTime()).toBeLessThan(4 * 60 * 60 * 1000);
   });
 
   it('schedules pending todos inside work hours', () => {
@@ -139,7 +140,7 @@ describe('generateScheduleLocally', () => {
     expect(schedule.length).toBe(1);
     const start = new Date(schedule[0].start);
     const end = new Date(schedule[0].end);
-    expect(start.getHours()).toBeGreaterThanOrEqual(7);
+    expect(start.getHours()).toBeGreaterThanOrEqual(8);
     expect(end.getHours()).toBeLessThanOrEqual(23);
   });
 
@@ -314,6 +315,51 @@ describe('generateScheduleLocally', () => {
     expect(new Date(b!.end) <= at(1, 18, 0)).toBe(true);
   });
 
+  it('never schedules during lunch break', () => {
+    const events = [
+      makeEvent({ id: 1, source: 'cdut', start_time: at(1, 8, 10).toISOString(), end_time: at(1, 11, 50).toISOString() }),
+      makeEvent({ id: 2, source: 'cdut', start_time: at(1, 13, 0).toISOString(), end_time: at(1, 14, 0).toISOString() }),
+    ];
+    const schedule = generateScheduleLocally(
+      [makeTodo({ estimated_minutes: 60 })],
+      events,
+      { now: at(1, 8) }
+    );
+    expect(schedule).toHaveLength(1);
+    const start = new Date(schedule[0].start);
+    const end = new Date(schedule[0].end);
+    // 11:50-13:00 是午饭，13:00-14:00 有课，只能排到 14:00 之后
+    expect(start >= at(1, 14)).toBe(true);
+    expect(start < at(1, 13) && end > at(1, 11, 50)).toBe(false);
+  });
+
+  it('never schedules during dinner break', () => {
+    const events = [
+      makeEvent({ id: 1, source: 'cdut', start_time: at(1, 8, 10).toISOString(), end_time: at(1, 11, 50).toISOString() }),
+      makeEvent({ id: 2, source: 'cdut', start_time: at(1, 13, 0).toISOString(), end_time: at(1, 16, 5).toISOString() }),
+      makeEvent({ id: 3, source: 'cdut', start_time: at(1, 16, 25).toISOString(), end_time: at(1, 18, 0).toISOString() }),
+      makeEvent({ id: 4, source: 'cdut', start_time: at(1, 19, 10).toISOString(), end_time: at(1, 20, 45).toISOString() }),
+    ];
+    const schedule = generateScheduleLocally(
+      [makeTodo({ estimated_minutes: 60 })],
+      events,
+      { now: at(1, 8) }
+    );
+    expect(schedule).toHaveLength(1);
+    // 18:00-19:00 是晚饭，只能排到晚课之后
+    expect(new Date(schedule[0].start) >= at(1, 20, 45)).toBe(true);
+  });
+
+  it('does not start before 08:00 even when the day is free', () => {
+    const schedule = generateScheduleLocally(
+      [makeTodo({ estimated_minutes: 60 })],
+      [],
+      { now: at(1, 5) }
+    );
+    expect(schedule).toHaveLength(1);
+    expect(new Date(schedule[0].start).getHours()).toBe(8);
+  });
+
   it('labels split segments with (i/N)', () => {
     const schedule = generateScheduleLocally([makeTodo({ estimated_minutes: 200 })], []);
     expect(schedule.length).toBeGreaterThan(1);
@@ -405,5 +451,19 @@ describe('validateScheduleLocally', () => {
   it('flags pending todos that were not scheduled at all', () => {
     const result = validateScheduleLocally([], [makeTodo({ id: 7, title: '被漏掉的任务' })]);
     expect(result.errors.some(e => e.startsWith('未能安排'))).toBe(true);
+  });
+
+  it('flags a lunch-time schedule', () => {
+    const items = [
+      {
+        todo_id: 1,
+        title: '午饭时间的事',
+        start: at(1, 12).toISOString(),
+        end: at(1, 12, 30).toISOString(),
+        priority: 'normal' as const,
+      },
+    ];
+    const result = validateScheduleLocally(items, []);
+    expect(result.errors.some(e => e.includes('午餐'))).toBe(true);
   });
 });

@@ -3,6 +3,14 @@
 // 工作时段 7:00-23:00，每连续 2 小时插入 15 分钟休息，单段上限 90 分钟。
 import type { CalendarEvent, Priority, Todo } from '../types';
 import { looksLikeCourse } from '../../shared/cdut-parser';
+import {
+  WORK_START_HOUR,
+  WORK_END_HOUR,
+  MIN_USABLE_GAP_MINUTES,
+  SLOT_BUFFER_MINUTES,
+  findProtectedWindow,
+  atMinutesOfDay,
+} from '../../shared/schedule-policy';
 
 export interface ScheduledItem {
   todo_id: number;
@@ -19,17 +27,11 @@ interface BusySlot {
   isClass?: boolean;
 }
 
-const WORK_START_HOUR = 7;
-const WORK_END_HOUR = 23;
 const BREAK_AFTER_MINUTES = 120;
 const BREAK_DURATION_MINUTES = 15;
 const MAX_SEGMENT_MINUTES = 90;
 /** 分段下限：避免把 95 分钟拆成 90+5 这种没有意义、还没进入状态就结束的碎片 */
 const MIN_SEGMENT_MINUTES = 15;
-/** 两节课之间的空档小于这个值就不排任务（5 分钟、25 分钟课间不硬塞） */
-const MIN_USABLE_GAP_MINUTES = 30;
-/** 任务结束到下一个日程之间至少留 5 分钟缓冲 */
-const SLOT_BUFFER_MINUTES = 5;
 const HORIZON_DAYS = 30;
 
 /**
@@ -113,6 +115,13 @@ export function findNextFreeSlot(
 
     if (deadline && end > deadline) return null;
 
+    // 早饭/午饭/晚饭等保护时段：再空也不排
+    const protectedWindow = findProtectedWindow(start, end);
+    if (protectedWindow) {
+      start = advanceToWorkHours(atMinutesOfDay(start, protectedWindow.end));
+      continue;
+    }
+
     let conflict = false;
     let allowedWindowEnd: number | null = null;
     for (const slot of busySlots) {
@@ -182,6 +191,11 @@ export function findNextClassSlot(
     while (cursor.getTime() + needMs <= cls.end) {
       const end = new Date(cursor.getTime() + durationMinutes * 60000);
       if (deadline && end > deadline) return null;
+      const protectedWindow = findProtectedWindow(cursor, end);
+      if (protectedWindow) {
+        cursor = advanceToWorkHours(atMinutesOfDay(cursor, protectedWindow.end));
+        continue;
+      }
       const blockers = busySlots.filter((s) => {
         if (s.isClass) return false;
         const sStart = new Date(s.start).getTime();
@@ -416,6 +430,10 @@ export function validateScheduleLocally(
     const todo = todoById.get(item.todo_id);
     if (start.getHours() < WORK_START_HOUR || end.getHours() > WORK_END_HOUR) {
       errors.push(`超出工作时段：${item.title}`);
+    }
+    const protectedWindow = findProtectedWindow(start, end);
+    if (protectedWindow) {
+      errors.push(`安排在${protectedWindow.label}时段：${item.title}`);
     }
     // 大模型偶尔会返回已经过去的时段（尤其是没带时区偏移时），
     // 这种安排写进数据库就等于「排了但永远做不了」，必须拦下来

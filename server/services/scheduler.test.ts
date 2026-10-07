@@ -38,14 +38,14 @@ describe('isWithinWorkHours', () => {
     d.setHours(12, 0, 0, 0);
     expect(isWithinWorkHours(d)).toBe(true);
   });
-  it('returns false just before work start (6:59)', () => {
+  it('returns false just before work start (7:59)', () => {
     const d = new Date();
-    d.setHours(6, 59, 0, 0);
+    d.setHours(7, 59, 0, 0);
     expect(isWithinWorkHours(d)).toBe(false);
   });
-  it('returns true at the exact work start (7:00)', () => {
+  it('returns true at the exact work start (8:00)', () => {
     const d = new Date();
-    d.setHours(7, 0, 0, 0);
+    d.setHours(8, 0, 0, 0);
     expect(isWithinWorkHours(d)).toBe(true);
   });
   it('returns false at the exact work end (23:00)', () => {
@@ -56,16 +56,16 @@ describe('isWithinWorkHours', () => {
 });
 
 describe('advanceToWorkHours', () => {
-  it('moves an early time to 7:00 on the same day', () => {
+  it('moves an early time to 8:00 on the same day', () => {
     const d = new Date(2024, 0, 5, 5, 30);
     const r = advanceToWorkHours(d);
-    expect(r.getHours()).toBe(7);
+    expect(r.getHours()).toBe(8);
     expect(r.getDate()).toBe(5);
   });
-  it('moves a late time to 7:00 on the next day', () => {
+  it('moves a late time to 8:00 on the next day', () => {
     const d = new Date(2024, 0, 5, 23, 30);
     const r = advanceToWorkHours(d);
-    expect(r.getHours()).toBe(7);
+    expect(r.getHours()).toBe(8);
     expect(r.getDate()).toBe(6);
   });
   it('leaves a time already within work hours unchanged', () => {
@@ -116,7 +116,7 @@ describe('findNextFreeSlot', () => {
     const start = new Date(2024, 0, 5, 23, 30);
     const r = findNextFreeSlot(start, 60, [], null);
     expect(r).not.toBeNull();
-    expect(new Date(r!).getHours()).toBe(7);
+    expect(new Date(r!).getHours()).toBe(8);
     expect(new Date(r!).getDate()).toBe(6);
   });
 
@@ -125,6 +125,6 @@ describe('findNextFreeSlot', () => {
     const r = findNextFreeSlot(start, 60, [], null);
     expect(r).not.toBeNull();
     expect(new Date(r!).getDate()).toBe(6);
-    expect(new Date(r!).getHours()).toBe(7);
+    expect(new Date(r!).getHours()).toBe(8);
   });
 });

@@ -1,5 +1,13 @@
 import db from '../db/index.js';
 import { looksLikeCourse } from '../../shared/cdut-parser.js';
+import {
+  WORK_START_HOUR,
+  WORK_END_HOUR,
+  MIN_USABLE_GAP_MINUTES,
+  SLOT_BUFFER_MINUTES,
+  findProtectedWindow,
+  atMinutesOfDay,
+} from '../../shared/schedule-policy.js';
 
 export interface ScheduledItem {
   todo_id: number;
@@ -30,16 +38,10 @@ interface TodoItem {
   scheduled_end: string | null;
 }
 
-const WORK_START_HOUR = 7;
-const WORK_END_HOUR = 23;
 const BREAK_AFTER_MINUTES = 120;
 const BREAK_DURATION_MINUTES = 15;
 const MAX_SEGMENT_MINUTES = 90;
 const MIN_SEGMENT_MINUTES = 15;
-/** 两节课之间的空档小于这个值就不排任务 */
-const MIN_USABLE_GAP_MINUTES = 30;
-/** 任务结束到下一个日程之间至少留 5 分钟缓冲 */
-const SLOT_BUFFER_MINUTES = 5;
 
 function getBusySlots(startDate: Date, endDate: Date): BusySlot[] {
   const events = db.prepare(
@@ -152,6 +154,12 @@ export function findNextFreeSlot(
       return null;
     }
 
+    const protectedWindow = findProtectedWindow(start, end);
+    if (protectedWindow) {
+      start = advanceToWorkHours(atMinutesOfDay(start, protectedWindow.end));
+      continue;
+    }
+
     let conflict = false;
     let allowedWindowEnd: number | null = null;
     for (const slot of busySlots) {
@@ -216,6 +224,11 @@ export function findNextClassSlot(
     while (cursor.getTime() + needMs <= cls.end) {
       const end = new Date(cursor.getTime() + durationMinutes * 60000);
       if (deadline && end > deadline) return null;
+      const protectedWindow = findProtectedWindow(cursor, end);
+      if (protectedWindow) {
+        cursor = advanceToWorkHours(atMinutesOfDay(cursor, protectedWindow.end));
+        continue;
+      }
       const blockers = busySlots.filter((s) => {
         if (s.isClass) return false;
         const sStart = new Date(s.start).getTime();

@@ -3,6 +3,7 @@ import { LLMProvider, LLMConfig } from '../llm/provider.js';
 import { createProvider } from '../llm/index.js';
 import { ScheduledItem } from './scheduler.js';
 import { looksLikeCourse } from '../../shared/cdut-parser.js';
+import { findProtectedWindow } from '../../shared/schedule-policy.js';
 import { decrypt, isEncrypted } from '../utils/crypto.js';
 import { debug } from '../utils/debug.js';
 import {
@@ -131,6 +132,10 @@ function validateSchedule(items: ScheduledItem[]): { valid: boolean; errors: str
     // 与本地校验保持一致：已经过去的时段写进库等于永远做不了
     if (itemEnd.getTime() < Date.now() - 5 * 60 * 1000) {
       errors.push(`待办 "${item.title}" 被安排在已过去的时间`);
+    }
+    const protectedWindow = findProtectedWindow(itemStart, itemEnd);
+    if (protectedWindow) {
+      errors.push(`待办 "${item.title}" 被安排在${protectedWindow.label}时段`);
     }
     const duration = Math.round((itemEnd.getTime() - itemStart.getTime()) / 60000);
     if (duration > 90) {
