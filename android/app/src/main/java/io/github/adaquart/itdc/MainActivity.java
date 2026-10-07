@@ -24,6 +24,23 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         applySystemBarInsets();
+        clearWebViewCache();
+    }
+
+    /**
+     * 清一次 WebView 的 HTTP 缓存。
+     *
+     * 前端资源虽然打包在 APK 里，但 WebView 仍会按 URL 缓存 index.html 与 js：
+     * 覆盖安装后它可能继续用旧缓存，表现为"装了新版本功能却没变"。
+     */
+    private void clearWebViewCache() {
+        try {
+            Bridge bridge = getBridge();
+            WebView webView = bridge != null ? bridge.getWebView() : null;
+            if (webView != null) webView.clearCache(true);
+        } catch (Exception e) {
+            Log.e(TAG, "clearWebViewCache failed", e);
+        }
     }
 
     /**

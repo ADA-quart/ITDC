@@ -22,6 +22,7 @@ import type { Calendar, CalendarEvent, Todo } from '../types';
 import { TODO_PALETTE } from '../types';
 import ImportModal from './ImportModal';
 import SchoolImportModal from './SchoolImportModal';
+import TimetableGrid from './TimetableGrid';
 import { getSelectedSchool } from '../api/school-prefs';
 import { syncClassReminders } from '../api/reminders';
 import { useI18n } from '../i18n';
@@ -32,6 +33,11 @@ import { findMergeTarget } from '../utils/calendar-merge';
 import { cardStyle, hintTextStyle, secondaryTextColor, TOUCH_TARGET, TYPE } from './ui';
 
 const CAL_VIEW_KEY = 'itdc_calendar_view';
+
+/** 该日期所在周的周一（与课表视图的列顺序一致） */
+function mondayOf(d: dayjs.Dayjs): dayjs.Dayjs {
+  return d.subtract((d.day() + 6) % 7, 'day').startOf('day');
+}
 
 /** 标题去掉当年的年份，手机上才放得下一行（如「2026年10月12日 - 18日」→「10月12日 - 18日」） */
 function shortTitle(raw: string): string {
@@ -84,6 +90,11 @@ const CalendarView: React.FC = () => {
   const [calView] = useState(() => resolveInitialView(isMobile));
   const [calViewType, setCalViewType] = useState(calView);
   const [calTitle, setCalTitle] = useState('');
+  // 课表视图（按大节的格子）：数据复用日历事件，翻页用自己的周起点
+  const [timetableMode, setTimetableMode] = useState(false);
+  const [weekStart, setWeekStart] = useState(() => mondayOf(dayjs()));
+  const timetableModeRef = useRef(false);
+  timetableModeRef.current = timetableMode;
   const [detailEvent, setDetailEvent] = useState<any | null>(null);
   // 「在这节课里加个待办」：直接给这段时间排一条待办，省得先排期再拖进来
   const [addTodoTarget, setAddTodoTarget] = useState<any | null>(null);
@@ -291,9 +302,7 @@ const CalendarView: React.FC = () => {
       const dy = t.clientY - startY;
       const dir = swipeDirection(dx, dy);
       if (!dir) return;
-      const api = calendarRef.current?.getApi();
-      if (!api) return;
-      if (dir === 'next') api.next(); else api.prev();
+      shiftPage(dir === 'next' ? 1 : -1);
     };
     // 捕获阶段 + passive：既能在 FullCalendar 内部处理前拿到手势，也不影响它自己的滚动
     el.addEventListener('touchstart', onStart, { capture: true, passive: true });
@@ -349,6 +358,36 @@ const CalendarView: React.FC = () => {
     } catch {
       message.error(t.calendar.eventMoveFailed);
     }
+  };
+
+  /** 翻页：课表视图翻一周，日历视图交给 FullCalendar（读 ref，滑动手势也复用） */
+  const shiftPage = (dir: 1 | -1) => {
+    if (timetableModeRef.current) {
+      setWeekStart((w) => w.add(dir * 7, 'day'));
+      return;
+    }
+    const api = calendarRef.current?.getApi();
+    if (!api) return;
+    if (dir > 0) api.next(); else api.prev();
+  };
+
+  const goToday = () => {
+    if (timetableModeRef.current) {
+      setWeekStart(mondayOf(dayjs()));
+      return;
+    }
+    calendarRef.current?.getApi().today();
+  };
+
+  const switchView = (value: string) => {
+    if (value === 'timetable') {
+      const cur = calendarRef.current?.getApi()?.getDate();
+      setWeekStart(mondayOf(dayjs(cur ?? new Date())));
+      setTimetableMode(true);
+      return;
+    }
+    setTimetableMode(false);
+    calendarRef.current?.getApi().changeView(value);
   };
 
   const handleAddTodoToEvent = async () => {
@@ -601,7 +640,7 @@ const CalendarView: React.FC = () => {
               type="text"
               aria-label={t.calendar.prevPage}
               icon={<LeftOutlined />}
-              onClick={() => calendarRef.current?.getApi().prev()}
+              onClick={() => shiftPage(-1)}
             />
             <div style={{
               flex: 1,
@@ -620,16 +659,17 @@ const CalendarView: React.FC = () => {
               type="text"
               aria-label={t.calendar.nextPage}
               icon={<RightOutlined />}
-              onClick={() => calendarRef.current?.getApi().next()}
+              onClick={() => shiftPage(1)}
             />
-            <Button size="small" onClick={() => calendarRef.current?.getApi().today()}>{t.calendar.today}</Button>
+            <Button size="small" onClick={goToday}>{t.calendar.today}</Button>
             <Segmented
               size="small"
-              value={calViewType}
-              onChange={(v) => calendarRef.current?.getApi().changeView(String(v))}
+              value={timetableMode ? 'timetable' : calViewType}
+              onChange={(v) => switchView(String(v))}
               options={[
                 { label: t.calendar.viewDay, value: 'timeGridDay' },
                 { label: t.calendar.viewWeek, value: 'timeGridWeek' },
+                { label: t.calendar.viewTimetable, value: 'timetable' },
               ]}
             />
           </div>
@@ -642,6 +682,14 @@ const CalendarView: React.FC = () => {
             ['--fc-today-bg-color' as any]: 'rgba(24,144,255,0.05)',
           } as React.CSSProperties}
         >
+          {timetableMode ? (
+            <TimetableGrid
+              weekStart={weekStart}
+              events={events}
+              isDark={isDark}
+              onSelectEvent={(ev) => setDetailEvent(ev)}
+            />
+          ) : (
           <FullCalendar
             ref={calendarRef}
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, rrulePlugin]}
@@ -806,6 +854,7 @@ const CalendarView: React.FC = () => {
             slotMinTime="07:00:00"
             slotMaxTime="23:00:00"
           />
+          )}
         </div>
       </div>
       </div>
