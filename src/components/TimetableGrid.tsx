@@ -5,7 +5,7 @@
  * 课程块显示课名 + 教室，颜色沿用课程配色。数据直接复用日历事件，
  * 所以点击课程走的还是同一套详情弹窗。
  */
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import dayjs, { type Dayjs } from 'dayjs';
 import { TIMETABLE } from '../../shared/cdut-parser';
 import { useI18n } from '../i18n';
@@ -18,6 +18,10 @@ interface Props {
   events: any[];
   isDark: boolean;
   onSelectEvent: (event: any) => void;
+  /** 拖到别的格子：按目标格子的节次时间给出新的起止（时长保持不变） */
+  onMoveEvent: (event: any, start: Date, end: Date) => void;
+  /** 长按不动：请求删除（课程/日程；待办不删） */
+  onDeleteEvent: (event: any) => void;
 }
 
 interface GridItem {
@@ -31,8 +35,99 @@ interface GridItem {
   isTodo: boolean;
 }
 
-const TimetableGrid: React.FC<Props> = ({ weekStart, events, isDark, onSelectEvent }) => {
+const TimetableGrid: React.FC<Props> = ({
+  weekStart,
+  events,
+  isDark,
+  onSelectEvent,
+  onMoveEvent,
+  onDeleteEvent,
+}) => {
   const { t } = useI18n();
+  // 拖拽 / 长按：pointer 事件在 WebView 里触摸与鼠标都走
+  const drag = useRef<{
+    item: GridItem | null;
+    startX: number;
+    startY: number;
+    moved: boolean;
+    longPressed: boolean;
+    timer: number | null;
+  }>({ item: null, startX: 0, startY: 0, moved: false, longPressed: false, timer: null });
+  // 拖过或长按过之后紧跟着的 click 要吞掉，否则会弹出详情
+  const suppressClick = useRef(false);
+  const [ghost, setGhost] = useState<{ x: number; y: number; title: string } | null>(null);
+  const [hoverCell, setHoverCell] = useState<string | null>(null);
+
+  const clearLongPress = () => {
+    if (drag.current.timer !== null) {
+      window.clearTimeout(drag.current.timer);
+      drag.current.timer = null;
+    }
+  };
+
+  const cellUnder = (x: number, y: number): { day: number; section: number } | null => {
+    const el = document.elementFromPoint(x, y)?.closest('[data-cell]') as HTMLElement | null;
+    const key = el?.dataset.cell;
+    if (!key) return null;
+    const [day, section] = key.split('-').map(Number);
+    if (Number.isNaN(day) || Number.isNaN(section)) return null;
+    return { day, section };
+  };
+
+  const onBlockPointerDown = (item: GridItem) => (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    drag.current = {
+      item,
+      startX: e.clientX,
+      startY: e.clientY,
+      moved: false,
+      longPressed: false,
+      timer: null,
+    };
+    // 长按不动 900ms = 删除（和日历视图一致）；待办不提供删除
+    if (!item.isTodo) {
+      drag.current.timer = window.setTimeout(() => {
+        drag.current.timer = null;
+        drag.current.longPressed = true;
+        drag.current.item = null;
+        onDeleteEvent(item.event);
+      }, 900);
+    }
+  };
+
+  const onBlockPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const st = drag.current;
+    if (!st.item) return;
+    if (!st.moved && Math.hypot(e.clientX - st.startX, e.clientY - st.startY) > 8) {
+      st.moved = true;
+      clearLongPress();
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* 某些 WebView 不支持 */ }
+    }
+    if (!st.moved) return;
+    setGhost({ x: e.clientX, y: e.clientY, title: st.item.title });
+    const cell = cellUnder(e.clientX, e.clientY);
+    setHoverCell(cell ? `${cell.day}-${cell.section}` : null);
+  };
+
+  const endDrag = (x: number, y: number, commit: boolean) => {
+    const st = drag.current;
+    clearLongPress();
+    const item = st.item;
+    const moved = st.moved;
+    const longPressed = st.longPressed;
+    drag.current = { item: null, startX: 0, startY: 0, moved: false, longPressed: false, timer: null };
+    setGhost(null);
+    setHoverCell(null);
+    if (moved || longPressed) suppressClick.current = true;
+    if (!commit || !moved || !item) return;
+    const cell = cellUnder(x, y);
+    if (!cell) return;
+    // 起点换成目标节次的开始时间，时长照旧（连堂课拖过去仍然连堂）
+    const [sh, sm] = TIMETABLE[cell.section][0].split(':').map(Number);
+    const start = weekStart.add(cell.day, 'day').hour(sh).minute(sm).second(0).millisecond(0);
+    const minutes = Math.max(1, dayjs(item.event.end).diff(dayjs(item.event.start), 'minute'));
+    onMoveEvent(item.event, start.toDate(), start.add(minutes, 'minute').toDate());
+  };
 
   // 把事件按「星期 + 大节」放进格子：与哪几节有时间重叠，就画在哪几行。
   // 连上三节的晚课（19:10-21:35）因此会同时出现在第 6、7 行，和真实课表一致，
@@ -87,7 +182,18 @@ const TimetableGrid: React.FC<Props> = ({ weekStart, events, isDark, onSelectEve
     <button
       key={key}
       type="button"
-      onClick={() => onSelectEvent(item.event)}
+      onPointerDown={onBlockPointerDown(item)}
+      onPointerMove={onBlockPointerMove}
+      onPointerUp={(e) => endDrag(e.clientX, e.clientY, true)}
+      onPointerCancel={(e) => endDrag(e.clientX, e.clientY, false)}
+      onClick={() => {
+        // 拖动或长按过之后，浏览器仍会补一个 click，这里吞掉
+        if (suppressClick.current) {
+          suppressClick.current = false;
+          return;
+        }
+        onSelectEvent(item.event);
+      }}
       style={{
         flex: 1,
         minHeight: 42,
@@ -103,6 +209,7 @@ const TimetableGrid: React.FC<Props> = ({ weekStart, events, isDark, onSelectEve
         flexDirection: 'column',
         justifyContent: 'space-between',
         overflow: 'hidden',
+        touchAction: 'none',
       }}
     >
       <span style={{ display: 'flex', alignItems: 'flex-start', gap: 2, minWidth: 0 }}>
@@ -136,6 +243,29 @@ const TimetableGrid: React.FC<Props> = ({ weekStart, events, isDark, onSelectEve
 
   return (
     <div className="itdc-timetable-grid" style={{ overflowX: 'auto' }}>
+      {ghost && (
+        <div
+          style={{
+            position: 'fixed',
+            left: ghost.x,
+            top: ghost.y,
+            transform: 'translate(-50%, -50%)',
+            padding: '4px 8px',
+            borderRadius: 6,
+            background: 'rgba(0,0,0,.72)',
+            color: '#fff',
+            fontSize: 11,
+            pointerEvents: 'none',
+            zIndex: 2000,
+            maxWidth: 160,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {ghost.title}
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, minmax(46px, 1fr))', border, borderRadius: 10, overflow: 'hidden', background: cellBg }}>
         {/* 表头：周几 + 日期 */}
         <div style={{ background: headBg, borderBottom: border }} />
@@ -162,7 +292,21 @@ const TimetableGrid: React.FC<Props> = ({ weekStart, events, isDark, onSelectEve
             {Array.from({ length: 7 }, (_, dayIdx) => {
               const items = cells.get(`${dayIdx}-${section}`) ?? [];
               return (
-                <div key={dayIdx} style={{ borderBottom: border, borderLeft: border, minHeight: TOUCH_TARGET + 28, padding: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div
+                  key={dayIdx}
+                  data-cell={`${dayIdx}-${section}`}
+                  style={{
+                    borderBottom: border,
+                    borderLeft: border,
+                    minHeight: TOUCH_TARGET + 28,
+                    padding: 2,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2,
+                    outline: hoverCell === `${dayIdx}-${section}` ? '2px solid #1677ff' : 'none',
+                    outlineOffset: -2,
+                  }}
+                >
                   {items.map((item, idx) => renderBlock(item, `${item.title}-${idx}`))}
                 </div>
               );

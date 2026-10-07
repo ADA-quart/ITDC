@@ -323,6 +323,13 @@ const CalendarView: React.FC = () => {
     const onStart = (e: TouchEvent) => {
       tracking = e.touches.length === 1;
       if (!tracking) return;
+      // 从事件/课程块起手的横向手势是「拖这块」，不该同时翻页：
+      // 课表格子里拖动课程时，父容器的翻页逻辑会把整周带走（实测拖完跳到下一周）
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('.fc-event, .itdc-timetable-grid button')) {
+        tracking = false;
+        return;
+      }
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
     };
@@ -424,8 +431,33 @@ const CalendarView: React.FC = () => {
     setTimetableMode(false);
     const api = calendarRef.current?.getApi();
     api?.changeView(value);
-    // 从课表格子切回日视图时，让 FullCalendar 对齐到正在看的那一周
-    api?.gotoDate(weekStart.toDate());
+    // 从课表格子切回日历：正在看的这一周里有今天，就落在今天（以前写死跳到周一，
+    // 「周 → 日」永远显示星期一）；翻到别的周时才退回周一
+    const today = dayjs();
+    const weekEnd = weekStart.add(6, 'day');
+    const inThisWeek = !today.isBefore(weekStart, 'day') && !today.isAfter(weekEnd, 'day');
+    api?.gotoDate((value === 'timeGridDay' && inThisWeek ? today : weekStart).toDate());
+  };
+
+  /** 课表格子里拖动课程/待办：按目标格子算出的新时间写回 */
+  const handleGridMove = async (event: any, start: Date, end: Date) => {
+    try {
+      if (event.extendedProps?.type === 'todo') {
+        await todoApi.update(event.extendedProps.id, {
+          scheduled_start: start.toISOString(),
+          scheduled_end: end.toISOString(),
+        });
+      } else {
+        await calendarApi.updateEvent(Number(event.id), {
+          start_time: start.toISOString(),
+          end_time: end.toISOString(),
+        });
+      }
+      message.success(t.calendar.eventMoved);
+      loadData();
+    } catch {
+      message.error(t.calendar.eventMoveFailed);
+    }
   };
 
   const handleAddTodoToEvent = async () => {
@@ -757,6 +789,8 @@ const CalendarView: React.FC = () => {
               events={events}
               isDark={isDark}
               onSelectEvent={(ev) => setDetailEvent(ev)}
+              onMoveEvent={handleGridMove}
+              onDeleteEvent={(ev) => confirmDeleteEvent(String(ev.id), ev.title)}
             />
           )}
           {/* 周视图用课表格子时，FullCalendar 只隐藏不卸载：切回日视图时它的实例还在 */}
