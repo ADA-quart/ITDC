@@ -20,6 +20,7 @@ interface TodoItem {
   priority: string;
   urgency: number;
   importance: number;
+  can_do_in_class: number | null;
   deadline: string | null;
   status: string;
   scheduled_start: string | null;
@@ -31,6 +32,13 @@ const WORK_END_HOUR = 23;
 const BREAK_AFTER_MINUTES = 120;
 const BREAK_DURATION_MINUTES = 15;
 const MAX_SEGMENT_MINUTES = 90;
+const MIN_SEGMENT_MINUTES = 15;
+
+/** 课程判定：source 为学校 id（如 cdut）的是教务课表，manual/ical 不是课程 */
+export function isClassSource(source: string | null | undefined): boolean {
+  const s = (source || '').toLowerCase();
+  return !!s && s !== 'manual' && s !== 'ical';
+}
 
 function getBusySlots(startDate: Date, endDate: Date): BusySlot[] {
   const events = db.prepare(
@@ -47,6 +55,40 @@ function getBusySlots(startDate: Date, endDate: Date): BusySlot[] {
   ];
 
   return busy.sort((a, b) => a.start.localeCompare(b.start));
+}
+
+function getCourseSlots(startDate: Date, endDate: Date): BusySlot[] {
+  const events = db.prepare(
+    'SELECT start_time, end_time, source FROM events WHERE start_time < ? AND end_time > ?'
+  ).all(endDate.toISOString(), startDate.toISOString()) as { start_time: string; end_time: string; source: string | null }[];
+  return events
+    .filter((e) => isClassSource(e.source))
+    .map((e) => ({ start: e.start_time, end: e.end_time }));
+}
+
+/**
+ * 排程开始前已经连续忙了多久（课程/日程也计入）。
+ * 只看刚结束 30 分钟内、最近 6 小时的忙碌串；间隔 ≥15 分钟视为已经休息。
+ */
+function workStreakBefore(busySlots: BusySlot[], now: Date): { minutes: number; end: Date | null } {
+  const breakGapMs = BREAK_DURATION_MINUTES * 60 * 1000;
+  const lookbackMs = 6 * 60 * 60 * 1000;
+  const recent = busySlots
+    .map((s) => ({ start: new Date(s.start).getTime(), end: new Date(s.end).getTime() }))
+    .filter((s) => !Number.isNaN(s.start) && !Number.isNaN(s.end)
+      && s.end <= now.getTime() && s.end > now.getTime() - lookbackMs)
+    .sort((a, b) => a.start - b.start);
+  if (recent.length === 0) return { minutes: 0, end: null };
+
+  const merged: { start: number; end: number }[] = [];
+  for (const slot of recent) {
+    const last = merged[merged.length - 1];
+    if (!last || slot.start - last.end >= breakGapMs) merged.push({ ...slot });
+    else last.end = Math.max(last.end, slot.end);
+  }
+  const last = merged[merged.length - 1];
+  if (now.getTime() - last.end > 30 * 60 * 1000) return { minutes: 0, end: null };
+  return { minutes: Math.round((last.end - last.start) / 60000), end: new Date(last.end) };
 }
 
 /** Insert a busy slot into sorted array using binary search — O(n) instead of O(n log n) per insert */
@@ -86,7 +128,8 @@ export function findNextFreeSlot(
   currentStart: Date,
   durationMinutes: number,
   busySlots: BusySlot[],
-  deadline: Date | null
+  deadline: Date | null,
+  flexibleSlots: BusySlot[] = []
 ): Date | null {
   let start = new Date(currentStart);
   start = advanceToWorkHours(start);
@@ -116,6 +159,13 @@ export function findNextFreeSlot(
       const slotStart = new Date(slot.start);
       const slotEnd = new Date(slot.end);
       if (start < slotEnd && end > slotStart) {
+        // can_do_in_class 的待办允许整段落在课程里（之后会融合进课程）
+        const insideFlexible = flexibleSlots.some((f) => {
+          const fStart = new Date(f.start);
+          const fEnd = new Date(f.end);
+          return start >= fStart && end <= fEnd;
+        });
+        if (insideFlexible) continue;
         conflict = true;
         start = new Date(Math.max(start.getTime(), slotEnd.getTime()));
         start = advanceToWorkHours(start);
@@ -137,12 +187,14 @@ export function generateSchedule(): ScheduledItem[] {
 
   const todos = getPendingTodos();
   const busySlots = getBusySlots(now, scheduleEnd);
+  const courseSlots = getCourseSlots(now, scheduleEnd);
   const result: ScheduledItem[] = [];
   const newBusySlots: BusySlot[] = [...busySlots];
-  let continuousWorkMinutes = 0;
+  const streak = workStreakBefore(busySlots, now);
+  let continuousWorkMinutes = streak.minutes;
   // 与客户端同一处修正：休息接在「刚干完的那一段」之后，
   // 而不是所有忙碌块里最晚的结束时间（日历有远期事件时会落到几天后）
-  let lastWorkEnd: Date | null = null;
+  let lastWorkEnd: Date | null = streak.end;
 
   const noteWork = (start: Date, minutes: number) => {
     if (lastWorkEnd && start.getTime() - lastWorkEnd.getTime() >= BREAK_DURATION_MINUTES * 60 * 1000) {
@@ -155,6 +207,7 @@ export function generateSchedule(): ScheduledItem[] {
   for (const todo of todos) {
     const searchStart = new Date(now.getTime());
     const deadline = todo.deadline ? new Date(todo.deadline) : null;
+    const flexibleSlots = todo.can_do_in_class ? courseSlots : [];
 
     const needsSplit = todo.estimated_minutes > MAX_SEGMENT_MINUTES;
     const segmentMinutes = needsSplit
@@ -163,8 +216,12 @@ export function generateSchedule(): ScheduledItem[] {
     const totalSegments = segmentMinutes.length;
 
     if (continuousWorkMinutes >= BREAK_AFTER_MINUTES) {
+      const breakSearchStart = new Date(Math.max(
+        lastWorkEnd ? lastWorkEnd.getTime() : searchStart.getTime(),
+        searchStart.getTime()
+      ));
       const breakStart = findNextFreeSlot(
-        lastWorkEnd ?? searchStart,
+        breakSearchStart,
         BREAK_DURATION_MINUTES,
         newBusySlots,
         null
@@ -176,7 +233,7 @@ export function generateSchedule(): ScheduledItem[] {
       continuousWorkMinutes = 0;
     }
 
-    const firstSlotStart = findNextFreeSlot(searchStart, segmentMinutes[0], newBusySlots, deadline);
+    const firstSlotStart = findNextFreeSlot(searchStart, segmentMinutes[0], newBusySlots, deadline, flexibleSlots);
 
     if (!firstSlotStart) continue;
 
@@ -214,7 +271,8 @@ export function generateSchedule(): ScheduledItem[] {
         new Date(newBusySlots[newBusySlots.length - 1].end),
         segmentMinutes[i],
         newBusySlots,
-        deadline
+        deadline,
+        flexibleSlots
       );
 
       if (!segStart) break;
@@ -241,6 +299,12 @@ export function splitIntoSegments(totalMinutes: number, maxPerSegment: number): 
   const segments: number[] = [];
   let remaining = totalMinutes;
   while (remaining > maxPerSegment) {
+    const restAfterFull = remaining - maxPerSegment;
+    if (restAfterFull < MIN_SEGMENT_MINUTES) {
+      segments.push(maxPerSegment - (MIN_SEGMENT_MINUTES - restAfterFull));
+      remaining = MIN_SEGMENT_MINUTES;
+      break;
+    }
     segments.push(maxPerSegment);
     remaining -= maxPerSegment;
   }

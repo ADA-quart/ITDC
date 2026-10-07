@@ -68,8 +68,8 @@ router.post('/apply', (req: Request, res: Response) => {
             const segTitle = `${originalTodo.title} (${i + 1}/${sorted.length})`;
 
             db.prepare(
-              `INSERT INTO todos (title, description, estimated_minutes, priority, urgency, importance, deadline, status, scheduled_start, scheduled_end, color)
-               VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?)`
+              `INSERT INTO todos (title, description, estimated_minutes, priority, urgency, importance, can_do_in_class, deadline, status, scheduled_start, scheduled_end, color)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?)`
             ).run(
               segTitle,
               originalTodo.description,
@@ -77,6 +77,7 @@ router.post('/apply', (req: Request, res: Response) => {
               originalTodo.priority,
               originalTodo.urgency,
               originalTodo.importance,
+              originalTodo.can_do_in_class || 0,
               originalTodo.deadline,
               sorted[i].start,
               sorted[i].end,
@@ -96,12 +97,12 @@ router.post('/apply', (req: Request, res: Response) => {
 });
 
 router.get('/llm-config', (_req: Request, res: Response) => {
-  const configs = db.prepare('SELECT id, provider, base_url, model, is_active, created_at FROM llm_config ORDER BY created_at DESC').all();
+  const configs = db.prepare('SELECT id, provider, base_url, model, thinking_effort, is_active, created_at FROM llm_config ORDER BY created_at DESC').all();
   res.json(configs);
 });
 
 router.post('/llm-config', (req: Request, res: Response) => {
-  const { provider, api_key, base_url, model } = req.body;
+  const { provider, api_key, base_url, model, thinking_effort } = req.body;
 
   if (!provider || !VALID_PROVIDERS.includes(provider)) {
     return res.status(400).json({ error: '不支持的 LLM 服务商' });
@@ -116,8 +117,8 @@ router.post('/llm-config', (req: Request, res: Response) => {
   const encryptedKey = api_key ? encrypt(api_key) : null;
 
   const result = db.prepare(
-    'INSERT INTO llm_config (provider, api_key, base_url, model) VALUES (?, ?, ?, ?)'
-  ).run(provider, encryptedKey, base_url || null, model || null);
+    'INSERT INTO llm_config (provider, api_key, base_url, model, thinking_effort) VALUES (?, ?, ?, ?, ?)'
+  ).run(provider, encryptedKey, base_url || null, model || null, thinking_effort || null);
 
   res.json({ id: result.lastInsertRowid, provider });
 });

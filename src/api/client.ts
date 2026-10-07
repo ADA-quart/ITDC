@@ -319,14 +319,15 @@ export const todoApi = {
     if (!isSyncEnabled()) {
       const parsed = await parseNaturalLanguageTodoLocally(text);
       const todos = await offline.getCachedTodos();
-      const created = offline.localCreate({
-        title: parsed.title,
-        estimated_minutes: parsed.estimated_minutes,
-        priority: parsed.priority as Todo['priority'],
-        urgency: parsed.urgency,
-        importance: parsed.importance,
-        deadline: parsed.deadline,
-      });
+        const created = offline.localCreate({
+          title: parsed.title,
+          estimated_minutes: parsed.estimated_minutes,
+          priority: parsed.priority as Todo['priority'],
+          urgency: parsed.urgency,
+          importance: parsed.importance,
+          can_do_in_class: parsed.in_class,
+          deadline: parsed.deadline,
+        });
       todos.push(created);
       await offline.saveCachedTodos(todos);
       notifyDataChanged();
@@ -610,16 +611,16 @@ export const scheduleApi = {
     }
 
     const schedule = generateScheduleLocally(todos, events);
-    const validation = validateScheduleLocally(schedule, todos);
+    const validation = validateScheduleLocally(schedule, todos, events);
     return { mode: 'algorithm', schedule, validation };
   },
 
   async apply(schedule: ScheduleResult['schedule']): Promise<{ success: boolean; applied_count: number }> {
-    const events = await offline.getEventCache();
-    const validation = validateScheduleLocally(schedule, await offline.getCachedTodos());
-    if (!validation.valid && validation.errors.some((e) => e.startsWith('时间冲突'))) {
-      throw new Error(validation.errors.join('；'));
-    }
+      const events = await offline.getEventCache();
+      const validation = validateScheduleLocally(schedule, await offline.getCachedTodos(), events);
+      if (!validation.valid && validation.errors.some((e) => e.includes('冲突'))) {
+        throw new Error(validation.errors.join('；'));
+      }
 
     if (isSyncEnabled() && offline.isOnline()) {
       try {
@@ -699,7 +700,7 @@ function normalizeScheduleResult(data: any): ScheduleResult {
 export const llmConfigApi = {
   getAll: () => api.get<unknown>('/schedule/llm-config')
     .then(r => offline.requireArray<LLMConfig>(r.data, 'GET /schedule/llm-config')),
-  create: (data: { provider: string; api_key?: string; base_url?: string; model?: string }) =>
+  create: (data: { provider: string; api_key?: string; base_url?: string; model?: string; thinking_effort?: LLMConfig['thinking_effort'] }) =>
     api.post('/schedule/llm-config', data).then(r => r.data),
   activate: (id: number) => api.put(`/schedule/llm-config/${id}/activate`).then(r => r.data),
   delete: (id: number) => api.delete(`/schedule/llm-config/${id}`).then(r => r.data),

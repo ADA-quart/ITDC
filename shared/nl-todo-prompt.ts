@@ -16,6 +16,7 @@ export const NL_TODO_SYSTEM_PROMPT = `
 4. importance (重要度, 1-4): 与工作成果、财务、健康相关且后果严重 -> 3-4；一般事务 -> 1-2
 5. deadline: 解析出明确的截止日期/时间。"周五下午"按当前日期推断为最近一个周五的 18:00，格式 "YYYY-MM-DDTHH:mm:ss"（本地时间）；无法确定则 null
 6. estimated_minutes: 根据任务复杂度估计所需分钟数（默认 30-120），取整数
+7. in_class (布尔值): 用户明确说"上课时可以做/课间可以做/水课可以做"-> true；否则一律 false
 
 JSON 结构：
 {
@@ -23,7 +24,8 @@ JSON 结构：
   "urgency": number,
   "importance": number,
   "deadline": "YYYY-MM-DDTHH:mm:ss" | null,
-  "estimated_minutes": number
+  "estimated_minutes": number,
+  "in_class": boolean
 }
 `;
 
@@ -34,6 +36,8 @@ export interface ParsedTodo {
   priority: string;
   deadline: string | null;
   estimated_minutes: number;
+  /** 用户是否明确表示这条待办可以在上课时做 */
+  in_class: boolean;
 }
 
 export function priorityFrom(urgency: number, importance: number): string {
@@ -91,6 +95,7 @@ export function parseTodoFromModel(raw: string): ParsedTodo {
   }
 
   const estimated_minutes = clamp(parsed.estimated_minutes ?? 60, 5, 720);
+  const in_class = parsed?.in_class === true || parsed?.in_class === 'true';
 
   return {
     title,
@@ -99,5 +104,6 @@ export function parseTodoFromModel(raw: string): ParsedTodo {
     priority: priorityFrom(urgency, importance),
     deadline,
     estimated_minutes,
+    in_class,
   };
 }

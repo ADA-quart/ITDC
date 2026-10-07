@@ -61,6 +61,12 @@ describe('splitIntoSegments', () => {
   it('keeps short durations as a single segment', () => {
     expect(splitIntoSegments(45, 90)).toEqual([45]);
   });
+
+  it('avoids tiny remainder segments', () => {
+    // 95 分钟拆成 90+5 没有意义：从上一段借 10 分钟，凑成 80+15
+    expect(splitIntoSegments(95, 90)).toEqual([80, 15]);
+    expect(splitIntoSegments(100, 90)).toEqual([85, 15]);
+  });
 });
 
 describe('work hours helpers', () => {
@@ -165,6 +171,43 @@ describe('generateScheduleLocally', () => {
     expect(schedule[0].title).toBe('p1');
   });
 
+  it('allows can_do_in_class todos to be placed inside a class block', () => {
+    const classEvent = makeEvent({
+      id: 99,
+      title: '水课',
+      source: 'cdut',
+      start_time: at(1, 8).toISOString(),
+      end_time: at(1, 12).toISOString(),
+    });
+    const schedule = generateScheduleLocally(
+      [makeTodo({ id: 1, estimated_minutes: 45, can_do_in_class: true })],
+      [classEvent],
+      { now: at(1, 10) }
+    );
+    expect(schedule).toHaveLength(1);
+    const start = new Date(schedule[0].start);
+    const end = new Date(schedule[0].end);
+    // 整段落在课程内，之后会被日历融合进这节课
+    expect(start >= at(1, 8) && end <= at(1, 12)).toBe(true);
+  });
+
+  it('keeps normal todos out of class blocks', () => {
+    const classEvent = makeEvent({
+      id: 99,
+      title: '专业课',
+      source: 'cdut',
+      start_time: at(1, 8).toISOString(),
+      end_time: at(1, 12).toISOString(),
+    });
+    const schedule = generateScheduleLocally(
+      [makeTodo({ estimated_minutes: 45 })],
+      [classEvent],
+      { now: at(1, 10) }
+    );
+    expect(schedule).toHaveLength(1);
+    expect(new Date(schedule[0].start) >= at(1, 12)).toBe(true);
+  });
+
   it('labels split segments with (i/N)', () => {
     const schedule = generateScheduleLocally([makeTodo({ estimated_minutes: 200 })], []);
     expect(schedule.length).toBeGreaterThan(1);
@@ -208,5 +251,53 @@ describe('validateScheduleLocally', () => {
       { todo_id: 1, title: 'a', start: at(1, 9).toISOString(), end: at(1, 10).toISOString(), priority: 'normal' as const },
     ];
     expect(validateScheduleLocally(items, []).valid).toBe(true);
+  });
+
+  it('allows a contained in-class segment only when the todo is marked', () => {
+    const event = makeEvent({
+      id: 99,
+      source: 'cdut',
+      start_time: at(1, 8).toISOString(),
+      end_time: at(1, 10).toISOString(),
+    });
+    const item = {
+      todo_id: 1,
+      title: '课上整理笔记',
+      start: at(1, 8, 30).toISOString(),
+      end: at(1, 9, 15).toISOString(),
+      priority: 'normal' as const,
+    };
+    const allowed = validateScheduleLocally(
+      [item],
+      [makeTodo({ id: 1, estimated_minutes: 45, can_do_in_class: true })],
+      [event]
+    );
+    expect(allowed.errors.filter(e => e.startsWith('与已有事件冲突'))).toEqual([]);
+
+    const denied = validateScheduleLocally(
+      [item],
+      [makeTodo({ id: 1, estimated_minutes: 45 })],
+      [event]
+    );
+    expect(denied.errors.some(e => e.startsWith('与已有事件冲突'))).toBe(true);
+  });
+
+  it('flags a partial split that does not cover the estimate', () => {
+    const items = [
+      {
+        todo_id: 1,
+        title: 'a',
+        start: at(1, 9).toISOString(),
+        end: at(1, 9, 30).toISOString(),
+        priority: 'normal' as const,
+      },
+    ];
+    const result = validateScheduleLocally(items, [makeTodo({ id: 1, estimated_minutes: 90 })]);
+    expect(result.errors.some(e => e.startsWith('拆分不完整'))).toBe(true);
+  });
+
+  it('flags pending todos that were not scheduled at all', () => {
+    const result = validateScheduleLocally([], [makeTodo({ id: 7, title: '被漏掉的任务' })]);
+    expect(result.errors.some(e => e.startsWith('未能安排'))).toBe(true);
   });
 });

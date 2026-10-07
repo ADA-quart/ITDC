@@ -21,6 +21,9 @@ describe('splitIntoSegments', () => {
   it('keeps the remainder as a final partial segment', () => {
     expect(splitIntoSegments(200, 90)).toEqual([90, 90, 20]);
   });
+  it('avoids tiny remainder segments', () => {
+    expect(splitIntoSegments(95, 90)).toEqual([80, 15]);
+  });
   it('returns single segment for small totals', () => {
     expect(splitIntoSegments(45, 90)).toEqual([45]);
   });

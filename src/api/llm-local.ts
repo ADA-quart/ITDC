@@ -15,15 +15,19 @@ export interface LocalModelConfig {
   api_key?: string | null;
   base_url?: string | null;
   model?: string | null;
+  thinking_effort?: LLMConfig['thinking_effort'] | null;
 }
 
-// 大模型排程动辄要思考一两分钟（推理型模型更久），超时给足但要能中断
-const CHAT_TIMEOUT_MS = 180000;
+// 大模型排程动辄要思考一两分钟（推理型模型更久，实测 v4-pro 约 197s），
+// 超时给足但要能中断。
+const CHAT_TIMEOUT_MS = 240000;
 
 /** 服务商默认模型：用户没填模型名时兜底，避免发空 model 被拒 */
 const DEFAULT_MODEL: Record<string, string> = {
   openai: 'gpt-4o-mini',
-  deepseek: 'deepseek-chat',
+  // 实测 deepseek-chat 排程会无视课表冲突（4 处冲突被本地校验拦下），
+  // deepseek-flash 能遵守约束（约 18s）；v4-pro 质量更高但约 197s，接近超时上限
+  deepseek: 'deepseek-flash',
   ollama: 'llama3',
   lmstudio: '',
   custom: '',
@@ -70,9 +74,20 @@ export async function chatLocal(config: LocalModelConfig, messages: LocalChatMes
   const apiKey = (config.api_key || '').trim();
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 
-  const body = isOllama
-    ? JSON.stringify({ model, messages, stream: false })
-    : JSON.stringify({ model, messages, temperature: 0.3 });
+  let body: string;
+  if (isOllama) {
+    body = JSON.stringify({ model, messages, stream: false });
+  } else {
+    const payload: Record<string, unknown> = { model, messages, temperature: 0.3 };
+    // DeepSeek V4 默认 high 思考，排程这种结构化任务用 low 足够快，
+    // 关思考（none）最快但可能忽略约束，最终仍由本地校验器兜底。
+    if (config.provider === 'deepseek') {
+      const effort = config.thinking_effort || 'low';
+      if (effort === 'none') payload.thinking = { type: 'disabled' };
+      else payload.reasoning_effort = effort;
+    }
+    body = JSON.stringify(payload);
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), CHAT_TIMEOUT_MS);

@@ -100,4 +100,20 @@ describe('本机 LLM 配置', () => {
     // 第二条是新建的（自动启用），不能因为是数组第一条就继续用旧密钥
     expect(await findLocalKey({ provider: 'deepseek', baseUrl: 'https://api.deepseek.com/v1' })).toBe('sk-new');
   });
+
+  it('思考强度随配置保存并读回', async () => {
+    const created = await createLocalConfig({
+      provider: 'deepseek',
+      api_key: 'sk-a',
+      model: 'deepseek-flash',
+      thinking_effort: 'low',
+    });
+    expect(created.thinking_effort).toBe('low');
+    expect((await getActiveLocalConfig())?.thinking_effort).toBe('low');
+  });
+
+  it('DeepSeek 未指定思考强度时默认 low', async () => {
+    const created = await createLocalConfig({ provider: 'deepseek', api_key: 'sk-a' });
+    expect(created.thinking_effort).toBe('low');
+  });
 });

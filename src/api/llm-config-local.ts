@@ -40,6 +40,7 @@ export async function createLocalConfig(data: {
   api_key?: string;
   base_url?: string;
   model?: string;
+  thinking_effort?: LLMConfig['thinking_effort'];
 }): Promise<LLMConfig> {
   const list = await readAll();
   const nextId = ((await offline.kvGet<number>(NEXT_ID_KEY)) || 0) + 1;
@@ -50,6 +51,8 @@ export async function createLocalConfig(data: {
     provider: data.provider as LLMConfig['provider'],
     base_url: data.base_url || '',
     model: data.model || '',
+    // DeepSeek 默认 high 太慢，未指定时按 low 落库（与 chatLocal 的兜底保持一致）
+    thinking_effort: data.thinking_effort || (data.provider === 'deepseek' ? 'low' : undefined),
     // 第一条自动启用，并且启用新配置时把旧的关掉：本机模式一次只用一个模型
     is_active: 1,
     created_at: new Date().toISOString(),

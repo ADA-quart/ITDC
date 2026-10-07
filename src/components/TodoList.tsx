@@ -305,6 +305,7 @@ const TodoList: React.FC = () => {
                             <Tag color={todo.status === 'done' ? 'green' : todo.status === 'scheduled' ? 'blue' : 'default'}>
                               {statusLabels[todo.status]}
                             </Tag>
+                            {todo.can_do_in_class && <Tag color="cyan">{t.todo.inClassTag}</Tag>}
                             {todo.deadline && (
                               <span style={{ fontSize: 12, color: todo.status === 'done' ? (isDark ? '#a6a6a6' : '#666') : (new Date(todo.deadline) < new Date() ? '#f5222d' : (isDark ? '#a6a6a6' : '#666')) }}>
                                 {getDeadlineCountdown(todo.deadline, t.todo)}

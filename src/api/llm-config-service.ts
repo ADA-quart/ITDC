@@ -41,6 +41,7 @@ export const llmConfigService = {
     api_key?: string;
     base_url?: string;
     model?: string;
+    thinking_effort?: LLMConfig['thinking_effort'];
   }): Promise<void> {
     if (isLocalMode()) {
       await createLocalConfig(data);

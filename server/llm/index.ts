@@ -12,9 +12,9 @@ export { OllamaProvider } from './ollama.js';
  * the implementation, no longer expose their own factories.
  */
 export function createProvider(
-  config: Pick<LLMConfig, 'provider' | 'base_url' | 'model'> & { api_key: string | null },
+  config: Pick<LLMConfig, 'provider' | 'base_url' | 'model'> & { api_key: string | null; thinking_effort?: string | null },
 ): LLMProvider | null {
-  const { provider, base_url, model, api_key } = config;
+  const { provider, base_url, model, api_key, thinking_effort } = config;
 
   switch (provider) {
     case 'openai':
@@ -28,8 +28,9 @@ export function createProvider(
       return new OpenAICompatibleProvider({
         apiKey: api_key || null,
         baseUrl: base_url || 'https://api.deepseek.com/v1',
-        model: model || 'deepseek-chat',
+        model: model || 'deepseek-flash',
         providerName: 'DeepSeek',
+        thinkingEffort: thinking_effort ?? 'low',
       });
     case 'ollama':
       return new OllamaProvider(base_url ?? undefined, model ?? undefined);

@@ -26,7 +26,7 @@ router.get('/', (req: Request, res: Response) => {
 });
 
 router.post('/', (req: Request, res: Response) => {
-  const { title, description, estimated_minutes, urgency, importance, deadline, color } = req.body;
+  const { title, description, estimated_minutes, urgency, importance, deadline, color, can_do_in_class } = req.body;
   if (!title || typeof title !== 'string') {
     return res.status(400).json({ error: '待办标题不能为空' });
   }
@@ -47,15 +47,15 @@ router.post('/', (req: Request, res: Response) => {
   const uid = (req.body.uid as string) || ('todo-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10));
   const now = new Date().toISOString();
   const result = db.prepare(
-    'INSERT INTO todos (title, description, estimated_minutes, priority, urgency, importance, deadline, color, sync_uid, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(title, description || null, estimated_minutes, priority, u, i, deadline || null, color || null, uid, now);
+    'INSERT INTO todos (title, description, estimated_minutes, priority, urgency, importance, can_do_in_class, deadline, color, sync_uid, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(title, description || null, estimated_minutes, priority, u, i, can_do_in_class ? 1 : 0, deadline || null, color || null, uid, now);
 
   const todo = db.prepare('SELECT * FROM todos WHERE id = ?').get(result.lastInsertRowid);
   res.json(todo);
 });
 
 router.put('/:id', (req: Request, res: Response) => {
-  const { title, description, estimated_minutes, urgency, importance, deadline, status, scheduled_start, scheduled_end, color } = req.body;
+  const { title, description, estimated_minutes, urgency, importance, deadline, status, scheduled_start, scheduled_end, color, can_do_in_class } = req.body;
 
   const existing = db.prepare('SELECT * FROM todos WHERE id = ?').get(req.params.id) as any;
   if (!existing) {
@@ -77,6 +77,7 @@ router.put('/:id', (req: Request, res: Response) => {
     fields.push('importance = ?'); values.push(val);
   }
   if (deadline !== undefined) { fields.push('deadline = ?'); values.push(deadline); }
+  if (can_do_in_class !== undefined) { fields.push('can_do_in_class = ?'); values.push(can_do_in_class ? 1 : 0); }
   if (status !== undefined) { fields.push('status = ?'); values.push(status); }
   if (status !== undefined) {
     fields.push('completed_at = ?');
@@ -139,7 +140,7 @@ router.post('/:id/split', (req: Request, res: Response) => {
 
       for (let i = 1; i < segments.length; i++) {
         db.prepare(
-          'INSERT INTO todos (title, description, estimated_minutes, priority, urgency, importance, deadline, status, scheduled_start, scheduled_end, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+          'INSERT INTO todos (title, description, estimated_minutes, priority, urgency, importance, can_do_in_class, deadline, status, scheduled_start, scheduled_end, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         ).run(
           `${todo.title} (${i + 1}/${segments.length})`,
           todo.description,
@@ -147,6 +148,7 @@ router.post('/:id/split', (req: Request, res: Response) => {
           todo.priority,
           todo.urgency,
           todo.importance,
+          todo.can_do_in_class || 0,
           todo.deadline,
           'scheduled',
           segments[i].start,
@@ -176,8 +178,8 @@ router.post('/nl', async (req: Request, res: Response) => {
     const parsed = await parseNaturalLanguageTodo(String(text));
 
     const result = db.prepare(
-      'INSERT INTO todos (title, description, estimated_minutes, priority, urgency, importance, deadline, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(parsed.title, null, parsed.estimated_minutes, parsed.priority, parsed.urgency, parsed.importance, parsed.deadline || null, null);
+      'INSERT INTO todos (title, description, estimated_minutes, priority, urgency, importance, can_do_in_class, deadline, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(parsed.title, null, parsed.estimated_minutes, parsed.priority, parsed.urgency, parsed.importance, parsed.in_class ? 1 : 0, parsed.deadline || null, null);
 
     const todo = db.prepare('SELECT * FROM todos WHERE id = ?').get(result.lastInsertRowid);
     res.json(todo);

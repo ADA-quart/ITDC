@@ -80,7 +80,7 @@ function mergeRows(table: string, incoming: any[], columns: string[]): MergeStat
 
 const TODO_COLS = [
   'title', 'description', 'estimated_minutes', 'priority', 'urgency', 'importance',
-  'deadline', 'status', 'scheduled_start', 'scheduled_end', 'color', 'completed_at', 'created_at',
+  'can_do_in_class', 'deadline', 'status', 'scheduled_start', 'scheduled_end', 'color', 'completed_at', 'created_at',
 ];
 const CALENDAR_COLS = ['name', 'color', 'source', 'created_at'];
 const EVENT_COLS = [

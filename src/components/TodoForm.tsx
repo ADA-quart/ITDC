@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Modal, Form, Input, InputNumber, DatePicker, Slider, message, ColorPicker } from 'antd';
+import { Modal, Form, Input, InputNumber, DatePicker, Slider, message, ColorPicker, Checkbox } from 'antd';
 import dayjs from 'dayjs';
 import { todoApi } from '../api/client';
 import type { Todo } from '../types';
@@ -34,6 +34,7 @@ const TodoForm: React.FC<Props> = ({ visible, todo, onClose, onSaved }) => {
         importance: todo.importance,
         deadline: todo.deadline ? dayjs(todo.deadline) : undefined,
         color: todo.color,
+        can_do_in_class: !!todo.can_do_in_class,
       });
     } else if (visible) {
       form.resetFields();
@@ -54,6 +55,7 @@ const TodoForm: React.FC<Props> = ({ visible, todo, onClose, onSaved }) => {
         importance: values.importance,
         deadline: values.deadline ? values.deadline.toISOString() : null,
         color: colorStr || undefined,
+        can_do_in_class: !!values.can_do_in_class,
       };
 
       if (todo) {
@@ -86,7 +88,7 @@ const TodoForm: React.FC<Props> = ({ visible, todo, onClose, onSaved }) => {
       cancelText={t.todo.cancel}
       destroyOnClose
     >
-      <Form form={form} layout="vertical" initialValues={{ urgency: 2, importance: 2, estimated_minutes: 30 }}>
+      <Form form={form} layout="vertical" initialValues={{ urgency: 2, importance: 2, estimated_minutes: 30, can_do_in_class: false }}>
         <Form.Item name="title" label={t.todo.title} rules={[{ required: true, message: t.todo.enterTitle }]}>
           <Input placeholder={t.todo.enterTitle} />
         </Form.Item>
@@ -106,6 +108,15 @@ const TodoForm: React.FC<Props> = ({ visible, todo, onClose, onSaved }) => {
 
         <Form.Item name="deadline" label={t.todo.deadline}>
           <DatePicker showTime format="YYYY-MM-DD HH:mm" style={{ width: '100%' }} placeholder={t.todo.selectDeadline} />
+        </Form.Item>
+
+        <Form.Item
+          name="can_do_in_class"
+          valuePropName="checked"
+          extra={t.todo.canDoInClassHint}
+          style={{ marginBottom: 12 }}
+        >
+          <Checkbox>{t.todo.canDoInClass}</Checkbox>
         </Form.Item>
 
         <Form.Item name="color" label={t.todo.color}>

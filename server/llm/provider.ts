@@ -26,5 +26,7 @@ export interface LLMConfig {
   api_key: string | null;
   base_url: string | null;
   model: string | null;
+  /** DeepSeek V4 思考强度：none 关闭、low/high/max 逐级增强 */
+  thinking_effort?: string | null;
   is_active: number;
 }

@@ -294,6 +294,7 @@ export function localCreate(data: Partial<Todo>): Todo {
     priority: data.priority || priority,
     urgency: u,
     importance: i,
+    can_do_in_class: !!data.can_do_in_class,
     deadline: data.deadline ?? null,
     status: (data.status || 'pending') as Todo['status'],
     scheduled_start: data.scheduled_start ?? null,

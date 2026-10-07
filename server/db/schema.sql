@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS todos (
   priority TEXT NOT NULL DEFAULT 'normal',
   urgency INTEGER DEFAULT 2,
   importance INTEGER DEFAULT 2,
+  can_do_in_class INTEGER DEFAULT 0,
   deadline DATETIME,
   status TEXT DEFAULT 'pending',
   scheduled_start DATETIME,
@@ -44,6 +45,7 @@ CREATE TABLE IF NOT EXISTS llm_config (
   api_key TEXT,
   base_url TEXT,
   model TEXT,
+  thinking_effort TEXT,
   is_active INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

@@ -5,6 +5,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
   private baseUrl: string;
   private model: string;
   private providerName: string;
+  private thinkingEffort: string | null;
 
   private timeoutMs: number;
   private maxRetries: number;
@@ -14,6 +15,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
     baseUrl?: string;
     model?: string;
     providerName?: string;
+    thinkingEffort?: string | null;
     timeoutMs?: number;
     maxRetries?: number;
   }) {
@@ -21,6 +23,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
     this.baseUrl = (options.baseUrl || 'https://api.openai.com/v1').replace(/\/$/, '');
     this.model = options.model || 'gpt-4o-mini';
     this.providerName = options.providerName || 'OpenAI';
+    this.thinkingEffort = options.thinkingEffort || null;
     this.timeoutMs = options.timeoutMs ?? 60000;
     this.maxRetries = options.maxRetries ?? 2;
   }
@@ -34,11 +37,18 @@ export class OpenAICompatibleProvider implements LLMProvider {
       headers['Authorization'] = `Bearer ${this.apiKey}`;
     }
 
-    const body = JSON.stringify({
+    const payload: Record<string, unknown> = {
       model: this.model,
       messages,
       temperature: 0.3,
-    });
+    };
+    // DeepSeek V4：默认思考强度 high 太慢；none 用 thinking.type=disabled 关闭，
+    // low/high/max 走 reasoning_effort（官方 Chat Completions 参数）
+    if (this.thinkingEffort) {
+      if (this.thinkingEffort === 'none') payload.thinking = { type: 'disabled' };
+      else payload.reasoning_effort = this.thinkingEffort;
+    }
+    const body = JSON.stringify(payload);
 
     let lastError: Error | null = null;
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
@@ -180,7 +190,7 @@ export function createDeepSeekProvider(apiKey: string, baseUrl?: string, model?:
   return new OpenAICompatibleProvider({
     apiKey,
     baseUrl: baseUrl || 'https://api.deepseek.com/v1',
-    model: model || 'deepseek-chat',
+    model: model || 'deepseek-flash',
     providerName: 'DeepSeek',
   });
 }

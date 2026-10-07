@@ -54,4 +54,9 @@ describe('parseTodoFromModel', () => {
     expect(() => parseTodoFromModel('{"title":""}')).toThrow('未能识别任务标题');
     expect(() => parseTodoFromModel('不是 JSON')).toThrow('无效的 JSON');
   });
+
+  it('解析"课内可做"标记，默认 false', () => {
+    expect(parseTodoFromModel('{"title":"整理实验数据","in_class":true}').in_class).toBe(true);
+    expect(parseTodoFromModel('{"title":"写课程论文"}').in_class).toBe(false);
+  });
 });

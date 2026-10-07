@@ -65,11 +65,26 @@ class Database {
         this.markDirty();
       }
 
+      // LLM 思考强度：老库补列（DeepSeek V4 默认 high，太慢）
+      const llmCols = this.db.exec("PRAGMA table_info(llm_config)");
+      if (llmCols.length > 0) {
+        const llmColNames = llmCols[0].values.map((row: any[]) => row[1]);
+        if (!llmColNames.includes('thinking_effort')) {
+          this.db.exec("ALTER TABLE llm_config ADD COLUMN thinking_effort TEXT");
+          this.markDirty();
+        }
+      }
+
       const todoCols2 = this.db.exec("PRAGMA table_info(todos)");
       if (todoCols2.length > 0) {
         const colNames2 = todoCols2[0].values.map((row: any[]) => row[1]);
         if (!colNames2.includes('completed_at')) {
           this.db.exec("ALTER TABLE todos ADD COLUMN completed_at DATETIME");
+          this.markDirty();
+        }
+        // 课内可做：允许排程器把该待办排进课程时间并融合进课程
+        if (!colNames2.includes('can_do_in_class')) {
+          this.db.exec("ALTER TABLE todos ADD COLUMN can_do_in_class INTEGER DEFAULT 0");
           this.markDirty();
         }
       }

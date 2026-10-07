@@ -5,7 +5,7 @@
 import type { CalendarEvent, Priority, ScheduledItem, Todo } from '../types';
 import * as offline from './offline';
 import { buildUserPrompt, parseScheduleResponse, renderSystemPrompt } from '../../shared/llm-prompt';
-import { validateScheduleLocally } from './local-scheduler';
+import { isClassEvent, validateScheduleLocally } from './local-scheduler';
 import { chatLocal } from './llm-local';
 import { getActiveLocalConfig, getLocalPromptTemplate } from './llm-config-local';
 
@@ -26,6 +26,7 @@ function selectPromptData(todos: Todo[], events: CalendarEvent[], now: Date) {
       start_time: e.start_time,
       end_time: e.end_time,
       rrule: e.rrule,
+      is_class: isClassEvent(e),
     }));
 
   const scheduledTodos = todos
@@ -42,6 +43,7 @@ function selectPromptData(todos: Todo[], events: CalendarEvent[], now: Date) {
       estimated_minutes: t.estimated_minutes,
       priority: t.priority,
       deadline: t.deadline,
+      can_do_in_class: !!t.can_do_in_class,
     }));
 
   return { events: upcomingEvents, scheduledTodos, pendingTodos };
@@ -88,5 +90,5 @@ export async function generateLLMScheduleLocally(): Promise<{
     };
   });
 
-  return { schedule, validation: validateScheduleLocally(schedule, todos) };
+  return { schedule, validation: validateScheduleLocally(schedule, todos, events) };
 }

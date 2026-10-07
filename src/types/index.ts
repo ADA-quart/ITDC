@@ -42,6 +42,8 @@ export interface Todo {
   priority: Priority;
   urgency: number;
   importance: number;
+  /** 是否可以在上课时做（true 时允许排进课程时间，并融合进对应课程） */
+  can_do_in_class?: boolean;
   deadline: string | null;
   status: TodoStatus;
   scheduled_start: string | null;
@@ -76,6 +78,8 @@ export interface LLMConfig {
   provider: 'openai' | 'deepseek' | 'ollama' | 'lmstudio' | 'custom';
   base_url?: string;
   model?: string;
+  /** DeepSeek 等推理模型的思考强度：none 关闭，low/high/max 逐级增强 */
+  thinking_effort?: 'none' | 'low' | 'high' | 'max';
   is_active: number;
   created_at: string;
 }

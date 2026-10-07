@@ -36,6 +36,12 @@ import { cardStyle, hintTextStyle, secondaryTextColor, TOUCH_TARGET, TYPE } from
 const CAL_VIEW_KEY = 'itdc_calendar_view';
 const HIDDEN_CALENDARS_KEY = 'itdc_hidden_calendars';
 
+/** 是否是教务课程（source 为学校 id），用于"课内可做"的融合确认 */
+function isClassEventSource(source?: string): boolean {
+  const s = (source || '').toLowerCase();
+  return !!s && s !== 'manual' && s !== 'ical';
+}
+
 function loadHiddenCalendars(): Set<number> {
   try {
     const raw = localStorage.getItem(HIDDEN_CALENDARS_KEY);
@@ -434,6 +440,8 @@ const CalendarView: React.FC = () => {
       await todoApi.create({
         title,
         estimated_minutes: addTodoMinutes,
+        // 这节课里加的待办默认"课内可做"，否则排程器会认为它不能出现在课程时间
+        can_do_in_class: isClassEventSource(addTodoTarget.extendedProps?.source),
         status: 'scheduled',
         scheduled_start: start.toISOString(),
         scheduled_end: end.toISOString(),
@@ -448,6 +456,24 @@ const CalendarView: React.FC = () => {
     }
   };
 
+  /** 把拖进来的待办写进目标时间；target 存在时同时播放融合动画 */
+  const mergeTodoInto = async (dropInfo: any, target: any, markInClass: boolean) => {
+    await todoApi.update(dropInfo.event.extendedProps.id, {
+      scheduled_start: dropInfo.event.startStr,
+      scheduled_end: dropInfo.event.endStr,
+      ...(markInClass ? { can_do_in_class: true } : {}),
+    });
+    if (target) {
+      playMergeAnimation(dropInfo.el, eventElsRef.current.get(String(target.id)));
+      message.success(t.calendar.mergedInto.replace('{name}', String(target.title)));
+      // 等融合动画放完再重排，动画不会被打断
+      window.setTimeout(() => { void loadData(); }, 430);
+    } else {
+      message.success(t.calendar.eventMoved);
+      await loadData();
+    }
+  };
+
   const handleEventDrop = async (dropInfo: any) => {
     const props = dropInfo.event.extendedProps;
     if (props.type === 'todo') {
@@ -458,20 +484,28 @@ const CalendarView: React.FC = () => {
         { start: startStr, end: endStr },
         (events as any[]).filter((e) => e.extendedProps?.type !== 'todo')
       );
-      try {
-        await todoApi.update(props.id, {
-          scheduled_start: startStr,
-          scheduled_end: endStr,
+      // 拖进课程 = 打算在课上做。没勾"课内可做"时先确认，避免语义被悄悄改掉
+      const targetIsClass = !!target && isClassEventSource(target.extendedProps?.source);
+      if (targetIsClass && !props.can_do_in_class) {
+        Modal.confirm({
+          title: t.calendar.mergeIntoClassTitle,
+          content: t.calendar.mergeIntoClassContent,
+          okText: t.calendar.mergeIntoClassOk,
+          cancelText: t.calendar.cancel,
+          onOk: async () => {
+            try {
+              await mergeTodoInto(dropInfo, target, true);
+            } catch {
+              message.error(t.calendar.eventMoveFailed);
+              dropInfo.revert();
+            }
+          },
+          onCancel: () => dropInfo.revert(),
         });
-        if (target) {
-          playMergeAnimation(dropInfo.el, eventElsRef.current.get(String(target.id)));
-          message.success(t.calendar.mergedInto.replace('{name}', String(target.title)));
-          // 等融合动画放完再重排，动画不会被打断
-          window.setTimeout(() => { void loadData(); }, 430);
-        } else {
-          message.success(t.calendar.eventMoved);
-          await loadData();
-        }
+        return;
+      }
+      try {
+        await mergeTodoInto(dropInfo, target, false);
       } catch {
         message.error(t.calendar.eventMoveFailed);
         dropInfo.revert();

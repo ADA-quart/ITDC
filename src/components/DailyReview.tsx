@@ -137,6 +137,9 @@ const DailyReview: React.FC = () => {
                   <span style={{ width: 8, height: 8, borderRadius: 4, background: PRIORITY_COLORS[p], flexShrink: 0 }} />
                   {priorityLabel(p)}
                 </span>
+                <span style={{ ...TYPE.caption, color: PRIORITY_COLORS[p], fontWeight: 600 }}>
+                  {t.review.quadrantActions[p]}
+                </span>
                 <span style={{
                   fontSize: 26,
                   fontWeight: 700,
@@ -193,7 +196,7 @@ const DailyReview: React.FC = () => {
       {/* 二级界面：这个象限里还剩哪些待办 */}
       <Modal
         open={!!quadrant}
-        title={quadrant ? priorityLabel(quadrant) : ''}
+        title={quadrant ? `${priorityLabel(quadrant)} · ${t.review.quadrantActions[quadrant]}` : ''}
         onCancel={() => setQuadrant(null)}
         footer={[
           <Button

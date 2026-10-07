@@ -62,7 +62,7 @@ const DEFAULT_URLS: Record<string, string> = {
 
 const DEFAULT_MODELS: Record<string, string> = {
   openai: 'gpt-4o-mini',
-  deepseek: 'deepseek-chat',
+  deepseek: 'deepseek-flash',
   ollama: 'llama3',
   lmstudio: '',
   custom: '',
@@ -76,6 +76,9 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
   const [configs, setConfigs] = useState<LLMConfig[]>([]);
   const [form] = Form.useForm();
   const [provider, setProvider] = useState('openai');
+  // 思考强度用受控 state：Form.Item 在 provider 切换后才挂载，
+  // setFieldsValue 对未注册字段的时序不可靠，会出现"下拉框空白"。
+  const [thinkingEffort, setThinkingEffort] = useState<'none' | 'low' | 'high' | 'max'>('low');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [models, setModels] = useState<string[]>([]);
@@ -111,6 +114,9 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
         const active = data.find((c) => c.is_active) || data[0];
         formSeeded.current = true;
         setProvider(active.provider);
+        if (active.provider === 'deepseek') {
+          setThinkingEffort(active.thinking_effort || 'low');
+        }
         form.setFieldsValue({
           provider: active.provider,
           base_url: active.base_url || DEFAULT_URLS[active.provider] || '',
@@ -225,7 +231,10 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
         message.error(t.settings.customProviderRequired);
         return;
       }
-      await llmConfigService.create(values);
+      await llmConfigService.create({
+        ...values,
+        thinking_effort: values.provider === 'deepseek' ? thinkingEffort : undefined,
+      });
       message.success(t.settings.added);
       // 只清空密钥框：服务商/地址/模型留着，方便接着用「获取模型列表」
       // 复用刚存进保险箱的密钥，而不是把表单重置回 OpenAI 让用户重填一遍
@@ -405,6 +414,14 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
     {
       title: t.settings.model,
       dataIndex: 'model',
+      render: (v: string, record: LLMConfig) => (
+        <Space size={4} wrap>
+          <span>{v}</span>
+          {record.provider === 'deepseek' && (
+            <Tag>{t.settings.thinkingShort[record.thinking_effort || 'low']}</Tag>
+          )}
+        </Space>
+      ),
     },
     {
       title: t.settings.status,
@@ -471,6 +488,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
                   options={PROVIDER_OPTIONS}
                   onChange={(v) => {
                     setProvider(v);
+                    if (v === 'deepseek') setThinkingEffort('low');
                     form.setFieldsValue({
                       base_url: DEFAULT_URLS[v],
                       model: DEFAULT_MODELS[v],
@@ -507,6 +525,23 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
                   {t.settings.modelHint}
                 </div>
               </Form.Item>
+              {provider === 'deepseek' && (
+                <Form.Item label={t.settings.thinkingEffort}>
+                  <Select
+                    value={thinkingEffort}
+                    onChange={(v: 'none' | 'low' | 'high' | 'max') => setThinkingEffort(v)}
+                    options={[
+                      { value: 'low', label: t.settings.thinkingLow },
+                      { value: 'none', label: t.settings.thinkingNone },
+                      { value: 'high', label: t.settings.thinkingHigh },
+                      { value: 'max', label: t.settings.thinkingMax },
+                    ]}
+                  />
+                  <div style={{ fontSize: 12, color: isDark ? '#a6a6a6' : '#666', marginTop: 4 }}>
+                    {t.settings.thinkingEffortHint}
+                  </div>
+                </Form.Item>
+              )}
               <Space>
                 <Button type="primary" onClick={handleSubmit}>{t.settings.addConfig}</Button>
                 <Button onClick={handleTest} loading={testing}>{t.settings.testConnection}</Button>
