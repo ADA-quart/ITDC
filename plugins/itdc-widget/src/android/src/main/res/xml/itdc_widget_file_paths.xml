@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider 白名单：只放小组件背景图所在的子目录 -->
+<paths>
+    <files-path
+        name="widget"
+        path="widget/" />
+</paths>

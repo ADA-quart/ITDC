@@ -282,13 +282,24 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
                         "setBackgroundTintList",
                         android.content.res.ColorStateList.valueOf(rootTint));
                 if (hasImage) {
-                    android.graphics.Bitmap photo = WidgetAppearance.croppedPhotoBitmap(context, appWidgetId);
-                    if (photo != null) {
-                        rv.setImageViewBitmap(R.id.widget_bg_image, photo);
+                    // 优先让桌面自己读高清裁切图（FileProvider）：位图走 Binder
+                    // 有 1MB 量级的事务上限，只能传缩略图，放大后就是糊的。
+                    Uri crop = cropUri(context);
+                    if (crop != null) {
+                        grantCropPermission(context, crop);
+                        rv.setImageViewUri(R.id.widget_bg_image, crop);
                         rv.setInt(R.id.widget_bg_image, "setImageAlpha", WidgetAppearance.imageAlpha(context));
                         rv.setViewVisibility(R.id.widget_bg_image, android.view.View.VISIBLE);
                     } else {
-                        rv.setViewVisibility(R.id.widget_bg_image, android.view.View.GONE);
+                        // 裁切图还没生成好（首次下发 / 被清理）：先退到位图直传，绝不留白
+                        android.graphics.Bitmap photo = WidgetAppearance.croppedPhotoBitmap(context, appWidgetId);
+                        if (photo != null) {
+                            rv.setImageViewBitmap(R.id.widget_bg_image, photo);
+                            rv.setInt(R.id.widget_bg_image, "setImageAlpha", WidgetAppearance.imageAlpha(context));
+                            rv.setViewVisibility(R.id.widget_bg_image, android.view.View.VISIBLE);
+                        } else {
+                            rv.setViewVisibility(R.id.widget_bg_image, android.view.View.GONE);
+                        }
                     }
                 } else {
                     rv.setViewVisibility(R.id.widget_bg_image, android.view.View.GONE);
@@ -307,6 +318,43 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             }
         } catch (Exception e) {
             Log.e(TAG, "applyAppearance failed", e);
+        }
+    }
+
+    /** 高清背景图的 content:// URI；还没生成裁切图时返回 null */
+    private static Uri cropUri(Context context) {
+        try {
+            java.io.File file = WidgetAppearance.currentCropFile(context);
+            if (file == null || !file.exists()) return null;
+            return WidgetFileProvider.getUriForFile(
+                    context, WidgetAppearance.fileProviderAuthority(context), file);
+        } catch (Exception e) {
+            Log.w(TAG, "cropUri failed", e);
+            return null;
+        }
+    }
+
+    /**
+     * 桌面进程要读这个 URI，必须显式授权。
+     *
+     * 组件的宿主只有桌面（含第三方启动器）和锁屏 SystemUI，这里按 Home 应用枚举；
+     * 每次刷新重授一次，进程被杀 / 重启后权限依旧在有效期内。
+     */
+    private static void grantCropPermission(Context context, Uri uri) {
+        try {
+            Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
+            for (android.content.pm.ResolveInfo info : context.getPackageManager().queryIntentActivities(home, 0)) {
+                Log.d(TAG, "grant crop uri to " + info.activityInfo.packageName);
+                try {
+                    context.grantUriPermission(info.activityInfo.packageName, uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                } catch (Exception ignored) {
+                    // 单个宿主授权失败不影响其它宿主
+                }
+            }
+            context.grantUriPermission("com.android.systemui", uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (Exception e) {
+            Log.w(TAG, "grantCropPermission failed", e);
         }
     }
 

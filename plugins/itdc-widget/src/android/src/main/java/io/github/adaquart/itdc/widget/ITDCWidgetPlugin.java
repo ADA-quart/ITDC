@@ -77,7 +77,17 @@ public class ITDCWidgetPlugin extends Plugin {
             call.reject("apply appearance failed: " + e.getMessage());
             return;
         }
-        ITDCWidgetProvider.requestRefresh(getContext());
+        // 桌面要的高清裁切图要解码 + 编码，放后台线程做，避免拖滑杆时卡住主线程；
+        // 生成完再刷新小组件，否则桌面会读到上一张（或还没有）图。
+        final android.content.Context context = getContext();
+        new Thread(() -> {
+            try {
+                WidgetAppearance.ensureCrop(context);
+            } catch (Exception e) {
+                android.util.Log.w("ITDCWidgetPlugin", "ensureCrop failed", e);
+            }
+            ITDCWidgetProvider.requestRefresh(context);
+        }, "itdc-widget-crop").start();
         call.resolve();
     }
 

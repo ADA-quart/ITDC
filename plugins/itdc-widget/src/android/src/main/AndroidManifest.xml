@@ -5,6 +5,15 @@
     <!-- 网络状态：判断是否需要回退到本机快照 -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
+    <!-- Android 11+ 的软件包可见性：不声明就查不到桌面应用，
+         背景图的 URI 也就授不出去（桌面会报 Permission Denial） -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN"/>
+            <category android:name="android.intent.category.HOME"/>
+        </intent>
+    </queries>
+
     <application>
         <receiver
             android:name=".ITDCWidgetProvider"
@@ -24,6 +33,19 @@
             android:name=".ITDCWidgetListService"
             android:exported="false"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+        <!-- 桌面自己读小组件背景图（高清、不受 Binder 事务大小限制）。
+             只暴露 files/widget/ 这一个子目录，iCal 导入等其它私有文件不对外。
+             用插件自己的子类是为了不和 App 现有的 FileProvider 撞名（清单合并按类名合并）。 -->
+        <provider
+            android:name=".WidgetFileProvider"
+            android:authorities="${applicationId}.widgetfileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/itdc_widget_file_paths" />
+        </provider>
 
         <!-- 小组件内的交互（点按待办复选框 / 全部完成）。
              不挂 BIND_APPWIDGET：PendingIntent 走显式组件投递，

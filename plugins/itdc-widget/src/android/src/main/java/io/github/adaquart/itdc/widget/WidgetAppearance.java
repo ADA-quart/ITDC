@@ -47,7 +47,14 @@ final class WidgetAppearance {
     private static final String KEY_FOCUS_X = "ap_focus_x";
     private static final String KEY_FOCUS_Y = "ap_focus_y";
     private static final String KEY_ZOOM = "ap_zoom";
+    private static final String KEY_CROP_FILE = "ap_crop_file";
+    private static final String KEY_CROP_SIG = "ap_crop_sig";
     private static final String IMAGE_NAME = "widget_bg.jpg";
+    /** 桌面自己解码的高清裁切图（走 FileProvider，不进 Binder） */
+    private static final String CROP_DIR = "widget";
+    private static final int CROP_MAX_SIDE = 1280;
+    private static final int CROP_QUALITY = 88;
+    private static final Object CROP_LOCK = new Object();
 
     static final String SCHEME_AUTO = "auto";
     static final String SCHEME_LIGHT = "light";
@@ -153,6 +160,119 @@ final class WidgetAppearance {
 
     private static File imageFile(Context context) {
         return new File(context.getFilesDir(), IMAGE_NAME);
+    }
+
+    private static File cropDir(Context context) {
+        return new File(context.getFilesDir(), CROP_DIR);
+    }
+
+    /** FileProvider 的 authority，与 AndroidManifest 里的声明保持一致 */
+    static String fileProviderAuthority(Context context) {
+        return context.getPackageName() + ".widgetfileprovider";
+    }
+
+    /** 当前生效的裁切图；可能还没生成，调用方需自行判空与 exists() */
+    static File currentCropFile(Context context) {
+        String name = prefs(context).getString(KEY_CROP_FILE, "");
+        if (TextUtils.isEmpty(name)) return null;
+        return new File(cropDir(context), name);
+    }
+
+    /** 图片 / 焦点 / 缩放任一变化都要重做裁切图，用签名比对避免无谓解码 */
+    private static String cropSignature(Context context) {
+        File image = imageFile(context);
+        return image.length() + "@" + image.lastModified()
+                + "#" + prefs(context).getInt(KEY_FOCUS_X, 50)
+                + "#" + prefs(context).getInt(KEY_FOCUS_Y, 50)
+                + "#" + prefs(context).getFloat(KEY_ZOOM, 1f);
+    }
+
+    /**
+     * 生成桌面读取的高清裁切图（头像式：等比方形 + 焦点 + 缩放）。
+     *
+     * 解码 + 编码有几十到几百毫秒，必须放在后台线程调用；签名没变时直接返回。
+     *
+     * @return 是否真的重写了文件
+     */
+    static boolean ensureCrop(Context context) {
+        if (!hasImage(context)) {
+            clearCrop(context);
+            return false;
+        }
+        String sig = cropSignature(context);
+        synchronized (CROP_LOCK) {
+            File current = currentCropFile(context);
+            if (current != null && current.exists()
+                    && sig.equals(prefs(context).getString(KEY_CROP_SIG, ""))) {
+                return false;
+            }
+            return writeCrop(context, sig);
+        }
+    }
+
+    private static boolean writeCrop(Context context, String sig) {
+        Bitmap photo = null;
+        Bitmap cropped = null;
+        try {
+            photo = decodePhoto(context, CROP_MAX_SIDE, CROP_MAX_SIDE, false);
+            if (photo == null) return false;
+            Rect rect = cropRect(photo, 1, 1,
+                    prefs(context).getInt(KEY_FOCUS_X, 50),
+                    prefs(context).getInt(KEY_FOCUS_Y, 50),
+                    prefs(context).getFloat(KEY_ZOOM, 1f));
+            cropped = Bitmap.createBitmap(photo, rect.left, rect.top, rect.width(), rect.height());
+            if (cropped.getWidth() > CROP_MAX_SIDE) {
+                Bitmap scaled = Bitmap.createScaledBitmap(cropped, CROP_MAX_SIDE, CROP_MAX_SIDE, true);
+                if (scaled != cropped) cropped.recycle();
+                cropped = scaled;
+            }
+            File dir = cropDir(context);
+            if (!dir.exists() && !dir.mkdirs()) return false;
+            // 文件名带时间戳：URI 变了桌面才会重新解码。沿用同名文件时
+            // RemoteViews 复用旧视图，ImageView 会认为"还是那张图"而不刷新。
+            File target = new File(dir, "bg_" + System.currentTimeMillis() + ".jpg");
+            File tmp = new File(target.getAbsolutePath() + ".tmp");
+            try (FileOutputStream out = new FileOutputStream(tmp)) {
+                if (!cropped.compress(Bitmap.CompressFormat.JPEG, CROP_QUALITY, out)) return false;
+                out.flush();
+            }
+            if (!tmp.renameTo(target)) {
+                //noinspection ResultOfMethodCallIgnored
+                tmp.delete();
+                return false;
+            }
+            prefs(context).edit()
+                    .putString(KEY_CROP_FILE, target.getName())
+                    .putString(KEY_CROP_SIG, sig)
+                    .apply();
+            cleanupCrops(context, target);
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "writeCrop failed", e);
+            return false;
+        } finally {
+            if (cropped != null && !cropped.isRecycled()) cropped.recycle();
+            if (photo != null && photo != cropped && !photo.isRecycled()) photo.recycle();
+        }
+    }
+
+    /** 清掉除 keep 以外的裁切图，避免旧文件越积越多 */
+    private static void cleanupCrops(Context context, File keep) {
+        File[] files = cropDir(context).listFiles();
+        if (files == null) return;
+        for (File file : files) {
+            if (!file.equals(keep)) {
+                //noinspection ResultOfMethodCallIgnored
+                file.delete();
+            }
+        }
+    }
+
+    private static void clearCrop(Context context) {
+        synchronized (CROP_LOCK) {
+            cleanupCrops(context, null);
+            prefs(context).edit().remove(KEY_CROP_FILE).remove(KEY_CROP_SIG).apply();
+        }
     }
 
     private static String normalizeScheme(String scheme) {
@@ -443,6 +563,9 @@ final class WidgetAppearance {
             opts.inSampleSize = sample;
             opts.inPreferredConfig = opaque ? Bitmap.Config.RGB_565 : Bitmap.Config.ARGB_8888;
             return BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
+        } catch (OutOfMemoryError e) {
+            Log.e(TAG, "decodePhoto 内存不足", e);
+            return null;
         } catch (Exception e) {
             Log.e(TAG, "decodePhoto failed", e);
             return null;
