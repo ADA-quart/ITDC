@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Spin, Empty, Progress, Tag } from 'antd';
+import { Spin, Empty, Modal, Button, Tag } from 'antd';
+import dayjs from 'dayjs';
 import { todoApi } from '../api/client';
 import type { Todo, Priority } from '../types';
-import { PRIORITY_LABELS, PRIORITY_COLORS } from '../types';
+import { PRIORITY_COLORS } from '../types';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { cardStyle } from './ui';
+import { cardStyle, secondaryTextColor, sectionTitleStyle, TOUCH_TARGET, TYPE } from './ui';
+import { getDeadlineCountdown } from '../utils/priority';
 
 function dayKey(d: Date): string {
   const y = d.getFullYear();
@@ -30,6 +32,8 @@ const DailyReview: React.FC = () => {
   const isMobile = useIsMobile();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
+  // 点开的象限（二级界面）：列出该象限里还剩哪些待办
+  const [quadrant, setQuadrant] = useState<Priority | null>(null);
 
   useEffect(() => {
     const refresh = () => todoApi.getAll().then(setTodos).catch(() => {}).finally(() => setLoading(false));
@@ -54,6 +58,14 @@ const DailyReview: React.FC = () => {
   const byPriority: Record<Priority, number> = { 'urgent-important': 0, important: 0, urgent: 0, normal: 0 };
   for (const td of activeTodos) byPriority[td.priority]++;
   const totalActive = Object.values(byPriority).reduce((a, b) => a + b, 0);
+  const priorityLabel = (p: Priority) =>
+    p === 'urgent-important' ? t.priority.urgentImportant
+      : p === 'important' ? t.priority.important
+        : p === 'urgent' ? t.priority.urgent
+          : t.priority.normal;
+  const statusLabel = (td: Todo) =>
+    td.status === 'done' ? t.todo.done : td.status === 'scheduled' ? t.todo.scheduled : t.todo.pending;
+  const quadrantTodos = quadrant ? activeTodos.filter((td) => td.priority === quadrant) : [];
 
   // 近 7 天趋势（含今天）：新建 vs 完成
   const trend: { dayKey: string; created: number; done: number }[] = [];
@@ -90,18 +102,57 @@ const DailyReview: React.FC = () => {
         ))}
       </div>
 
+      {/* 四象限：每个方框显示还剩多少待办，点进去看具体是哪些 */}
       <div style={{ marginBottom: 20 }}>
-        {PRIORITY_ORDER.map(p => (
-          <div key={p} style={{ marginBottom: 8 }}>
-            <Tag color={PRIORITY_COLORS[p]} style={{ marginRight: 6, fontSize: 12 }}>{PRIORITY_LABELS[p]}</Tag>
-            <Progress
-              percent={totalActive ? Math.round((byPriority[p] / totalActive) * 100) : 0}
-              strokeColor={PRIORITY_COLORS[p]}
-              showInfo={false}
-              
-            />
-          </div>
-        ))}
+        <h4 style={sectionTitleStyle}>{t.review.quadrants}</h4>
+        <div style={{ ...TYPE.caption, color: secondaryTextColor(isDark), marginBottom: 10 }}>
+          {t.review.quadrantHint}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {PRIORITY_ORDER.map((p) => {
+            const count = byPriority[p];
+            const percent = totalActive ? Math.round((count / totalActive) * 100) : 0;
+            return (
+              <button
+                key={p}
+                type="button"
+                aria-label={`${priorityLabel(p)}：${count} ${t.review.quadrantUnit}`}
+                onClick={() => setQuadrant(p)}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  gap: 6,
+                  padding: '12px 12px 10px',
+                  borderRadius: 12,
+                  border: `1px solid ${isDark ? '#333' : '#eee'}`,
+                  borderTop: `3px solid ${PRIORITY_COLORS[p]}`,
+                  background: isDark ? '#1f1f1f' : '#fff',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  minHeight: TOUCH_TARGET,
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 4, background: PRIORITY_COLORS[p], flexShrink: 0 }} />
+                  {priorityLabel(p)}
+                </span>
+                <span style={{
+                  fontSize: 26,
+                  fontWeight: 700,
+                  lineHeight: 1.1,
+                  color: count > 0 ? PRIORITY_COLORS[p] : (isDark ? '#666' : '#bbb'),
+                }}>
+                  {count}
+                </span>
+                <span style={{ ...TYPE.label, color: secondaryTextColor(isDark) }}>{t.review.quadrantUnit}</span>
+                <span style={{ display: 'block', width: '100%', height: 3, borderRadius: 2, background: isDark ? '#333' : '#f0f0f0' }}>
+                  <span style={{ display: 'block', width: `${percent}%`, height: 3, borderRadius: 2, background: PRIORITY_COLORS[p] }} />
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div style={{ marginBottom: 20 }}>
@@ -138,6 +189,52 @@ const DailyReview: React.FC = () => {
             ))}
         </ul>
       )}
+
+      {/* 二级界面：这个象限里还剩哪些待办 */}
+      <Modal
+        open={!!quadrant}
+        title={quadrant ? priorityLabel(quadrant) : ''}
+        onCancel={() => setQuadrant(null)}
+        footer={[
+          <Button
+            key="go"
+            type="primary"
+            onClick={() => {
+              setQuadrant(null);
+              window.location.hash = 'todos';
+            }}
+          >
+            {t.review.goTodos}
+          </Button>,
+        ]}
+      >
+        {quadrantTodos.length === 0 ? (
+          <Empty description={t.review.quadrantEmpty} />
+        ) : (
+          <ul style={{ padding: 0, margin: 0, listStyle: 'none' }}>
+            {quadrantTodos.map((td) => (
+              <li
+                key={td.id}
+                style={{
+                  padding: '10px 12px',
+                  marginBottom: 8,
+                  borderRadius: 10,
+                  background: isDark ? '#262626' : '#fafafa',
+                  borderLeft: `3px solid ${PRIORITY_COLORS[td.priority]}`,
+                }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 500, wordBreak: 'break-word' }}>{td.title}</div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4, ...TYPE.caption, color: secondaryTextColor(isDark) }}>
+                  <span>{statusLabel(td)}</span>
+                  <span>{td.estimated_minutes} {t.todo.minutes}</span>
+                  {td.deadline && <span>{getDeadlineCountdown(td.deadline, t.todo)}</span>}
+                  {td.scheduled_start && <span>{dayjs(td.scheduled_start).format('MM/DD HH:mm')}</span>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
     </div>
   );
 };

@@ -188,6 +188,11 @@ const zh = {
     today: '今天',
     overdueList: '逾期任务：',
     noOverdue: '暂无逾期任务',
+    quadrants: '四象限分布',
+    quadrantHint: '点任意象限查看具体有哪些待办',
+    quadrantUnit: '个待办',
+    quadrantEmpty: '这个象限是空的',
+    goTodos: '去待办管理处理',
   },
   schedule: {
     title: '智能日程规划',

@@ -190,6 +190,11 @@ const en: LocaleMessages = {
     today: 'Today',
     overdueList: 'Overdue todos:',
     noOverdue: 'No overdue todos',
+    quadrants: 'Eisenhower quadrants',
+    quadrantHint: 'Tap a quadrant to see which todos are in it',
+    quadrantUnit: 'todos',
+    quadrantEmpty: 'Nothing in this quadrant',
+    goTodos: 'Open todo list',
   },
   schedule: {
     title: 'Smart Schedule',
