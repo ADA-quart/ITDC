@@ -327,7 +327,10 @@ export function localCreateEvent(data: Partial<CalendarEvent>): CalendarEvent {
     end_time: data.end_time || now,
     rrule: data.rrule ?? null,
     location: data.location ?? null,
-    source: 'manual',
+    color: data.color ?? null,
+    // 保留调用方给的 source（教务导入靠它识别课表事件，用于上课提醒）；
+    // 之前这里写死 'manual'，导入的课全被当成手工事件，提醒一直排不上
+    source: data.source || 'manual',
     uid: null,
     created_at: now,
   };

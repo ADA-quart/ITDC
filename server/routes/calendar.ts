@@ -83,8 +83,11 @@ router.post('/events', (req: Request, res: Response) => {
   // 跨设备合并靠 uid（注意与 iCal 的 uid 不是一回事，这里存的是同步标识）
   const syncUid = (req.body.sync_uid as string) || ('evt-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10));
   const result = db.prepare(
-    'INSERT INTO events (calendar_id, title, description, start_time, end_time, rrule, location, sync_uid, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(calendar_id, title, description || null, start_time, end_time, rrule || null, location || null, syncUid, new Date().toISOString());
+    'INSERT INTO events (calendar_id, title, description, start_time, end_time, rrule, location, color, source, sync_uid, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(
+    calendar_id, title, description || null, start_time, end_time, rrule || null, location || null,
+    req.body.color || null, req.body.source || 'manual', syncUid, new Date().toISOString(),
+  );
   const event = db.prepare('SELECT * FROM events WHERE id = ?').get(result.lastInsertRowid);
   res.json(event);
 });
@@ -92,6 +95,7 @@ router.post('/events', (req: Request, res: Response) => {
 // 更新事件
 router.put('/events/:id', (req: Request, res: Response) => {
   const { title, description, start_time, end_time, rrule, location, calendar_id } = req.body;
+  const { color, source } = req.body;
 
   const existing = db.prepare('SELECT * FROM events WHERE id = ?').get(req.params.id);
   if (!existing) {
@@ -107,6 +111,8 @@ router.put('/events/:id', (req: Request, res: Response) => {
   if (rrule !== undefined) { fields.push('rrule = ?'); values.push(rrule); }
   if (location !== undefined) { fields.push('location = ?'); values.push(location); }
   if (calendar_id !== undefined) { fields.push('calendar_id = ?'); values.push(calendar_id); }
+  if (color !== undefined) { fields.push('color = ?'); values.push(color); }
+  if (source !== undefined) { fields.push('source = ?'); values.push(source); }
   if (fields.length === 0) return res.json({ success: true });
 
   // 验证开始时间必须早于结束时间

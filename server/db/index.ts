@@ -74,6 +74,16 @@ class Database {
         }
       }
 
+      // 事件级颜色：课表导入按课程配色，老库补列
+      const eventCols = this.db.exec("PRAGMA table_info(events)");
+      if (eventCols.length > 0) {
+        const eventColNames = eventCols[0].values.map((row: any[]) => row[1]);
+        if (!eventColNames.includes('color')) {
+          this.db.exec("ALTER TABLE events ADD COLUMN color TEXT");
+          this.markDirty();
+        }
+      }
+
       // ---- 合并同步所需字段 ----
       // uid: 跨设备稳定标识。各端自增 id 空间不一致（本机是时间戳派生的大数字，
       //      服务端从 1 开始），按 id 对齐会张冠李戴，因此合并一律按 uid 匹配。

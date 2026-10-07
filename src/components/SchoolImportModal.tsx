@@ -7,6 +7,7 @@ import { schoolApi, calendarApi } from '../api/client';
 import { localSchoolApi } from '../api/school-cas';
 import type { CdutCourse } from '../api/client';
 import { expandWeeks } from '../../shared/cdut-parser';
+import { colorForCourse } from '../../shared/course-colors';
 import { useI18n } from '../i18n';
 import { getCalendarCache } from '../api/offline';
 import {
@@ -54,6 +55,7 @@ function buildEvents(courses: CdutCourse[], weekStartDate: Date, schoolId: strin
     start_time: string;
     end_time: string;
     location: string | null;
+    color: string;
     source: string;
   }> = [];
 
@@ -75,6 +77,8 @@ function buildEvents(courses: CdutCourse[], weekStartDate: Date, schoolId: strin
         start_time: start.toISOString(),
         end_time: end.toISOString(),
         location: key.location || null,
+        // 每门课一个固定颜色，像待办那样一眼区分（同门课永远同色）
+        color: colorForCourse(key.name),
         source: schoolId,
       });
     }

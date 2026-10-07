@@ -2,11 +2,35 @@ import { describe, it, expect } from 'vitest';
 import type { Todo } from '../types';
 import {
   localCreate,
+  localCreateEvent,
   localUpdate,
   localSplit,
   localDelete,
   isOnline,
 } from './offline';
+
+describe('localCreateEvent', () => {
+  // 回归：source 曾被写死成 'manual'，教务导入的事件因此不再被认作课表事件，
+  // 上课提醒一条都排不上
+  it('保留调用方传入的 source 与 color', () => {
+    const e = localCreateEvent({
+      calendar_id: 1,
+      title: '电法勘探原理与方法',
+      start_time: '2026-10-12T02:15:00.000Z',
+      end_time: '2026-10-12T03:50:00.000Z',
+      source: 'cdut',
+      color: '#722ed1',
+    });
+    expect(e.source).toBe('cdut');
+    expect(e.color).toBe('#722ed1');
+  });
+
+  it('没传 source 时退回 manual', () => {
+    const e = localCreateEvent({ title: 'x' });
+    expect(e.source).toBe('manual');
+    expect(e.color).toBeNull();
+  });
+});
 
 function makeTodo(overrides?: Partial<Todo>): Todo {
   return {

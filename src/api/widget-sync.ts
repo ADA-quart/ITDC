@@ -156,7 +156,8 @@ function scheduleForDay(
       fromEvents.push({
         id: e.id,
         title: e.title,
-        color: e.calendar_color || calendarColorById.get(e.calendar_id) || '#4c9aff',
+        // 课程配色优先（导入的课表每个课程一个色），其次日历色
+        color: e.color || e.calendar_color || calendarColorById.get(e.calendar_id) || '#4c9aff',
         start: hhmm(occ.start),
         end: hhmm(occ.end),
         location: e.location || '',

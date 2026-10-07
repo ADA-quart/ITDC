@@ -86,6 +86,8 @@ const CalendarView: React.FC = () => {
 
   const hiddenCalendarsRef = useRef<Set<number>>(hiddenCalendars);
   hiddenCalendarsRef.current = hiddenCalendars;
+  const calendarsRef = useRef<Calendar[]>(calendars);
+  calendarsRef.current = calendars;
 
   const getTodoColor = (todo: Todo, index: number): string => {
     if (todo.color) return todo.color;
@@ -99,18 +101,23 @@ const CalendarView: React.FC = () => {
     const hidden = currentHidden || hiddenCalendarsRef.current;
     const rawTodos = await todoApi.getAll({ status: 'scheduled' });
     const todoList: Todo[] = Array.isArray(rawTodos) ? rawTodos : [];
+    // 事件颜色优先级：事件自己的颜色（课程配色）→ 服务器回传的日历色 → 本地日历色
+    const colorByCalendarId = new Map(calendarsRef.current.map((c) => [c.id, c.color]));
     const fcEvents = eventList
       .filter((e: CalendarEvent) => !hidden.has(e.calendar_id))
-      .map((e: CalendarEvent) => ({
-        id: String(e.id),
-        title: e.title,
-        start: e.start_time,
-        end: e.end_time,
-        rrule: e.rrule || undefined,
-        backgroundColor: e.calendar_color || '#1890ff',
-        borderColor: e.calendar_color || '#1890ff',
-        extendedProps: { ...e },
-      }));
+      .map((e: CalendarEvent) => {
+        const color = e.color || e.calendar_color || colorByCalendarId.get(e.calendar_id) || '#1890ff';
+        return {
+          id: String(e.id),
+          title: e.title,
+          start: e.start_time,
+          end: e.end_time,
+          rrule: e.rrule || undefined,
+          backgroundColor: color,
+          borderColor: color,
+          extendedProps: { ...e },
+        };
+      });
     const todoEvents = todoList
       .filter(todo => todo.scheduled_start && todo.scheduled_end)
       .map((todo, idx) => {
@@ -502,7 +509,9 @@ const CalendarView: React.FC = () => {
             }}
             eventContent={(arg) => {
               // 手机端周视图列很窄：只显示课名 + 教室（时间左边刻度已经有了）
-              if (!isMobile || arg.view.type !== 'timeGridWeek') return undefined;
+              // 其它视图必须返回 true 才是「用默认渲染」——返回 undefined 会被当成
+              // 自定义内容为空，事件块就只剩一个色块、文字全没了
+              if (!isMobile || arg.view.type !== 'timeGridWeek') return true;
               const room = shortRoom((arg.event.extendedProps as any)?.location);
               return (
                 <div style={{ lineHeight: 1.15, overflow: 'hidden', padding: '1px 2px' }}>

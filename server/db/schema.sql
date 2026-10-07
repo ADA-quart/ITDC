@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS events (
   end_time DATETIME NOT NULL,
   rrule TEXT,
   location TEXT,
+  color TEXT,
   source TEXT DEFAULT 'manual',
   uid TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP

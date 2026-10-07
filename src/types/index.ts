@@ -22,6 +22,8 @@ export interface CalendarEvent {
   end_time: string;
   rrule: string | null;
   location: string | null;
+  /** 单条事件的颜色（课程表按课程配色用；为空则跟随所属日历的颜色） */
+  color?: string | null;
   source: string;
   uid: string | null;
   calendar_name?: string;
