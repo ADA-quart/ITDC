@@ -26,6 +26,10 @@ function readInitialLocale(): Locale {
 
 const initialLocale = readInitialLocale();
 dayjs.locale(initialLocale === 'zh' ? 'zh-cn' : 'en');
+// 同一批：<html lang> 与标题也先定好，别等 effect
+if (typeof document !== 'undefined') {
+  document.documentElement.lang = initialLocale === 'zh' ? 'zh-CN' : 'en';
+}
 
 interface I18nContextType {
   locale: Locale;
@@ -52,8 +56,8 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
     document.title = locale === 'zh' ? '智能日历与待办规划' : 'Smart Calendar & Todo Planner';
-    // antd 的日期/时间面板月份与星期名来自 dayjs 的 locale（不是 ConfigProvider），
-    // 不设这一行，中文界面下面板会一直显示 August / Mon 这种英文
+    // antd 的日期/时间面板月份与星期名来自 dayjs 的 locale（不是 ConfigProvider）。
+    // 首帧用的值已经在模块顶层设好，这里只管用户手动切换语言后的更新。
     dayjs.locale(locale === 'zh' ? 'zh-cn' : 'en');
   }, [locale]);
 

@@ -3,6 +3,12 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 修复
+
+- **从小组件冷启动进 App 时仍可能闪英文**：1.9.5 已经把 dayjs 的语言提到渲染前，这次把 `<html lang>` 也一起提前设置（原来只写在 effect 里，首帧的 `<html>` 还是 `en`，日期面板等按语言取样的地方会跟着闪一下）
+
 ## [1.9.5] - 2026-10-08
 
 ### 变更
