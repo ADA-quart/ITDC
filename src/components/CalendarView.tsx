@@ -29,7 +29,6 @@ import { pushWidgetSnapshot } from '../api/widget-sync';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { swipeDirection } from '../utils/swipe';
 import { findMergeTarget } from '../utils/calendar-merge';
 import { dedupeEvents } from '../../shared/event-dedupe';
 import { cardStyle, hintTextStyle, secondaryTextColor, withAlpha, TOUCH_TARGET, TYPE } from './ui';
@@ -343,6 +342,8 @@ const CalendarView: React.FC = () => {
     let tracking = false;
     let paging = false;      // 本次手势是否已经在跟手拉动
     let dx = 0;
+    // 最近几次移动的采样，用来算"甩"的速度：小幅度但很快的手势也要能翻页
+    let samples: Array<{ x: number; t: number }> = [];
     const onStart = (e: TouchEvent) => {
       tracking = e.touches.length === 1;
       if (!tracking) return;
@@ -352,6 +353,7 @@ const CalendarView: React.FC = () => {
       draggingRef.current = false;
       paging = false;
       dx = 0;
+      samples = [{ x: e.touches[0].clientX, t: performance.now() }];
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
     };
@@ -362,15 +364,17 @@ const CalendarView: React.FC = () => {
       const t = e.touches[0];
       dx = t.clientX - startX;
       const dy = t.clientY - startY;
+      samples.push({ x: t.clientX, t: performance.now() });
+      if (samples.length > 8) samples.shift();
       if (!paging) {
         // 先判断方向：竖向滑动留给页面滚动，横向才是翻页
-        if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) return;
+        if (Math.abs(dx) < 5 || Math.abs(dx) < Math.abs(dy)) return;
         paging = true;
       }
       // 跟手：手指拖到哪，轨道就跟到哪；只有超出整整一屏之后才加一点点阻尼
       // （0.6 而不是 0.35 —— 阻尼太强会觉得"拖不动"）
       const limit = el.clientWidth || 1;
-      const damped = Math.abs(dx) > limit ? Math.sign(dx) * (limit + (Math.abs(dx) - limit) * 0.6) : dx;
+      const damped = Math.abs(dx) > limit ? Math.sign(dx) * (limit + (Math.abs(dx) - limit) * 0.8) : dx;
       if (timetableModeRef.current) moveTrack(damped, false);
       else el.style.transform = `translateX(${damped}px)`;
     };
@@ -387,10 +391,20 @@ const CalendarView: React.FC = () => {
       }
       dx = t.clientX - startX;
       const dy = t.clientY - startY;
-      const dir = swipeDirection(dx, dy);
       const limit = el.clientWidth || 1;
-      const passed = Math.abs(dx) > Math.min(limit * 0.25, 70);
-      if (!dir || !passed) {
+      // 最近 120ms 的横向速度（px/ms）：小幅度但"甩"得快也要翻页
+      const now = performance.now();
+      const recent = samples.filter((s) => now - s.t <= 120);
+      let velocity = 0;
+      if (recent.length >= 2) {
+        const a = recent[0];
+        const b = recent[recent.length - 1];
+        if (b.t > a.t) velocity = (b.x - a.x) / (b.t - a.t);
+      }
+      const passed = Math.abs(dx) > Math.min(limit * 0.18, 50) || Math.abs(velocity) > 0.45;
+      // 方向只看位移正负：swipeDirection 自带 60px 阈值，会把"小幅度快甩"整条挡掉
+      const dir: 'next' | 'prev' = dx < 0 ? 'next' : 'prev';
+      if (Math.abs(dx) < 5 || Math.abs(dx) < Math.abs(dy) || !passed) {
         // 没滑够：弹回原页（跟手效果的回弹）
         if (timetableModeRef.current) moveTrack(0, true);
         else el.style.transform = '';
@@ -1353,3 +1367,4 @@ const CalendarView: React.FC = () => {
 };
 
 export default CalendarView;
+
