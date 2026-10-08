@@ -248,6 +248,7 @@ cd android && ./gradlew assembleDebug
 | [小组件](docs/WIDGET.md) | 设计、数据通道、Android 平台限制 |
 | [API 参考](docs/API.md) | 全部 HTTP 接口 |
 | [安全说明](SECURITY.md) | 威胁模型、密钥存放、数据位置 |
+| [第三方开源许可](THIRD-PARTY-NOTICES.md) | 全部生产依赖的版本、协议与仓库地址 |
 | [贡献指南](CONTRIBUTING.md) | 开发约定与提交规范 |
 | [变更日志](CHANGELOG.md) | 每个版本的改动 |
 
@@ -270,6 +271,10 @@ cd android && ./gradlew assembleDebug
 ## 贡献
 
 欢迎提 Issue 与 PR，开发约定见 [CONTRIBUTING.md](CONTRIBUTING.md)。提交前请确保 `npx tsc --noEmit` 与 `npm run test` 都通过。
+
+## 开源许可
+
+项目依赖一批开源软件，含传递依赖共 199 个包，全部为宽松型协议（MIT / ISC / Apache-2.0 / BSD / 0BSD，再分发只需保留版权与许可声明）或文件级 copyleft（MPL-2.0，仅修改其源文件才需公开修改）。含仓库地址的完整清单见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)，App 设置页内也能随时查看，清单可用 `npm run licenses` 重新生成。
 
 ## 许可证
 

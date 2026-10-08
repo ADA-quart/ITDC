@@ -259,6 +259,10 @@ Nothing to configure for the local-only mode. For a self-hosted sync server, cop
 
 Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Please make sure `npx tsc --noEmit` and `npm run test` both pass.
 
+## Open-source licences
+
+The project depends on open-source packages — 199 including transitive dependencies, all under permissive licences (MIT / ISC / Apache-2.0 / BSD / 0BSD, redistribution only requires keeping the copyright and licence notices) or file-level copyleft (MPL-2.0, which only affects modified source files). See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for the full list with repository links; it is also viewable on the app's Settings page and can be regenerated with `npm run licenses`.
+
 ## License
 
 [PolyForm Noncommercial License 1.0.0](LICENSE) © 2026 ADA-quart

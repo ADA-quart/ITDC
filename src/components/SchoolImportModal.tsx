@@ -24,16 +24,6 @@ interface Props {
   onImported: () => void;
 }
 
-/** CDUT 节次时间表（与 CDUniTap 硬编码一致） */
-const TIMETABLE: readonly [string, string][] = [
-  ['08:10', '09:45'],
-  ['10:15', '11:50'],
-  ['13:00', '14:00'],
-  ['14:30', '16:05'],
-  ['16:25', '18:00'],
-  ['19:10', '20:45'],
-];
-
 /** 聚合课程并展开周次为具体日期事件列表 */
 function buildEvents(courses: CdutCourse[], weekStartDate: Date, schoolId: string) {
   interface AggKey { name: string; teacher: string; location: string; sectionIndex: number; dayOfWeek: number; sections: string; }

@@ -1,6 +1,9 @@
 /**
- * CDUT 教务系统「学期个人课表」HTML 解析器
- * 移植自 CDUniTap JiaoWuCliCommander.ParseClassInfoNew
+ * CDUT 教务系统「学期个人课表」页 HTML 解析。
+ *
+ * 页面是一张 7 列 × 6 行的大表格，每格对应「星期几的第几大节」；
+ * 格子内部又可能叠着多门课、或同一门课的多段周次记录。
+ * 解析结果按「每格 × 每条记录 × 每段周次」平铺返回，交给上层合并。
  */
 
 export interface CdutCourse {
@@ -15,59 +18,62 @@ export interface CdutCourse {
 
 /** 解析课表 HTML，返回课程数组（每天每节课一条） */
 export function parseTimetableHtml(html: string): CdutCourse[] {
-  const courses: CdutCourse[] = [];
-  // 每个 <td width="123" height="28" align="center" valign='top'> 是一格（7 天 × 6 节）
+  // 教务的课表格子固定长这样（属性顺序、引号风格多年未变）
   const cellRe = /<td width="123" height="28" align="center" valign='top'\s*>\s*([\s\S]*?)\s*<\/td>/g;
-  let index = -1;
-  let match: RegExpExecArray | null;
+  const cells = Array.from(html.matchAll(cellRe), (m) => m[1]);
+  const courses: CdutCourse[] = [];
 
-  while ((match = cellRe.exec(html)) !== null) {
-    index++;
-    const dayOfWeek = (index % 7) + 1;
-    const sectionIndex = Math.floor(index / 7);
-    // 一个格子里可能并排好几条课程记录（教务用 ---------- 分隔），每条各有自己的周次与教室；
-    // 每个格子里还会同时存在「隐藏简版块 kbcontent1」与「完整块 kbcontent」，
-    // 先按块切分，避免把简版的名字配到完整块的周次上
-    for (const block of match[1].split(/(?=<div[^>]*class="kbcontent)/i)) {
+  cells.forEach((cellHtml, cellIndex) => {
+    // 格子按先行后列填满表格，取模即可还原星期与节次
+    const dayOfWeek = (cellIndex % 7) + 1;
+    const sectionIndex = Math.floor(cellIndex / 7);
+
+    // 格子内的 DOM 有两层重复：kbcontent1 是隐藏简版、kbcontent 是完整版；
+    // 而一个 div 里又可能用横线叠着好几条记录。先按 div 拆块、再按横线拆条，
+    // 逐条独立解析——简版块没有 [节次]，会在解析时被自然滤掉。
+    const blocks = cellHtml.split(/(?=<div[^>]*class="kbcontent)/i);
+    for (const block of blocks) {
       for (const entry of block.split(/-{5,}\s*<br\s*\/?>/i)) {
         courses.push(...parseEntry(entry, dayOfWeek, sectionIndex));
       }
     }
-  }
+  });
+
   return courses;
 }
 
 /**
- * 解析一条课程记录。同一条记录里也常有多个周次段（同一门课拆成 1-3,6-11 周与 12 周），
- * 每个周次段单独返回一条，交给上层合并——只取第一个正是过去「缺课」的原因。
+ * 解析一条课程记录。同一条记录里可能挂着多段周次（同一门课拆成
+ * 1-3,6-11 周与 12 周），每段单独返回一条交给上层合并——
+ * 以前只取第一段，正是「缺课」的来源。
  */
 function parseEntry(raw: string, dayOfWeek: number, sectionIndex: number): CdutCourse[] {
-  const nameM = /<font onmouseover='kbtc\(this\)' onmouseout='kbot\(this\)'\s*>(.*?)<\/font>/.exec(raw);
-  const name = (nameM?.[1] ?? '').replace(/<br\/>/g, '').trim();
+  // 课程名：格子里第一个 kbtc 悬停字体的文本
+  const nameHtml = /<font onmouseover='kbtc\(this\)' onmouseout='kbot\(this\)'\s*>(.*?)<\/font>/.exec(raw)?.[1] ?? '';
+  const name = nameHtml.replace(/<br\/>/g, '').trim();
   if (!name) return [];
 
-  // 周次可能写成 title 在前或在后（隐藏简版块是后者），两种都取；
-  // 只有带 [节次] 的才是完整记录，隐藏简版块没有方括号，正好用它过滤掉重复项
-  const weekEntries: Array<{ weeks: string; sections: string }> = [];
+  // 周次(节次)：只有方括号写的才是完整记录，简版块没有方括号，靠这点滤掉重复项
+  const slots: Array<{ weeks: string; sections: string }> = [];
   for (const m of raw.matchAll(/<font[^>]*title='周次\(节次\)'[^>]*>(.*?)<\/font>/g)) {
     const text = m[1].replace(/<br\/>/g, '').trim();
     const parts = /^(.*?)\[(.*?)\]$/.exec(text);
     if (!parts) continue;
-    weekEntries.push({ weeks: parts[1].trim(), sections: parts[2].trim() });
+    slots.push({ weeks: parts[1].trim(), sections: parts[2].trim() });
   }
-  if (weekEntries.length === 0) return [];
+  if (slots.length === 0) return [];
 
-  const teacherM = /<font title='教师'[^>]*>(.*?)<\/font>/.exec(raw);
-  const buildingM = /<font title='教学楼'[^>]*>(.*?)<\/font>/.exec(raw);
-  const roomM = /<font title='教室'[^>]*>(.*?)<\/font>/.exec(raw);
-  const teacher = (teacherM?.[1] ?? '').trim();
-  const location = [buildingM?.[1] ?? '', roomM?.[1] ?? ''].filter(Boolean).join(' - ');
+  // 教师与地点：教学楼、教室各取一个，拼成「楼 - 房」
+  const pick = (title: string) =>
+    (new RegExp(`<font title='${title}'[^>]*>(.*?)</font>`).exec(raw)?.[1] ?? '').trim();
+  const teacher = pick('教师');
+  const location = [pick('教学楼'), pick('教室')].filter(Boolean).join(' - ');
 
-  return weekEntries.map((w) => ({
+  return slots.map((s) => ({
     name,
     teacher,
-    weeks: w.weeks,
-    sections: w.sections,
+    weeks: s.weeks,
+    sections: s.sections,
     location,
     dayOfWeek,
     sectionIndex,
@@ -76,13 +82,11 @@ function parseEntry(raw: string, dayOfWeek: number, sectionIndex: number): CdutC
 
 /** 从课表页 <option> 中提取学期列表 */
 export function parseSemesterOptions(html: string): string[] {
-  const re = /<option value="(\d{4}-\d{4}-\d)"[^>]*>/g;
-  const out: string[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(html)) !== null) {
-    if (!out.includes(m[1])) out.push(m[1]);
+  const found = new Set<string>();
+  for (const m of html.matchAll(/<option value="(\d{4}-\d{4}-\d)"[^>]*>/g)) {
+    found.add(m[1]);
   }
-  return out;
+  return [...found];
 }
 
 /**
@@ -109,7 +113,7 @@ export function expandWeeks(raw: string): number[] {
   return weeks;
 }
 
-/** CDUT 节次时间表（与 CDUniTap 硬编码一致） */
+/** CDUT 作息时间表：每个大节对应的上下课时刻 */
 export const TIMETABLE: readonly [string, string][] = [
   ['08:10', '09:45'],
   ['10:15', '11:50'],

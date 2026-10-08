@@ -1,6 +1,8 @@
 node_modules/
 dist/
+# 服务器运行时数据（src/data/ 是随源码提交的生成数据，见下方例外）
 data/
+!src/data/
 .env
 .env.local
 *.db.tmp

@@ -3,6 +3,16 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 新增
+
+- **第三方开源许可清单**：新增 [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md)，由 `npm run licenses` 自动生成，覆盖全部生产依赖（含传递依赖，共 199 个包）的版本、协议与仓库地址；App 设置页「关于」区块同步新增「开源许可」入口，可搜索并按协议标色查看
+
+### 变更
+
+- **课表 HTML 解析重写为项目自有实现**：`shared/cdut-parser.ts` 的解析部分此前标注「移植自 CDUniTap」（GPL-3.0），与项目自身的 PolyForm Noncommercial 许可存在冲突；现已整体重写，行为与输出保持不变（原有 21 个解析器测试全部通过），并移除了 `SchoolImportModal` 中一段未被使用的重复节次时间表
+
 ## [2.0.1] - 2026-10-08
 
 ### 修复

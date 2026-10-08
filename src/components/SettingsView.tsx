@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Form, Input, Select, Button, Table, Tag, message, Space, Popconfirm, Tabs, Spin, Alert, AutoComplete, Tooltip, Switch } from 'antd';
-import { SyncOutlined, LinkOutlined } from '@ant-design/icons';
+import { SyncOutlined, LinkOutlined, FileProtectOutlined } from '@ant-design/icons';
 import { settingsApi, api, setApiBase, getApiBase, isSyncEnabled, calendarApi } from '../api/client';
 import { Capacitor } from '@capacitor/core';
 import { ITDCWidgetPlugin } from '../capacitor/itdc-widget';
@@ -29,6 +29,7 @@ import {
   setClassReminderLeadMin,
 } from '../api/class-reminders';
 import AppearanceSettings from './AppearanceSettings';
+import LicenseModal from './LicenseModal';
 import { cardStyle, hintTextStyle, sectionTitleStyle } from './ui';
 
 interface Props {
@@ -85,6 +86,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
   const [loadingModels, setLoadingModels] = useState(false);
   const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [licenseOpen, setLicenseOpen] = useState(false);
   const [promptTemplate, setPromptTemplate] = useState('');
   const [defaultTemplate, setDefaultTemplate] = useState('');
   const [promptSaving, setPromptSaving] = useState(false);
@@ -849,6 +851,9 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
               <Button icon={<LinkOutlined />} onClick={() => void openExternal(RELEASES_PAGE)}>
                 {t.settings.openSite}
               </Button>
+              <Button icon={<FileProtectOutlined />} onClick={() => setLicenseOpen(true)}>
+                {t.settings.openSourceLicenses}
+              </Button>
             </Space>
             {updateResult && (
               <Alert
@@ -885,6 +890,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
     <div style={cardStyle(isDark, isMobile)}>
       <h3 style={{ marginTop: 0, marginBottom: 12 }}>{t.settings.title}</h3>
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
+      <LicenseModal open={licenseOpen} onClose={() => setLicenseOpen(false)} onOpenExternal={(url) => void openExternal(url)} />
     </div>
   );
 };
