@@ -940,7 +940,9 @@ const CalendarView: React.FC = () => {
               textOverflow: 'ellipsis',
             }}>
               {timetableMode
-                ? `${weekStart.format('M月D日')} - ${weekStart.add(6, 'day').format('M月D日')}`
+                // 用 10.5 - 10.11 这种短写法：完整写法「10月5日 - 10月11日」在手机上
+                // 会被 上一页/下一页/今天/日周 挤成省略号
+                ? `${weekStart.format('M.D')} - ${weekStart.add(6, 'day').format('M.D')}`
                 : calTitle}
             </div>
             <Button
