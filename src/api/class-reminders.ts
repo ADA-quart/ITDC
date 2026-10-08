@@ -10,8 +10,14 @@ import { SCHOOLS } from '../../shared/schools';
 /** 通知 id 命名空间：待办通知用自身 id（小整数），上课提醒 +10 亿，两套互不覆盖 */
 export const CLASS_NOTIFICATION_ID_BASE = 1_000_000_000;
 
-/** 本地通知最多提前 90 天，超出不排程（与待办提醒一致） */
-export const CLASS_MAX_AHEAD_MS = 90 * 24 * 3600_000;
+/**
+ * 本地通知最多提前 45 天。
+ *
+ * 每节课都是一条待触发的本机通知（Android 上落到 AlarmManager），排得越远
+ * 挂起的闹钟越多、耗电越高；而每次打开 App 读取日历时都会按最新课表重排，
+ * 45 天足够覆盖「假期回来打开一次」的间隔。
+ */
+export const CLASS_MAX_AHEAD_MS = 45 * 24 * 3600_000;
 
 const CLASS_REMINDER_KEY = 'itdc_class_reminder_enabled';
 const CLASS_LEAD_KEY = 'itdc_class_reminder_lead_min';

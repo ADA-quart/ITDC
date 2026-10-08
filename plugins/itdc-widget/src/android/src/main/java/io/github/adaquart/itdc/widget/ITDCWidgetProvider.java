@@ -34,7 +34,16 @@ import java.util.Locale;
 public class ITDCWidgetProvider extends AppWidgetProvider {
 
     private static final String TAG = "ITDCWidget";
-    private static final long REFRESH_INTERVAL_MS = 30 * 60 * 1000L;
+    /**
+     * 兜底刷新间隔。
+     *
+     * 小组件内容只在「今天 / 明天」范围内变化，真正需要定期刷新的场景只有
+     * 已结束的课要从列表消失、以及跨天。App 推快照、日期时间变化广播、App 回前台
+     * 都会刷新，所以定时只是兜底 —— 以前 30 分钟一次且用 setAndAllowWhileIdle
+     * 穿透 Doze，等于每小时把手机从深度休眠叫醒两次，是实打实的耗电。
+     * 现在放宽到 2 小时，并且不再要求唤醒。
+     */
+    private static final long REFRESH_INTERVAL_MS = 2 * 60 * 60 * 1000L;
     private static final String PREFS = "widget_prefs";
 
     public static final String MODE_LOCAL = "local";
@@ -88,9 +97,11 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             ComponentName comp = new ComponentName(context, ITDCWidgetProvider.class.getName());
             for (int id : awm.getAppWidgetIds(comp)) refreshWidget(context, id);
         } catch (Exception e) { Log.e(TAG, "refreshAll failed", e); }
+        // updatePeriodMillis 已关掉（见 app_widget_itdc.xml），靠这条链维持下一次兜底刷新
+        scheduleRefresh(context);
     }
 
-    private void scheduleRefresh(Context context) {
+    private static void scheduleRefresh(Context context) {
         try {
             // Android 15+ 起 setInexactRepeating 周期受限、Doze 下会被跳过，
             // 澎湃 OS 还会冻结后台进程。因此定时仅作兜底，
@@ -102,11 +113,9 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
             PendingIntent pi = PendingIntent.getBroadcast(context, 0, it, flags);
             long trigger = System.currentTimeMillis() + REFRESH_INTERVAL_MS;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi);
-            } else {
-                am.set(AlarmManager.RTC_WAKEUP, trigger, pi);
-            }
+            // 不带 WAKEUP 的 RTC：设备睡着时不叫醒它，等下次自然亮屏（拿起手机、解锁）
+            // 时补一次刷新就够 —— 小组件是"看的时候要新"，不值得为它耗电
+            am.set(AlarmManager.RTC, trigger, pi);
         } catch (Exception e) { Log.e(TAG, "scheduleRefresh failed", e); }
     }
 
