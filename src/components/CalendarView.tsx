@@ -329,7 +329,7 @@ const CalendarView: React.FC = () => {
     const el = trackRef.current;
     if (!el) return;
     el.style.transition = animate
-      ? 'transform 0.24s cubic-bezier(.22,.61,.36,1)'
+      ? 'transform 0.18s cubic-bezier(.2,.8,.3,1)'
       : 'none';
     el.style.transform = `translateX(calc(${TRACK_BASE_PERCENT}% + ${offsetPx}px))`;
   };
@@ -367,9 +367,10 @@ const CalendarView: React.FC = () => {
         if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) return;
         paging = true;
       }
-      // 跟手：手指拖到哪，轨道就跟到哪（边界处稍微加阻尼）
+      // 跟手：手指拖到哪，轨道就跟到哪；只有超出整整一屏之后才加一点点阻尼
+      // （0.6 而不是 0.35 —— 阻尼太强会觉得"拖不动"）
       const limit = el.clientWidth || 1;
-      const damped = Math.abs(dx) > limit ? Math.sign(dx) * (limit + (Math.abs(dx) - limit) * 0.35) : dx;
+      const damped = Math.abs(dx) > limit ? Math.sign(dx) * (limit + (Math.abs(dx) - limit) * 0.6) : dx;
       if (timetableModeRef.current) moveTrack(damped, false);
       else el.style.transform = `translateX(${damped}px)`;
     };
