@@ -22,6 +22,8 @@ interface Props {
   onMoveEvent: (event: any, start: Date, end: Date) => void;
   /** 长按不动：请求删除（课程/日程；待办不删） */
   onDeleteEvent: (event: any) => void;
+  /** 拖动开始/结束：父容器据此决定是否要把横向手势当成翻页 */
+  onDragStateChange?: (dragging: boolean) => void;
 }
 
 interface GridItem {
@@ -42,6 +44,7 @@ const TimetableGrid: React.FC<Props> = ({
   onSelectEvent,
   onMoveEvent,
   onDeleteEvent,
+  onDragStateChange,
 }) => {
   const { t } = useI18n();
   // 拖拽 / 长按：pointer 事件在 WebView 里触摸与鼠标都走
@@ -49,10 +52,22 @@ const TimetableGrid: React.FC<Props> = ({
     item: GridItem | null;
     startX: number;
     startY: number;
+    /** 按住够久才允许拖动；快速横滑交给父容器翻页 */
+    armed: boolean;
+    armTimer: number | null;
     moved: boolean;
     longPressed: boolean;
     timer: number | null;
-  }>({ item: null, startX: 0, startY: 0, moved: false, longPressed: false, timer: null });
+  }>({
+    item: null,
+    startX: 0,
+    startY: 0,
+    armed: false,
+    armTimer: null,
+    moved: false,
+    longPressed: false,
+    timer: null,
+  });
   // 拖过或长按过之后紧跟着的 click 要吞掉，否则会弹出详情
   const suppressClick = useRef(false);
   const [ghost, setGhost] = useState<{ x: number; y: number; title: string } | null>(null);
@@ -62,6 +77,13 @@ const TimetableGrid: React.FC<Props> = ({
     if (drag.current.timer !== null) {
       window.clearTimeout(drag.current.timer);
       drag.current.timer = null;
+    }
+  };
+
+  const clearArm = () => {
+    if (drag.current.armTimer !== null) {
+      window.clearTimeout(drag.current.armTimer);
+      drag.current.armTimer = null;
     }
   };
 
@@ -80,10 +102,21 @@ const TimetableGrid: React.FC<Props> = ({
       item,
       startX: e.clientX,
       startY: e.clientY,
+      armed: false,
+      armTimer: null,
       moved: false,
       longPressed: false,
       timer: null,
     };
+    // 先按住一小会儿才进入"可拖动"状态：直接横滑是翻页手势，不该把课拖走
+    if (e.pointerType !== 'mouse') {
+      drag.current.armTimer = window.setTimeout(() => {
+        drag.current.armTimer = null;
+        drag.current.armed = true;
+      }, 180);
+    } else {
+      drag.current.armed = true;
+    }
     // 长按不动 900ms = 删除（和日历视图一致）；待办不提供删除
     if (!item.isTodo) {
       drag.current.timer = window.setTimeout(() => {
@@ -98,9 +131,19 @@ const TimetableGrid: React.FC<Props> = ({
   const onBlockPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
     const st = drag.current;
     if (!st.item) return;
-    if (!st.moved && Math.hypot(e.clientX - st.startX, e.clientY - st.startY) > 8) {
+    const dist = Math.hypot(e.clientX - st.startX, e.clientY - st.startY);
+    // 还没"按住够久"就移动了：这是滑动手势，直接放弃这次拖动/删除
+    if (!st.armed && dist > 8) {
+      clearArm();
+      clearLongPress();
+      st.item = null;
+      suppressClick.current = true;
+      return;
+    }
+    if (st.armed && !st.moved && dist > 8) {
       st.moved = true;
       clearLongPress();
+      onDragStateChange?.(true);
       try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* 某些 WebView 不支持 */ }
     }
     if (!st.moved) return;
@@ -112,10 +155,21 @@ const TimetableGrid: React.FC<Props> = ({
   const endDrag = (x: number, y: number, commit: boolean) => {
     const st = drag.current;
     clearLongPress();
+    clearArm();
     const item = st.item;
     const moved = st.moved;
     const longPressed = st.longPressed;
-    drag.current = { item: null, startX: 0, startY: 0, moved: false, longPressed: false, timer: null };
+    drag.current = {
+      item: null,
+      startX: 0,
+      startY: 0,
+      armed: false,
+      armTimer: null,
+      moved: false,
+      longPressed: false,
+      timer: null,
+    };
+    if (moved) onDragStateChange?.(false);
     setGhost(null);
     setHoverCell(null);
     if (moved || longPressed) suppressClick.current = true;

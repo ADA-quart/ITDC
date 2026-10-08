@@ -84,6 +84,8 @@ const zh = {
     icalExported: 'iCal 已导出',
     eventMoved: '事件已移动',
     eventMoveFailed: '移动事件失败',
+    undo: '撤销',
+    undone: '已撤销移动',
     eventResized: '事件时长已调整',
     eventResizeFailed: '调整事件时长失败',
     eventCreated: '事件已创建',

@@ -121,6 +121,10 @@ const CalendarView: React.FC = () => {
   const [addTodoMinutes, setAddTodoMinutes] = useState(30);
   const longPressFiredRef = useRef(false);
   const longPressTimerRef = useRef<number | null>(null);
+  // 正在拖事件/课程（含课表格子里的拖动）：此时不该把横向手势当成翻页
+  const draggingRef = useRef(false);
+  /** 翻页方向，等内容真正换过一帧后再放滑入动画 */
+  const pendingSlideRef = useRef<'next' | 'prev' | null>(null);
   // 事件 id → DOM 元素，融合动画需要知道"融进哪一滴"的位置
   const eventElsRef = useRef<Map<string, HTMLElement>>(new Map());
 
@@ -323,13 +327,6 @@ const CalendarView: React.FC = () => {
     const onStart = (e: TouchEvent) => {
       tracking = e.touches.length === 1;
       if (!tracking) return;
-      // 从事件/课程块起手的横向手势是「拖这块」，不该同时翻页：
-      // 课表格子里拖动课程时，父容器的翻页逻辑会把整周带走（实测拖完跳到下一周）
-      const target = e.target as HTMLElement | null;
-      if (target?.closest('.fc-event, .itdc-timetable-grid button')) {
-        tracking = false;
-        return;
-      }
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
     };
@@ -338,6 +335,8 @@ const CalendarView: React.FC = () => {
       tracking = false;
       const t = e.changedTouches[0];
       if (!t) return;
+      // 这一下如果是在拖事件/课程，就别翻页（课表格子里按住再拖、日历里拖事件）
+      if (draggingRef.current) return;
       const dx = t.clientX - startX;
       const dy = t.clientY - startY;
       const dir = swipeDirection(dx, dy);
@@ -402,6 +401,7 @@ const CalendarView: React.FC = () => {
 
   /** 翻页：课表视图翻一周，日历视图交给 FullCalendar（读 ref，滑动手势也复用） */
   const shiftPage = (dir: 1 | -1) => {
+    pendingSlideRef.current = dir > 0 ? 'next' : 'prev';
     if (timetableModeRef.current) {
       setWeekStart((w) => w.add(dir * 7, 'day'));
       return;
@@ -409,6 +409,30 @@ const CalendarView: React.FC = () => {
     const api = calendarRef.current?.getApi();
     if (!api) return;
     if (dir > 0) api.next(); else api.prev();
+  };
+
+  // 翻页真正换了内容之后再放动画：翻页会重排一次 DOM，动画得挂在新的那帧上
+  useEffect(() => {
+    const dir = pendingSlideRef.current;
+    if (!dir) return;
+    pendingSlideRef.current = null;
+    playSlide(dir);
+  }, [weekStart, calTitle]);
+
+  /**
+   * 翻页时给内容加一段"桌面左右滑"的过场动画：按方向滑入 + 轻微淡入。
+   * 直接在容器上闪一次 class，不重挂载日历（FullCalendar 重挂代价太大）。
+   */
+  const playSlide = (dir: 'next' | 'prev') => {
+    const el = swipeRef.current;
+    if (!el) return;
+    el.classList.remove('itdc-slide-next', 'itdc-slide-prev');
+    // 强制重排，让同一个 class 能再次触发动画
+    void el.offsetWidth;
+    el.classList.add(dir === 'next' ? 'itdc-slide-next' : 'itdc-slide-prev');
+    window.setTimeout(() => {
+      el.classList.remove('itdc-slide-next', 'itdc-slide-prev');
+    }, 260);
   };
 
   const goToday = () => {
@@ -453,11 +477,55 @@ const CalendarView: React.FC = () => {
           end_time: end.toISOString(),
         });
       }
-      message.success(t.calendar.eventMoved);
+      showMovedWithUndo(event);
       loadData();
     } catch {
       message.error(t.calendar.eventMoveFailed);
     }
+  };
+
+  /**
+   * 移动成功后给一条带「撤销」的提示：拖错了（尤其是误触）能一键还原。
+   * 撤销就是把原来的起止时间写回去，课程与待办分别走各自的接口。
+   */
+  const showMovedWithUndo = (event: any) => {
+    const isTodo = event.extendedProps?.type === 'todo';
+    const prevStart = String(event.start ?? event.startStr ?? '');
+    const prevEnd = String(event.end ?? event.endStr ?? '');
+    if (!prevStart || !prevEnd) {
+      message.success(t.calendar.eventMoved);
+      return;
+    }
+    const undo = async () => {
+      try {
+        if (isTodo) {
+          await todoApi.update(event.extendedProps.id, {
+            scheduled_start: new Date(prevStart).toISOString(),
+            scheduled_end: new Date(prevEnd).toISOString(),
+          });
+        } else {
+          await calendarApi.updateEvent(Number(event.id), {
+            start_time: new Date(prevStart).toISOString(),
+            end_time: new Date(prevEnd).toISOString(),
+          });
+        }
+        message.info(t.calendar.undone);
+        loadData();
+      } catch {
+        message.error(t.calendar.eventMoveFailed);
+      }
+    };
+    message.success({
+      content: (
+        <span>
+          {t.calendar.eventMoved}
+          <Button type="link" size="small" style={{ padding: '0 4px' }} onClick={() => void undo()}>
+            {t.calendar.undo}
+          </Button>
+        </span>
+      ),
+      duration: 6,
+    });
   };
 
   const handleAddTodoToEvent = async () => {
@@ -549,7 +617,12 @@ const CalendarView: React.FC = () => {
         start_time: dropInfo.event.startStr,
         end_time: dropInfo.event.endStr,
       });
-      message.success(t.calendar.eventMoved);
+      showMovedWithUndo({
+        id: dropInfo.event.id,
+        start: dropInfo.oldEvent?.start ?? dropInfo.event.start,
+        end: dropInfo.oldEvent?.end ?? dropInfo.event.end,
+        extendedProps: props,
+      });
     } catch {
       message.error(t.calendar.eventMoveFailed);
       dropInfo.revert();
@@ -791,6 +864,7 @@ const CalendarView: React.FC = () => {
               onSelectEvent={(ev) => setDetailEvent(ev)}
               onMoveEvent={handleGridMove}
               onDeleteEvent={(ev) => confirmDeleteEvent(String(ev.id), ev.title)}
+              onDragStateChange={(dragging) => { draggingRef.current = dragging; }}
             />
           )}
           {/* 周视图用课表格子时，FullCalendar 只隐藏不卸载：切回日视图时它的实例还在 */}
@@ -964,6 +1038,8 @@ const CalendarView: React.FC = () => {
             }}
             eventDrop={handleEventDrop}
             eventResize={handleEventResize}
+            eventDragStart={() => { draggingRef.current = true; }}
+            eventDragStop={() => { draggingRef.current = false; }}
             // 手机上让日历铺满一整屏：高度按视口算（扣掉顶部新建按钮、日期行与底部导航），
             // 日历列表与导入/导出顺延到下一屏，往上滑即可看到
             height={isMobile ? 'calc(100dvh - 232px)' : 'auto'}

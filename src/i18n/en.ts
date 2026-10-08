@@ -86,6 +86,8 @@ const en: LocaleMessages = {
     icalExported: 'iCal exported',
     eventMoved: 'Event moved',
     eventMoveFailed: 'Failed to move event',
+    undo: 'Undo',
+    undone: 'Move undone',
     eventResized: 'Event duration updated',
     eventResizeFailed: 'Failed to resize event',
     eventCreated: 'Event created',

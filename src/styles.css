@@ -38,3 +38,25 @@ body.itdc-has-bg-image .fc .fc-col-header-cell {
   user-select: none;
   -webkit-touch-callout: none;
 }
+
+/*
+ * 左右滑翻页的过场：像手机桌面那样，新一屏从手势方向滑进来 + 轻微淡入。
+ * 只闪一次 class（CalendarView.playSlide），不重挂载日历本体。
+ */
+@keyframes itdc-slide-in-next {
+  from { transform: translateX(26%); opacity: 0.45; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes itdc-slide-in-prev {
+  from { transform: translateX(-26%); opacity: 0.45; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.itdc-slide-next {
+  animation: itdc-slide-in-next 0.22s ease-out;
+}
+
+.itdc-slide-prev {
+  animation: itdc-slide-in-prev 0.22s ease-out;
+}
