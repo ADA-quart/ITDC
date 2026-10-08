@@ -137,3 +137,11 @@ jobs:
         with:
           files: out/*.apk
           body_path: release_notes.md
+
+      # 上面那个 action 在「release 已存在」时不一定会改写 body（实测重新打同一 tag 后正文没变）。
+      # 这里显式再写一次，保证 Release 说明始终等于 CHANGELOG 里对应版本那一段。
+      - name: Sync release notes
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --notes-file release_notes.md
