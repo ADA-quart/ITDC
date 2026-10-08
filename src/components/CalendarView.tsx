@@ -327,6 +327,10 @@ const CalendarView: React.FC = () => {
     const onStart = (e: TouchEvent) => {
       tracking = e.touches.length === 1;
       if (!tracking) return;
+      // 新手势开始：上一轮拖动留下的标记在这里才清掉。
+      // 不能在拖完的那一刻清 —— touchend 的顺序在不同 WebView 里不一样，
+      // 清早了这次拖动就会被当成翻页，拖完页面自己滑走。
+      draggingRef.current = false;
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
     };
@@ -1039,7 +1043,6 @@ const CalendarView: React.FC = () => {
             eventDrop={handleEventDrop}
             eventResize={handleEventResize}
             eventDragStart={() => { draggingRef.current = true; }}
-            eventDragStop={() => { draggingRef.current = false; }}
             // 手机上让日历铺满一整屏：高度按视口算（扣掉顶部新建按钮、日期行与底部导航），
             // 日历列表与导入/导出顺延到下一屏，往上滑即可看到
             height={isMobile ? 'calc(100dvh - 232px)' : 'auto'}

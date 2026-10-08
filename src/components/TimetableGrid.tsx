@@ -169,7 +169,6 @@ const TimetableGrid: React.FC<Props> = ({
       longPressed: false,
       timer: null,
     };
-    if (moved) onDragStateChange?.(false);
     setGhost(null);
     setHoverCell(null);
     if (moved || longPressed) suppressClick.current = true;
@@ -320,7 +319,9 @@ const TimetableGrid: React.FC<Props> = ({
           {ghost.title}
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, minmax(46px, 1fr))', border, borderRadius: 10, overflow: 'hidden', background: cellBg }}>
+      {/* 列宽要保证 7 天都塞得下：窄屏上以前是 52+7×46 直接把周六周日顶出屏幕，
+          现在节次列收到 44，日期列允许压缩到 34，手机上一屏能看全周一到周日 */}
+      <div style={{ display: 'grid', gridTemplateColumns: '44px repeat(7, minmax(34px, 1fr))', border, borderRadius: 10, overflow: 'hidden', background: cellBg }}>
         {/* 表头：周几 + 日期 */}
         <div style={{ background: headBg, borderBottom: border }} />
         {Array.from({ length: 7 }, (_, i) => {
