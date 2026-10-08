@@ -105,6 +105,10 @@ const CalendarView: React.FC = () => {
   const settingsPromptedRef = useRef(false);
   const calendarRef = useRef<FullCalendar>(null);
   const swipeRef = useRef<HTMLDivElement | null>(null);
+  /** 课表格子的三页轨道（左/中/右各一周，跟手拉动用） */
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  /** 轨道中页的基准位移：宽度是 300%，中页在 -1/3 处 */
+  const TRACK_BASE_PERCENT = -100 / 3;
   // 初始视图只取一次：之后由用户自己切换，viewDidMount 会把选择记下来
   const [calView] = useState(() => resolveInitialView(isMobile));
   const [calViewType, setCalViewType] = useState(calView);
@@ -317,13 +321,28 @@ const CalendarView: React.FC = () => {
     return () => window.removeEventListener('todo-data-changed', handler);
   }, [loadData]);
 
-  // 手机上左右滑动翻页：日视图滑一天、周视图滑一周，省得反复点箭头
+  /**
+   * 把三页轨道移到某个偏移（不做动画或做动画）。
+   * 跟手时直接改 transform，不走 state —— 每帧 setState 会把整个日历重渲染，卡。
+   */
+  const moveTrack = (offsetPx: number, animate: boolean) => {
+    const el = trackRef.current;
+    if (!el) return;
+    el.style.transition = animate
+      ? 'transform 0.24s cubic-bezier(.22,.61,.36,1)'
+      : 'none';
+    el.style.transform = `translateX(calc(${TRACK_BASE_PERCENT}% + ${offsetPx}px))`;
+  };
+
+  // 手机上左右滑动翻页：日视图滑一天、周视图滑一周，跟手拉动（像桌面翻页）
   useEffect(() => {
     const el = swipeRef.current;
     if (!el) return;
     let startX = 0;
     let startY = 0;
     let tracking = false;
+    let paging = false;      // 本次手势是否已经在跟手拉动
+    let dx = 0;
     const onStart = (e: TouchEvent) => {
       tracking = e.touches.length === 1;
       if (!tracking) return;
@@ -331,27 +350,74 @@ const CalendarView: React.FC = () => {
       // 不能在拖完的那一刻清 —— touchend 的顺序在不同 WebView 里不一样，
       // 清早了这次拖动就会被当成翻页，拖完页面自己滑走。
       draggingRef.current = false;
+      paging = false;
+      dx = 0;
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!tracking) return;
+      if (draggingRef.current) return;         // 正在拖课程，别把整页拖走
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0];
+      dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      if (!paging) {
+        // 先判断方向：竖向滑动留给页面滚动，横向才是翻页
+        if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) return;
+        paging = true;
+      }
+      // 跟手：手指拖到哪，轨道就跟到哪（边界处稍微加阻尼）
+      const limit = el.clientWidth || 1;
+      const damped = Math.abs(dx) > limit ? Math.sign(dx) * (limit + (Math.abs(dx) - limit) * 0.35) : dx;
+      if (timetableModeRef.current) moveTrack(damped, false);
+      else el.style.transform = `translateX(${damped}px)`;
     };
     const onEnd = (e: TouchEvent) => {
       if (!tracking) return;
       tracking = false;
       const t = e.changedTouches[0];
       if (!t) return;
-      // 这一下如果是在拖事件/课程，就别翻页（课表格子里按住再拖、日历里拖事件）
-      if (draggingRef.current) return;
-      const dx = t.clientX - startX;
+      if (!paging || draggingRef.current) {
+        // 没在翻页：把可能的位移收回原位
+        if (timetableModeRef.current) moveTrack(0, true);
+        else el.style.transform = '';
+        return;
+      }
+      dx = t.clientX - startX;
       const dy = t.clientY - startY;
       const dir = swipeDirection(dx, dy);
-      if (!dir) return;
-      shiftPage(dir === 'next' ? 1 : -1);
+      const limit = el.clientWidth || 1;
+      const passed = Math.abs(dx) > Math.min(limit * 0.25, 70);
+      if (!dir || !passed) {
+        // 没滑够：弹回原页（跟手效果的回弹）
+        if (timetableModeRef.current) moveTrack(0, true);
+        else el.style.transform = '';
+        paging = false;
+        return;
+      }
+      const step = dir === 'next' ? 1 : -1;
+      if (timetableModeRef.current) {
+        // 课表格子：真的滑到相邻页，落位后再换周并复位（两侧内容一样，看不出跳）
+        moveTrack(-step * limit, true);
+        window.setTimeout(() => {
+          pendingSlideRef.current = null;        // 跟手滑动不需要额外补动画
+          setWeekStart((w) => w.add(step * 7, 'day'));
+          moveTrack(0, false);
+        }, 250);
+      } else {
+        el.style.transform = '';   // 清掉跟手时的位移，交给滑入动画
+        shiftPage(step);
+      }
+      paging = false;
     };
     // 捕获阶段 + passive：既能在 FullCalendar 内部处理前拿到手势，也不影响它自己的滚动
     el.addEventListener('touchstart', onStart, { capture: true, passive: true });
+    el.addEventListener('touchmove', onMove, { capture: true, passive: true });
     el.addEventListener('touchend', onEnd, { capture: true, passive: true });
     return () => {
       el.removeEventListener('touchstart', onStart, true);
+      el.removeEventListener('touchmove', onMove, true);
       el.removeEventListener('touchend', onEnd, true);
     };
   }, []);
@@ -861,15 +927,32 @@ const CalendarView: React.FC = () => {
           } as React.CSSProperties}
         >
           {timetableMode && (
-            <TimetableGrid
-              weekStart={weekStart}
-              events={events}
-              isDark={isDark}
-              onSelectEvent={(ev) => setDetailEvent(ev)}
-              onMoveEvent={handleGridMove}
-              onDeleteEvent={(ev) => confirmDeleteEvent(String(ev.id), ev.title)}
-              onDragStateChange={(dragging) => { draggingRef.current = dragging; }}
-            />
+            /* 三页轨道：左/中/右各一周，手指拖动时整条轨道跟手，松手吸附到相邻页 */
+            <div style={{ overflow: 'hidden' }}>
+              <div
+                ref={trackRef}
+                style={{
+                  display: 'flex',
+                  width: '300%',
+                  transform: `translateX(${TRACK_BASE_PERCENT}%)`,
+                  willChange: 'transform',
+                }}
+              >
+                {[-1, 0, 1].map((offset) => (
+                  <div key={offset} style={{ width: '33.3333%', flexShrink: 0 }}>
+                    <TimetableGrid
+                      weekStart={weekStart.add(offset * 7, 'day')}
+                      events={events}
+                      isDark={isDark}
+                      onSelectEvent={(ev) => setDetailEvent(ev)}
+                      onMoveEvent={handleGridMove}
+                      onDeleteEvent={(ev) => confirmDeleteEvent(String(ev.id), ev.title)}
+                      onDragStateChange={(dragging) => { draggingRef.current = dragging; }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
           {/* 周视图用课表格子时，FullCalendar 只隐藏不卸载：切回日视图时它的实例还在 */}
           <div style={{ display: timetableMode ? 'none' : undefined }}>
