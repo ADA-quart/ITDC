@@ -31,6 +31,21 @@ export function getCurrentVersion(): string {
   }
 }
 
+/**
+ * 检查结果缓存 10 分钟。
+ *
+ * GitHub 未认证接口按 IP 限流（每小时 60 次），我们发版又比较勤，
+ * 用户连续点几下就可能撞上「查询过于频繁」，之后一小时都查不了。
+ * 短时间内的重复点击直接复用上一次结果，不再打网络。
+ */
+const CACHE_TTL_MS = 10 * 60 * 1000;
+let cache: { at: number; result: UpdateCheckResult } | null = null;
+
+/** 清掉缓存（测试/手动强制刷新用） */
+export function clearUpdateCache(): void {
+  cache = null;
+}
+
 /** 把 "1.5.0" / "v1.5.0" / "1.5.0-beta.1" 解析成可比较的数字数组 */
 function parseVersion(raw: string): number[] {
   const core = String(raw || '').trim().replace(/^v/i, '').split(/[-+]/)[0];
@@ -54,6 +69,9 @@ export function compareVersions(a: string, b: string): number {
 
 export async function checkForUpdate(): Promise<UpdateCheckResult> {
   const current = getCurrentVersion();
+  if (cache && Date.now() - cache.at < CACHE_TTL_MS) {
+    return cache.result;
+  }
 
   try {
     const res = await fetch(RELEASES_API, {
@@ -62,29 +80,37 @@ export async function checkForUpdate(): Promise<UpdateCheckResult> {
 
     if (res.status === 403) {
       // GitHub 对未认证请求按 IP 限流（每小时 60 次）
-      return { status: 'error', current, error: 'rate-limited', httpStatus: 403 };
+      return remember({ status: 'error', current, error: 'rate-limited', httpStatus: 403 });
     }
     if (!res.ok) {
-      return { status: 'error', current, error: 'http', httpStatus: res.status };
+      return remember({ status: 'error', current, error: 'http', httpStatus: res.status });
     }
 
     const data = await res.json();
     const tag = String(data?.tag_name || '');
     const latest = tag.replace(/^v/i, '').trim();
     if (!latest) {
-      return { status: 'error', current, error: 'parse' };
+      return remember({ status: 'error', current, error: 'parse' });
     }
 
-    return {
+    return remember({
       status: compareVersions(latest, current) > 0 ? 'update-available' : 'up-to-date',
       current,
       latest,
       url: data?.html_url || RELEASES_PAGE,
       publishedAt: data?.published_at,
-    };
+    });
   } catch {
-    return { status: 'error', current, error: 'network' };
+    return remember({ status: 'error', current, error: 'network' });
   }
+}
+
+function remember(result: UpdateCheckResult): UpdateCheckResult {
+  // 网络类失败不缓存：用户换网络/稍后重试应当真的重试
+  if (result.status !== 'error' || result.error === 'rate-limited') {
+    cache = { at: Date.now(), result };
+  }
+  return result;
 }
 
 export { RELEASES_PAGE };

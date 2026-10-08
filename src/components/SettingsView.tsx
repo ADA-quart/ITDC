@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Form, Input, Select, Button, Table, Tag, message, Space, Popconfirm, Tabs, Spin, Alert, AutoComplete, Tooltip, Switch } from 'antd';
-import { SyncOutlined } from '@ant-design/icons';
+import { SyncOutlined, LinkOutlined } from '@ant-design/icons';
 import { settingsApi, api, setApiBase, getApiBase, isSyncEnabled, calendarApi } from '../api/client';
 import { Capacitor } from '@capacitor/core';
 import { ITDCWidgetPlugin } from '../capacitor/itdc-widget';
 import { pushWidgetSnapshot, setWidgetMode } from '../api/widget-sync';
 import { mergeWithServer } from '../api/sync-merge';
-import { checkForUpdate, getCurrentVersion, type UpdateCheckResult } from '../api/update-check';
+import { checkForUpdate, getCurrentVersion, RELEASES_PAGE, type UpdateCheckResult } from '../api/update-check';
 import { scheduleApi } from '../api/client';
 import { llmConfigService } from '../api/llm-config-service';
 import type { LLMConfig } from '../types';
@@ -326,6 +326,24 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
     } finally {
       setCheckingUpdate(false);
     }
+  };
+
+  /**
+   * 打开外部链接。
+   *
+   * Capacitor 壳里 window.open / target=_blank 不会落到系统浏览器（MainActivity
+   * 没接管 URL），所以走原生 startActivity 打开；浏览器里退回 window.open。
+   */
+  const openExternal = async (url: string) => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await ITDCWidgetPlugin.openUrl({ url });
+        return;
+      } catch {
+        /* 原生打开失败就退回网页方式 */
+      }
+    }
+    window.open(url, '_blank', 'noopener');
   };
 
   const updateMessage = (() => {
@@ -828,6 +846,9 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
               <Button icon={<SyncOutlined />} loading={checkingUpdate} onClick={handleCheckUpdate}>
                 {checkingUpdate ? t.settings.checking : t.settings.checkUpdate}
               </Button>
+              <Button icon={<LinkOutlined />} onClick={() => void openExternal(RELEASES_PAGE)}>
+                {t.settings.openSite}
+              </Button>
             </Space>
             {updateResult && (
               <Alert
@@ -838,15 +859,14 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
                   updateResult.status === 'up-to-date' ? 'success' : 'warning'
                 }
                 message={updateMessage}
-                description={
-                  updateResult.status === 'update-available' && updateResult.url ? (
-                    <a href={updateResult.url} target='_blank' rel='noreferrer'>{updateResult.url}</a>
-                  ) : undefined
-                }
                 action={
                   updateResult.status === 'update-available' && updateResult.url ? (
-                    <Button size='small' type='primary' href={updateResult.url} target='_blank' rel='noreferrer'>
+                    <Button size='small' type='primary' onClick={() => void openExternal(updateResult.url!)}>
                       {t.settings.goDownload}
+                    </Button>
+                  ) : updateResult.status === 'error' ? (
+                    <Button size='small' onClick={() => void openExternal(RELEASES_PAGE)}>
+                      {t.settings.openSite}
                     </Button>
                   ) : undefined
                 }

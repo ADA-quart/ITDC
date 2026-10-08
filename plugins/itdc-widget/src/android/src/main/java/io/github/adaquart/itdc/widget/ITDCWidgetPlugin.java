@@ -27,6 +27,29 @@ public class ITDCWidgetPlugin extends Plugin {
     }
 
     /**
+     * 用系统浏览器打开外部链接（发布页 / 项目主页）。
+     *
+     * 放在这个插件里是因为它已经是 App 唯一的原生插件；WebView 里 window.open
+     * 在这个壳里不会落到系统浏览器，只有原生 startActivity 才靠得住。
+     */
+    @PluginMethod
+    public void openUrl(PluginCall call) {
+        String url = call.getString("url");
+        if (url == null || url.trim().isEmpty()) {
+            call.reject("url required");
+            return;
+        }
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url.trim()));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("open url failed: " + e.getMessage());
+        }
+    }
+
+    /**
      * 接收 App 推送的今日数据快照。
      * 仅本机模式下数据存在 WebView 的 IndexedDB 里，桌面小组件进程无法读取，
      * 因此由 App 主动把渲染所需的最小数据集（今日已排期 + 待办 Top5）交给原生侧。

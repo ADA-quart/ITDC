@@ -149,12 +149,26 @@ describe('小组件副标题：教室 + 老师', () => {
     })).toBe('E1B205');
   });
 
-  it('手动 / iCal 事件原样显示，不做拆分猜测', () => {
+  it('手动事件原样显示，不做拆分猜测', () => {
     expect(widgetLocationLabel({ location: '会议室 - 302', source: 'manual' })).toBe('会议室 - 302');
+  });
+
+  it('SimpleCDUT 导出：教室 + 老师（老师会写成"张玮,张玮"）', () => {
+    expect(widgetLocationLabel({ location: '5417', description: '张玮,张玮', source: 'ical' })).toBe('5417 · 张玮');
+    expect(widgetLocationLabel({ location: 'E1B203', description: '刘爱疆', source: 'ical' })).toBe('E1B203 · 刘爱疆');
+  });
+
+  it('iCal 里带教学楼的旧数据也只留教室', () => {
+    expect(widgetLocationLabel({ location: '【东区1教】 - E1B205', description: '李军', source: 'ical' })).toBe('E1B205 · 李军');
+  });
+
+  it('描述首行不是名字（周次/备注）时只显示教室', () => {
     expect(widgetLocationLabel({ location: '5417', description: '第十六周', source: 'ical' })).toBe('5417');
+    expect(widgetLocationLabel({ location: '线上', description: '腾讯会议', source: 'ical' })).toBe('线上');
   });
 
   it('没有地点就是空串', () => {
     expect(widgetLocationLabel({ location: '', source: 'cdut' })).toBe('');
   });
 });
+

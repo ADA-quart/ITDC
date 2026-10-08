@@ -92,7 +92,7 @@
             android:divider="@null"
             android:dividerHeight="0dp"
             android:scrollbars="vertical"
-            android:fadeScrollbars="false"
+            android:fadeScrollbars="true"
             android:listSelector="@android:color/transparent" />
 
         <ImageView
@@ -112,7 +112,7 @@
             android:divider="@null"
             android:dividerHeight="0dp"
             android:scrollbars="vertical"
-            android:fadeScrollbars="false"
+            android:fadeScrollbars="true"
             android:listSelector="@android:color/transparent" />
     </LinearLayout>
 
@@ -165,7 +165,8 @@
         android:divider="@null"
         android:dividerHeight="0dp"
         android:scrollbars="vertical"
-        android:fadeScrollbars="false"
+        android:fadeScrollbars="true"
         android:listSelector="@android:color/transparent" />
     </LinearLayout>
 </FrameLayout>
+
