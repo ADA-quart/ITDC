@@ -31,6 +31,9 @@ async function clearStaleServiceWorker(): Promise<void> {
 }
 
 void clearStaleServiceWorker().finally(() => {
+  // 原生壳里整页禁止选中文字（点课程不该弹出选择手柄/复制菜单），
+  // 输入框例外，由 styles.css 里 body.itdc-native 的规则放行
+  if (Capacitor.isNativePlatform()) document.body.classList.add('itdc-native');
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
       <ThemeProvider>

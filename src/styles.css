@@ -60,3 +60,20 @@ body.itdc-has-bg-image .fc .fc-col-header-cell {
 .itdc-slide-prev {
   animation: itdc-slide-in-prev 0.22s ease-out;
 }
+
+/*
+ * 原生壳（APK）里整页禁止选中：点课程、长按课程都不该弹出选择手柄或复制菜单。
+ * 输入框/文本域照旧可选，否则连账号密码都没法改。
+ */
+body.itdc-native {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+body.itdc-native input,
+body.itdc-native textarea,
+body.itdc-native [contenteditable='true'] {
+  -webkit-user-select: text;
+  user-select: text;
+}

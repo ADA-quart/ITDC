@@ -24,6 +24,11 @@ interface Props {
   onDeleteEvent: (event: any) => void;
   /** 拖动开始/结束：父容器据此决定是否要把横向手势当成翻页 */
   onDragStateChange?: (dragging: boolean) => void;
+  /**
+   * 固定高度模式：整张表撑满父容器，七节等分高度。
+   * 手机端用它可以做到「一屏就是这一周」，不会这周长那周短。
+   */
+  fillHeight?: boolean;
 }
 
 interface GridItem {
@@ -45,6 +50,7 @@ const TimetableGrid: React.FC<Props> = ({
   onMoveEvent,
   onDeleteEvent,
   onDragStateChange,
+  fillHeight = false,
 }) => {
   const { t } = useI18n();
   // 拖拽 / 长按：pointer 事件在 WebView 里触摸与鼠标都走
@@ -253,7 +259,7 @@ const TimetableGrid: React.FC<Props> = ({
       }}
       style={{
         flex: 1,
-        minHeight: 38,
+        minHeight: fillHeight ? 0 : 38,
         // 待办用虚线边框区分（和日历视图一致）
         border: item.isTodo ? '1px dashed rgba(255,255,255,.85)' : 'none',
         borderRadius: 6,
@@ -311,7 +317,10 @@ const TimetableGrid: React.FC<Props> = ({
   );
 
   return (
-    <div className="itdc-timetable-grid" style={{ overflowX: 'auto' }}>
+    <div
+      className="itdc-timetable-grid"
+      style={{ overflowX: 'auto', height: fillHeight ? '100%' : undefined, display: fillHeight ? 'flex' : undefined, flexDirection: 'column' }}
+    >
       {ghost && (
         <div
           style={{
@@ -337,7 +346,22 @@ const TimetableGrid: React.FC<Props> = ({
       )}
       {/* 列宽要保证 7 天都塞得下：窄屏上以前是 52+7×46 直接把周六周日顶出屏幕，
           现在节次列收到 44，日期列允许压缩到 34，手机上一屏能看全周一到周日 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '44px repeat(7, minmax(34px, 1fr))', border, borderRadius: 10, overflow: 'hidden', background: cellBg }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '44px repeat(7, minmax(34px, 1fr))',
+          // 固定高度模式下：表头自适应、每个节次等分剩余高度，整张表正好一屏
+          gridTemplateRows: fillHeight
+            ? `auto repeat(${TIMETABLE.length + (extraCells.size > 0 ? 1 : 0)}, minmax(0, 1fr))`
+            : undefined,
+          flex: fillHeight ? 1 : undefined,
+          minHeight: 0,
+          border,
+          borderRadius: 10,
+          overflow: 'hidden',
+          background: cellBg,
+        }}
+      >
         {/* 表头：周几 + 日期 */}
         <div style={{ background: headBg, borderBottom: border }} />
         {Array.from({ length: 7 }, (_, i) => {
@@ -369,7 +393,7 @@ const TimetableGrid: React.FC<Props> = ({
                   style={{
                     borderBottom: border,
                     borderLeft: border,
-                    minHeight: TOUCH_TARGET + 8,
+                    minHeight: fillHeight ? 0 : TOUCH_TARGET + 8,
                     padding: 2,
                     display: 'flex',
                     flexDirection: 'column',
@@ -394,7 +418,7 @@ const TimetableGrid: React.FC<Props> = ({
             {Array.from({ length: 7 }, (_, dayIdx) => {
               const items = extraCells.get(String(dayIdx)) ?? [];
               return (
-                <div key={`extra-${dayIdx}`} style={{ borderBottom: border, borderLeft: border, minHeight: TOUCH_TARGET + 8, padding: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div key={`extra-${dayIdx}`} style={{ borderBottom: border, borderLeft: border, minHeight: fillHeight ? 0 : TOUCH_TARGET + 8, padding: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {items.map((item, idx) => renderBlock(item, `extra-${item.title}-${idx}`))}
                 </div>
               );
@@ -407,4 +431,5 @@ const TimetableGrid: React.FC<Props> = ({
 };
 
 export default TimetableGrid;
+
 

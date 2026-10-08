@@ -29,6 +29,8 @@ const en: LocaleMessages = {
     detailLocation: 'Location',
     detailCalendar: 'Calendar',
     detailNotes: 'Notes',
+    detailDuration: 'Duration',
+    durationChanged: 'Duration updated',
     detailStatus: 'Status',
     detailEstimate: 'Estimate',
     detailDeadline: 'Due',

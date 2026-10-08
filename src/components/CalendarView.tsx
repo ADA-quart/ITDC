@@ -534,6 +534,35 @@ const CalendarView: React.FC = () => {
   };
 
   /** 课表格子里拖动课程/待办：按目标格子算出的新时间写回 */
+  /**
+   * 改时长：起点不动，只把结束时间往后推。
+   * 课程走 updateEvent，已排期的待办改 scheduled_end，两边都能用。
+   */
+  const changeDuration = async (startIso: string, minutes: number) => {
+    if (!detailEvent) return;
+    const p = detailEvent.extendedProps || {};
+    try {
+      const start = dayjs(startIso);
+      const end = start.add(minutes, 'minute');
+      if (p.type === 'todo') {
+        await todoApi.update(p.id, {
+          scheduled_start: start.toISOString(),
+          scheduled_end: end.toISOString(),
+        });
+      } else {
+        await calendarApi.updateEvent(Number(detailEvent.id), {
+          start_time: start.toISOString(),
+          end_time: end.toISOString(),
+        });
+      }
+      message.success(t.calendar.durationChanged);
+      setDetailEvent(null);
+      loadData();
+    } catch {
+      message.error(t.calendar.eventResizeFailed);
+    }
+  };
+
   const handleGridMove = async (event: any, start: Date, end: Date) => {
     try {
       if (event.extendedProps?.type === 'todo') {
@@ -927,23 +956,33 @@ const CalendarView: React.FC = () => {
           } as React.CSSProperties}
         >
           {timetableMode && (
-            /* 三页轨道：左/中/右各一周，手指拖动时整条轨道跟手，松手吸附到相邻页 */
-            <div style={{ overflow: 'hidden' }}>
+            /* 三页轨道：左/中/右各一周，手指拖动时整条轨道跟手，松手吸附到相邻页。
+               高度固定成「一屏 - 顶部按钮/日期行/底部导航」：每周都是同一页长度，
+               不会这周长那周短；日历列表照旧在下一屏，往上滑就能看到。 */
+            <div
+              style={{
+                overflow: 'hidden',
+                height: isMobile ? 'calc(100dvh - 232px)' : undefined,
+                minHeight: isMobile ? 320 : undefined,
+              }}
+            >
               <div
                 ref={trackRef}
                 style={{
                   display: 'flex',
                   width: '300%',
+                  height: '100%',
                   transform: `translateX(${TRACK_BASE_PERCENT}%)`,
                   willChange: 'transform',
                 }}
               >
                 {[-1, 0, 1].map((offset) => (
-                  <div key={offset} style={{ width: '33.3333%', flexShrink: 0 }}>
+                  <div key={offset} style={{ width: '33.3333%', flexShrink: 0, height: '100%' }}>
                     <TimetableGrid
                       weekStart={weekStart.add(offset * 7, 'day')}
                       events={events}
                       isDark={isDark}
+                      fillHeight={isMobile}
                       onSelectEvent={(ev) => setDetailEvent(ev)}
                       onMoveEvent={handleGridMove}
                       onDeleteEvent={(ev) => confirmDeleteEvent(String(ev.id), ev.title)}
@@ -1203,6 +1242,28 @@ const CalendarView: React.FC = () => {
                   <span style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{value}</span>
                 </div>
               ))}
+              {/* 时长可以直接改：起点不动，结束时间往后推。
+                  以前只能在日历里拖边缘改，课表格子视图没有边缘可拖 */}
+              {(() => {
+                const startIso = isTodo ? p.scheduled_start : detailEvent.start;
+                const endIso = isTodo ? p.scheduled_end : detailEvent.end;
+                if (!startIso || !endIso) return null;
+                const minutes = dayjs(endIso).diff(dayjs(startIso), 'minute');
+                const choices = [15, 30, 45, 60, 90, 120, 150, 180];
+                return (
+                  <div style={{ display: 'flex', gap: 12, marginBottom: 8, alignItems: 'center' }}>
+                    <span style={{ color: secondaryTextColor(isDark), minWidth: 48 }}>{t.calendar.detailDuration}</span>
+                    <Select
+                      size="small"
+                      style={{ width: 150 }}
+                      value={choices.includes(minutes) ? minutes : undefined}
+                      placeholder={`${minutes} ${t.todo.minutes}`}
+                      options={choices.map((m) => ({ value: m, label: `${m} ${t.todo.minutes}` }))}
+                      onChange={(m) => void changeDuration(String(startIso), Number(m))}
+                    />
+                  </div>
+                );
+              })()}
               {!isTodo && (
                 <div style={{ marginTop: 16 }}>
                   <div style={{ ...TYPE.section, marginBottom: 6 }}>{t.calendar.classTodos}</div>

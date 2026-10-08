@@ -27,6 +27,8 @@ const zh = {
     detailLocation: '地点',
     detailCalendar: '日历',
     detailNotes: '备注',
+    detailDuration: '时长',
+    durationChanged: '时长已更新',
     detailStatus: '状态',
     detailEstimate: '预计',
     detailDeadline: '截止',
