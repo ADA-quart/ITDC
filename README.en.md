@@ -4,8 +4,9 @@
 
 <h1>ITDC</h1>
 
-<p><b>Local-first calendar, todos and AI scheduling</b><br>
-Let an algorithm or an LLM slot your todos into the gaps — class timetables, reminders and the home-screen widget all run on-device</p>
+<p><b>Local-first smart todos, timetable and calendar</b><br>
+Let an algorithm or an LLM slot your todos into the gaps; import your university timetable in one go — reminders and the home-screen widget all run on-device<br>
+Make it yours: drop in your own photo and the calendar and widget turn translucent or frosted</p>
 
 <p>
   <a href="https://github.com/ADA-quart/ITDC/releases/latest"><b>Download Android APK</b></a> ·
@@ -41,10 +42,10 @@ What it is not: not team collaboration, not SaaS, and it will not ship your time
 | ✅ **Todos** | Eisenhower P1–P4 auto-grading, long-task splitting, countdown and overdue highlighting, natural-language input |
 | 🎓 **Timetable import** | Sign in to the university system through CAS and import a whole semester as a calendar; one fixed colour per course |
 | ⏰ **Reminders** | On-device Android notifications: todo due reminders and pre-class reminders (configurable lead time, optional silent channel) |
-| 📱 **Home-screen widget** | Today/tomorrow classes plus a scrollable todo list, tick items off directly, tap anywhere to open the app |
+| 📱 **Home-screen widget** | Today/tomorrow classes plus a scrollable todo list, room · teacher subtitles, tap anywhere to open the app (only the checkbox ticks) |
 | 📊 **Daily review** | Overdue / due today / pending / done counts with a 7-day trend |
 | 📥 **Import & export** | iCal import/export and weekly Excel export (the phone shares the file through the system share sheet) |
-| 🎨 **Personalisation** | Light / dark / follow-system, accent colour, background image, widget-specific colours, Chinese / English |
+| 🎨 **Personalisation** | **Custom background photo + avatar-style crop (draggable focus, 1-3x zoom)**, glass UI, calendar opacity and blur sliders, accent colour, light / dark / follow-system, independent widget appearance |
 | 📴 **Offline** | Reads and writes work offline; with sync enabled, devices merge by `sync_uid` when online |
 
 ## Scheduling
@@ -89,6 +90,49 @@ All reminders are scheduled on the device, need no server, and are re-queued aut
 - ☑️ Scrollable todo list, tick the checkbox to complete, finished items get a strike-through and sink to the bottom
 - 👆 Tapping anywhere opens the app on the calendar page
 - 🎨 Panel colour, opacity, light/dark and background image are configurable inside the app
+
+## Personalisation
+
+Beyond light / dark, you can put your own photo behind the UI: cards turn translucent + frosted so the photo shows through, while course and todo blocks keep their solid colours.
+
+<p align="center">
+  <img src="docs/images/app-schedule.png" alt="Calendar over a custom background: cards are translucent, the photo shows through" width="880">
+</p>
+
+### Background photo and avatar-style crop
+
+- Pick a photo from the gallery; it sits at the very bottom layer, while the calendar cards, timetable cells, calendar list and bottom navigation turn **translucent + frosted** so the photo shows through. Course and todo blocks keep their solid colours
+- The photo scales **proportionally between 1x and 3x**; the visible area is chosen by a **focus point** you can drag directly on the preview or nudge with the horizontal / vertical sliders
+- The frame is fixed and always filled — **no stretching and no letterboxing**. The same crop model is used by the app and the home-screen widget, so both show the same picture
+
+### Calendar opacity and blur
+
+| Slider | Effect |
+|--------|--------|
+| Calendar opacity | 0 = fully transparent, no frosting (the photo shows straight through); 100 = solid card |
+| Calendar blur | 0 = no frosted glass at all; higher values blur the background more |
+
+Course and todo blocks always stay solid — only the card base takes part in opacity and blur, so a busy photo never hurts readability.
+
+### Theme and typography
+
+- **Light / dark / follow system**, applied immediately (including system switches)
+- **Accent colour** used by buttons, selected states and the widget accent
+- Type scale and line heights follow Material 3 and Apple HIG (body 14/22, emphasis 16/24, labels 11-12), with the device CJK UI font stack, and tabular figures for times and dates
+- Contrast is calibrated to WCAG AA (secondary text in light mode is `#666`, 5.7:1)
+
+### Widget appearance
+
+The widget keeps its own appearance, independent from the app:
+
+- Panel colour, opacity, scheme (follow system / force light / force dark)
+- The background photo is pre-cropped at the chosen focus and zoom, then handed to the launcher as a high-resolution file
+- Optional "week N only" header, and course subtitles show **room · teacher** (e.g. `E1B205 · 李军`)
+- List scrollbars fade out when idle
+
+### Reset
+
+"Reset widget appearance" only touches widget colours, opacity, scheme and the background switch (accent colour and photo stay); the footer button resets everything and clears the uploaded photo.
 
 ## Screenshots
 
