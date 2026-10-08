@@ -98,6 +98,10 @@ const TimetableGrid: React.FC<Props> = ({
 
   const onBlockPointerDown = (item: GridItem) => (e: React.PointerEvent<HTMLButtonElement>) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    // 新手势开始，先清掉上一轮的"别弹详情"标记。
+    // 不清的话：在课程块上滑了一页（浏览器不会补 click）之后，
+    // 紧接着点课程会被这条残留标记吞掉，详情打不开。
+    suppressClick.current = false;
     drag.current = {
       item,
       startX: e.clientX,
@@ -249,13 +253,13 @@ const TimetableGrid: React.FC<Props> = ({
       }}
       style={{
         flex: 1,
-        minHeight: 42,
+        minHeight: 38,
         // 待办用虚线边框区分（和日历视图一致）
         border: item.isTodo ? '1px dashed rgba(255,255,255,.85)' : 'none',
         borderRadius: 6,
         background: item.color,
         color: '#fff',
-        padding: '4px 3px',
+        padding: '3px 2px',
         textAlign: 'left',
         cursor: 'pointer',
         display: 'flex',
@@ -266,7 +270,19 @@ const TimetableGrid: React.FC<Props> = ({
       }}
     >
       <span style={{ display: 'flex', alignItems: 'flex-start', gap: 2, minWidth: 0 }}>
-        <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: 11.5, fontWeight: 600, lineHeight: 1.25, wordBreak: 'break-word' }}>
+        {/* 课名最多三行：窄列下长课名会换到六七行，把整张表撑得很长 */}
+        <span style={{
+          flex: '1 1 auto',
+          minWidth: 0,
+          fontSize: 11,
+          fontWeight: 600,
+          lineHeight: 1.18,
+          wordBreak: 'break-word',
+          display: '-webkit-box',
+          WebkitLineClamp: 3,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+        }}>
           {item.title}
         </span>
         {item.mergedCount > 0 && (
@@ -285,7 +301,7 @@ const TimetableGrid: React.FC<Props> = ({
       </span>
       <span style={{ display: 'flex', alignItems: 'center', gap: 3, minWidth: 0 }}>
         {item.room && (
-          <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: 10.5, opacity: 0.92, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: 10, lineHeight: 1.15, opacity: 0.92, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {item.room}
           </span>
         )}
@@ -353,7 +369,7 @@ const TimetableGrid: React.FC<Props> = ({
                   style={{
                     borderBottom: border,
                     borderLeft: border,
-                    minHeight: TOUCH_TARGET + 28,
+                    minHeight: TOUCH_TARGET + 8,
                     padding: 2,
                     display: 'flex',
                     flexDirection: 'column',
@@ -378,7 +394,7 @@ const TimetableGrid: React.FC<Props> = ({
             {Array.from({ length: 7 }, (_, dayIdx) => {
               const items = extraCells.get(String(dayIdx)) ?? [];
               return (
-                <div key={`extra-${dayIdx}`} style={{ borderBottom: border, borderLeft: border, minHeight: TOUCH_TARGET + 28, padding: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div key={`extra-${dayIdx}`} style={{ borderBottom: border, borderLeft: border, minHeight: TOUCH_TARGET + 8, padding: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {items.map((item, idx) => renderBlock(item, `extra-${item.title}-${idx}`))}
                 </div>
               );
@@ -391,3 +407,4 @@ const TimetableGrid: React.FC<Props> = ({
 };
 
 export default TimetableGrid;
+
