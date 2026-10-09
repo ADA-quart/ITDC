@@ -88,7 +88,27 @@ const TodoList: React.FC = () => {
       setNlText('');
       loadTodos();
     } catch (err: any) {
-      message.error(err?.response?.data?.error || err.message || t.todo.loadFailed);
+      // AI 不可用（没网 / 没配置）时不把用户卡死：允许把识别到的文字
+      // 直接存成一条待办（标题取第一行、全文进描述），稍后再手动整理。
+      const detail = err?.response?.data?.error || err.message || t.todo.loadFailed;
+      // 浏览器 fetch 的原生报错（"Failed to fetch"）对用户没有信息量，换成友好文案
+      const friendly = /failed to fetch|network ?error|load failed/i.test(String(detail))
+        ? t.todo.nlNetworkFail
+        : detail;
+      Modal.confirm({
+        title: t.todo.saveRawTitle,
+        content: `${friendly}\n\n${t.todo.saveRawHint}`,
+        okText: t.todo.saveRawOk,
+        cancelText: t.todo.cancel,
+        onOk: async () => {
+          const firstLine = text.split('\n').map((s) => s.trim()).filter(Boolean)[0] || text;
+          const title = firstLine.length > 40 ? `${firstLine.slice(0, 40)}…` : firstLine;
+          await todoApi.create({ title, description: text, estimated_minutes: 30 });
+          message.success(t.todo.saveRawDone);
+          setNlText('');
+          loadTodos();
+        },
+      });
     } finally {
       setNlLoading(false);
     }
