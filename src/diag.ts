@@ -65,19 +65,5 @@ console.error = (...args: unknown[]) => {
   origError(...args);
 };
 
-// 启动心跳：JS 跑起来后显示绿色提示（3秒消失），彻底没反馈时用户知道至少 JS 是活的
-setTimeout(() => {
-  if (!document.getElementById('__itdc_diag_overlay__')) {
-    const el = document.createElement('div');
-    el.id = '__itdc_diag_boot';
-    Object.assign(el.style, {
-      position: 'fixed', top: '8px', left: '8px', zIndex: '2147483647',
-      background: 'rgba(0,0,0,0.55)', color: '#a7ff8a', padding: '2px 8px', fontSize: '11px', fontFamily: 'monospace',
-    });
-    document.body.appendChild(el);
-    el.textContent = 'JS OK / v' + (location.href.slice(0, 90));
-    setTimeout(() => el.remove(), 3000);
-  }
-}, 500);
 // 导出避免 tree-shake 移除（模块顶层副作用）
 export const __diag__ = logLines;

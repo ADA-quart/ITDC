@@ -16,13 +16,14 @@ import { secondaryTextColor, TOUCH_TARGET } from './ui';
  * 格子行高按它取比例——中午 1 小时的节不再和 1.5 小时的节一样高。
  */
 /**
- * 表格行 = 教务的 7 个大节 + 一节「夜间」（21:35–22:30）。
+ * 表格行 = 教务的前 6 个大节 + 一节把「第 7 节（20:55–21:35）」与「夜间（21:35–22:30）」
+ * 合并后的第 7 行（20:55–22:30，95 分钟）。
  *
- * 第 7 节 21:35 就下课了，但人实际会待到 22:00 / 22:30（图书馆、自习、晚归）：
- * 没有这一行，那些时段的事件只能塞进「课外」兜底行（看不出几点），拖拽也没有目标格。
+ * 分两行时那 40 分钟的尾巴看起来像被截断，也让人以为「九点半的课只画了一半」；
+ * 合并成一行后课程块按真实时长等比占位，晚课与「在图书馆待到十点半」的排期都落进同一格。
  * 只影响课表渲染，不动 TIMETABLE——导入解析仍按教务的 7 节来。
  */
-const GRID_SECTIONS: readonly [string, string][] = [...TIMETABLE, ['21:35', '22:30']];
+const GRID_SECTIONS: readonly [string, string][] = [...TIMETABLE.slice(0, 6), ['20:55', '22:30']];
 
 const SECTION_MINUTES = GRID_SECTIONS.map(([start, end]) => {
   const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
@@ -428,9 +429,7 @@ const TimetableGrid: React.FC<Props> = ({
           return (
           <React.Fragment key={section}>
             <div style={{ borderBottom: border, padding: tight ? '1px 4px' : '6px 4px', fontSize: tight ? 10 : 11, color: secondaryTextColor(isDark), lineHeight: tight ? 1.15 : 1.3, whiteSpace: 'nowrap', overflow: 'hidden' }}>
-              <div style={{ fontWeight: 600, color: isDark ? '#ddd' : '#333' }}>
-                {section < TIMETABLE.length ? section + 1 : t.calendar.nightRow}
-              </div>
+              <div style={{ fontWeight: 600, color: isDark ? '#ddd' : '#333' }}>{section + 1}</div>
               <div>{start}</div>
               <div style={{ opacity: 0.7 }}>{end}</div>
             </div>
