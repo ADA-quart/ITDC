@@ -1,6 +1,40 @@
 export interface LLMMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
+  /** 附带的图片（data URL）：OpenAI 兼容端点转 content 数组，Ollama 转 images 字段 */
+  images?: string[];
+}
+
+/** OpenAI 兼容端点：带图消息的 content 从字符串换成 [text, image_url...] 数组 */
+export function toOpenAIPayloadMessages(messages: LLMMessage[]): unknown[] {
+  return messages.map((m) => {
+    if (!m.images?.length) {
+      const { images: _skip, ...rest } = m;
+      return rest;
+    }
+    return {
+      role: m.role,
+      content: [
+        { type: 'text', text: m.content },
+        ...m.images.map((url) => ({ type: 'image_url', image_url: { url } })),
+      ],
+    };
+  });
+}
+
+/** Ollama：图片走 messages[].images（纯 base64，不带 data URL 前缀） */
+export function toOllamaPayloadMessages(messages: LLMMessage[]): unknown[] {
+  return messages.map((m) => {
+    if (!m.images?.length) {
+      const { images: _skip, ...rest } = m;
+      return rest;
+    }
+    return {
+      role: m.role,
+      content: m.content,
+      images: m.images.map((img) => (img.includes(',') ? img.slice(img.indexOf(',') + 1) : img)),
+    };
+  });
 }
 
 export interface LLMResponse {

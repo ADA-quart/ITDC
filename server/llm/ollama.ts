@@ -1,4 +1,4 @@
-import { LLMProvider, LLMMessage, LLMResponse, ModelListResult } from './provider.js';
+import { LLMProvider, LLMMessage, LLMResponse, ModelListResult, toOllamaPayloadMessages } from './provider.js';
 
 export class OllamaProvider implements LLMProvider {
   private baseUrl: string;
@@ -17,7 +17,7 @@ export class OllamaProvider implements LLMProvider {
       },
       body: JSON.stringify({
         model: this.model,
-        messages,
+        messages: toOllamaPayloadMessages(messages),
         stream: false,
       }),
     });

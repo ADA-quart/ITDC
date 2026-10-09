@@ -31,6 +31,7 @@ import {
 import AppearanceSettings from './AppearanceSettings';
 import LicenseModal from './LicenseModal';
 import { cardStyle, hintTextStyle, sectionTitleStyle } from './ui';
+import { resetVisionSupport } from '../api/vision-support';
 
 interface Props {
   /** 打开时要定位到的标签页，由「去设置」这类入口指定 */
@@ -563,8 +564,9 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
                 </Form.Item>
               )}
               <Space>
-                <Button type="primary" onClick={handleSubmit}>{t.settings.addConfig}</Button>
-                <Button onClick={handleTest} loading={testing}>{t.settings.testConnection}</Button>
+              <Button type="primary" onClick={handleSubmit}>{t.settings.addConfig}</Button>
+              <Button onClick={handleTest} loading={testing}>{t.settings.testConnection}</Button>
+              <Button onClick={() => { resetVisionSupport(); message.success(t.settings.visionResetDone); }}>{t.settings.visionReset}</Button>
               </Space>
               {testResult && (
                 <div style={{ marginTop: 8 }}>

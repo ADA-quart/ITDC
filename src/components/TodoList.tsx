@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { List, Tag, Button, Modal, message, Badge, Empty, Spin, ColorPicker, Input } from 'antd';
 import { CheckOutlined, DeleteOutlined, EditOutlined, SplitCellsOutlined, UndoOutlined, PictureOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { todoApi, scheduleApi } from '../api/client';
+import { todoApi, scheduleApi, isSyncEnabled } from '../api/client';
 import type { Todo, Priority, TodoStatus } from '../types';
 import { PRIORITY_LABELS, PRIORITY_COLORS, TODO_PALETTE } from '../types';
 import { getDeadlineCountdown } from '../utils/priority';
@@ -14,7 +14,10 @@ import { cardStyle } from './ui';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { Capacitor } from '@capacitor/core';
-import { ITDCWidgetPlugin } from '../capacitor/itdc-widget';
+import { getActiveLocalConfig } from '../api/llm-config-local';
+import { resolveModel } from '../api/llm-local';
+import { getVisionSupport, getVisionOverride, rememberVisionSupport, isVisionUnsupportedError } from '../api/vision-support';
+import { isLocalOcrAvailable, recognizeTextLocally } from '../api/local-ocr';
 
 const STATUS_KEYS: Record<string, string> = {
   pending: 'pending',
@@ -34,7 +37,7 @@ const TodoList: React.FC = () => {
   const [splitTodo, setSplitTodo] = useState<Todo | null>(null);
   const [nlText, setNlText] = useState('');
   const [nlLoading, setNlLoading] = useState(false);
-  const [nlOcrLoading, setNlOcrLoading] = useState(false);
+  const [nlImageLoading, setNlImageLoading] = useState(false);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const statusLabels: Record<TodoStatus, string> = {
@@ -95,32 +98,40 @@ const TodoList: React.FC = () => {
       const friendly = /failed to fetch|network ?error|load failed/i.test(String(detail))
         ? t.todo.nlNetworkFail
         : detail;
-      Modal.confirm({
-        title: t.todo.saveRawTitle,
-        content: `${friendly}\n\n${t.todo.saveRawHint}`,
-        okText: t.todo.saveRawOk,
-        cancelText: t.todo.cancel,
-        onOk: async () => {
-          const firstLine = text.split('\n').map((s) => s.trim()).filter(Boolean)[0] || text;
-          const title = firstLine.length > 40 ? `${firstLine.slice(0, 40)}…` : firstLine;
-          await todoApi.create({ title, description: text, estimated_minutes: 30 });
-          message.success(t.todo.saveRawDone);
-          setNlText('');
-          loadTodos();
-        },
-      });
+      offerSaveRaw(text, friendly);
     } finally {
       setNlLoading(false);
     }
   };
 
+  /** AI 不可用时的降级：把文字直接存成一条待办（标题取第一行、全文进描述） */
+  const offerSaveRaw = (text: string, detail: string) => {
+    Modal.confirm({
+      title: t.todo.saveRawTitle,
+      content: `${detail}\n\n${t.todo.saveRawHint}`,
+      okText: t.todo.saveRawOk,
+      cancelText: t.todo.cancel,
+      onOk: async () => {
+        const firstLine = text.split('\n').map((s) => s.trim()).filter(Boolean)[0] || text;
+        const title = firstLine.length > 40 ? `${firstLine.slice(0, 40)}…` : firstLine;
+        await todoApi.create({ title, description: text, estimated_minutes: 30 });
+        message.success(t.todo.saveRawDone);
+        setNlText('');
+        loadTodos();
+      },
+    });
+  };
+
   /**
-   * 图片 → 待办：本地 OCR（ML Kit，离线）识别文字后填入输入框，
-   * 用户核对无误再点「AI 添加」，由大模型提取成待办（一张图可能有多条）。
+   * 图片 → 待办（降级链）：
+   *  1. 直发多模态模型提取（首选，质量最好）；
+   *  2. 失败且属于「模型不支持视觉 / 网络不可用」时，若本地 OCR 扩展已安装
+   *     → OCR 出文字 → 走文本 AI 提取 → 仍失败则降级存原文；
+   *  3. 两条路都不通 → 按错误类型提示。
    */
   const handleImagePick = async (file: File | null) => {
     if (!file) return;
-    setNlOcrLoading(true);
+    setNlImageLoading(true);
     try {
       const dataUrl: string = await new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -128,18 +139,76 @@ const TodoList: React.FC = () => {
         reader.onerror = () => reject(new Error('read failed'));
         reader.readAsDataURL(file);
       });
-      const { text } = await ITDCWidgetPlugin.recognizeText({ dataUrl });
-      const recognized = (text || '').trim();
-      if (!recognized) {
-        message.warning(t.todo.imageEmpty);
-        return;
+
+      // 本机模式下按「服务商::模型」记忆视觉能力；同步模式交给服务器直接尝试
+      let visionKey: { provider: string; model: string } | null = null;
+      if (!isSyncEnabled()) {
+        const config = await getActiveLocalConfig();
+        if (config) visionKey = { provider: String(config.provider), model: resolveModel(config) };
       }
-      setNlText(recognized);
-      message.success(t.todo.imageDone);
+
+      // 已判定「不支持视觉」且未被手动改回 → 直接进降级，不再浪费请求
+      let directError: unknown = null;
+      if (visionKey) {
+        const support = getVisionSupport(visionKey.provider, visionKey.model);
+        const manual = getVisionOverride(visionKey.provider, visionKey.model);
+        if (support === 'no' && manual !== 'yes') {
+          directError = new Error('400 vision unsupported (cached)');
+        }
+      }
+
+      if (!directError) {
+        try {
+          const created = await todoApi.parseNLFromImage(dataUrl);
+          if (visionKey) rememberVisionSupport(visionKey.provider, visionKey.model, 'yes');
+          message.success(t.todo.nlCreated.replace('{n}', String(created.length)));
+          loadTodos();
+          return;
+        } catch (err) {
+          if (visionKey && isVisionUnsupportedError(err)) {
+            rememberVisionSupport(visionKey.provider, visionKey.model, 'no');
+          }
+          directError = err;
+        }
+      }
+
+      // 降级 1：本地 OCR（扩展安装后可用）→ 文字 → 文本 AI 提取 → 存原文
+      if (isLocalOcrAvailable()) {
+        try {
+          const text = (await recognizeTextLocally(dataUrl)).trim();
+          if (text) {
+            try {
+              const created = await todoApi.parseNL(text);
+              message.success(t.todo.nlCreated.replace('{n}', String(created.length)));
+              loadTodos();
+              return;
+            } catch (textErr: any) {
+              const detail = textErr?.response?.data?.error || textErr.message || t.todo.loadFailed;
+              const friendly = /failed to fetch|network ?error|load failed/i.test(String(detail))
+                ? t.todo.nlNetworkFail
+                : detail;
+              offerSaveRaw(text, friendly);
+              return;
+            }
+          }
+        } catch {
+          /* OCR 失败则继续走底部的错误提示 */
+        }
+      }
+
+      // 降级 2：两条路都不通 → 按错误类型提示
+      const detail = (directError as any)?.response?.data?.error || (directError as any)?.message || '';
+      if (visionKey && isVisionUnsupportedError(directError)) {
+        message.warning(t.todo.visionUnsupported);
+      } else if (/failed to fetch|network ?error|load failed/i.test(String(detail))) {
+        message.error(t.todo.nlNetworkFail);
+      } else {
+        message.error(detail || t.todo.imageFail);
+      }
     } catch {
       message.error(t.todo.imageFail);
     } finally {
-      setNlOcrLoading(false);
+      setNlImageLoading(false);
     }
   };
 
@@ -307,7 +376,7 @@ const TodoList: React.FC = () => {
             />
             <Button
               icon={<PictureOutlined />}
-              loading={nlOcrLoading}
+              loading={nlImageLoading}
               onClick={() => imageInputRef.current?.click()}
               title={t.todo.imageAdd}
             />

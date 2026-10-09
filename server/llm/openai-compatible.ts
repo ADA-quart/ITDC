@@ -1,4 +1,4 @@
-import { LLMProvider, LLMMessage, LLMResponse, ModelListResult } from './provider.js';
+import { LLMProvider, LLMMessage, LLMResponse, ModelListResult, toOpenAIPayloadMessages } from './provider.js';
 
 export class OpenAICompatibleProvider implements LLMProvider {
   private apiKey: string | null;
@@ -39,7 +39,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
 
     const payload: Record<string, unknown> = {
       model: this.model,
-      messages,
+      messages: toOpenAIPayloadMessages(messages),
       temperature: 0.3,
     };
     // DeepSeek V4：默认思考强度 high 太慢；none 用 thinking.type=disabled 关闭，

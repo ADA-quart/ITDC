@@ -8,7 +8,8 @@ import { exportFile } from './export-file';
 import { colorForCourse } from '../../shared/course-colors';
 import type { ModelListResult } from './llm-models';
 import { generateLLMScheduleLocally } from './local-llm-scheduler';
-import { parseNaturalLanguageTodosLocally } from './local-nl-todo';
+import { parseNaturalLanguageTodosLocally, parseNaturalLanguageTodosFromImageLocally } from './local-nl-todo';
+import type { ParsedTodo } from '../../shared/nl-todo-prompt';
 
 const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
@@ -171,6 +172,28 @@ function isNetworkError(err: any): boolean {
   return !err?.response || offline.isMalformedResponseError(err);
 }
 
+/** 把批量解析结果落库（本机模式），返回创建的待办列表 */
+async function createLocalTodosFromParsed(parsedList: ParsedTodo[]): Promise<Todo[]> {
+  const todos = await offline.getCachedTodos();
+  const createdTodos: Todo[] = [];
+  for (const parsed of parsedList) {
+    const item = offline.localCreate({
+      title: parsed.title,
+      estimated_minutes: parsed.estimated_minutes,
+      priority: parsed.priority as Todo['priority'],
+      urgency: parsed.urgency,
+      importance: parsed.importance,
+      can_do_in_class: parsed.in_class,
+      deadline: parsed.deadline,
+    });
+    todos.push(item);
+    createdTodos.push(item);
+  }
+  await offline.saveCachedTodos(todos);
+  notifyDataChanged();
+  return createdTodos;
+}
+
 /**
  * 数据已变更的通知。
  * 独立事件名：只用于驱动桌面小组件快照刷新，不干扰各视图自身的重载逻辑。
@@ -318,27 +341,17 @@ export const todoApi = {
   // 返回创建的所有待办——一段文字/一张截图里可能有多条任务。
   async parseNL(text: string): Promise<Todo[]> {
     if (!isSyncEnabled()) {
-      const parsedList = await parseNaturalLanguageTodosLocally(text);
-      const todos = await offline.getCachedTodos();
-      const createdTodos: Todo[] = [];
-      for (const parsed of parsedList) {
-        const item = offline.localCreate({
-          title: parsed.title,
-          estimated_minutes: parsed.estimated_minutes,
-          priority: parsed.priority as Todo['priority'],
-          urgency: parsed.urgency,
-          importance: parsed.importance,
-          can_do_in_class: parsed.in_class,
-          deadline: parsed.deadline,
-        });
-        todos.push(item);
-        createdTodos.push(item);
-      }
-      await offline.saveCachedTodos(todos);
-      notifyDataChanged();
-      return createdTodos;
+      return createLocalTodosFromParsed(await parseNaturalLanguageTodosLocally(text));
     }
     return api.post<Todo[]>('/todos/nl', { text }).then(r => r.data);
+  },
+
+  // 图片直发：多模态模型直接读图提取待办（无需本地 OCR）；服务器模式交给服务器
+  async parseNLFromImage(dataUrl: string): Promise<Todo[]> {
+    if (!isSyncEnabled()) {
+      return createLocalTodosFromParsed(await parseNaturalLanguageTodosFromImageLocally(dataUrl));
+    }
+    return api.post<Todo[]>('/todos/nl-image', { image: dataUrl }).then(r => r.data);
   },
 };
 

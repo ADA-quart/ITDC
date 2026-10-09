@@ -8,6 +8,8 @@ import type { LLMConfig } from '../types';
 export interface LocalChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
+  /** 附带的图片（data URL）。OpenAI 兼容端点转成 content 数组，Ollama 转成 images 字段 */
+  images?: string[];
 }
 
 export interface LocalModelConfig {
@@ -61,6 +63,38 @@ async function readErrorText(res: Response): Promise<string> {
   }
 }
 
+/** OpenAI 兼容端点：带图消息的 content 从字符串换成 [text, image_url...] 数组 */
+function toOpenAIMessages(messages: LocalChatMessage[]): unknown[] {
+  return messages.map((m) => {
+    if (!m.images?.length) {
+      const { images: _skip, ...rest } = m;
+      return rest;
+    }
+    return {
+      role: m.role,
+      content: [
+        { type: 'text', text: m.content },
+        ...m.images.map((url) => ({ type: 'image_url', image_url: { url } })),
+      ],
+    };
+  });
+}
+
+/** Ollama：图片走 messages[].images（纯 base64，不带 data URL 前缀） */
+function toOllamaMessages(messages: LocalChatMessage[]): unknown[] {
+  return messages.map((m) => {
+    if (!m.images?.length) {
+      const { images: _skip, ...rest } = m;
+      return rest;
+    }
+    return {
+      role: m.role,
+      content: m.content,
+      images: m.images.map((img) => (img.includes(',') ? img.slice(img.indexOf(',') + 1) : img)),
+    };
+  });
+}
+
 /** 直连对话补全。失败时抛出带可读文案的 Error，由排程层转成校验错误展示 */
 export async function chatLocal(config: LocalModelConfig, messages: LocalChatMessage[]): Promise<string> {
   const base = resolveBase(config);
@@ -76,9 +110,9 @@ export async function chatLocal(config: LocalModelConfig, messages: LocalChatMes
 
   let body: string;
   if (isOllama) {
-    body = JSON.stringify({ model, messages, stream: false });
+    body = JSON.stringify({ model, messages: toOllamaMessages(messages), stream: false });
   } else {
-    const payload: Record<string, unknown> = { model, messages, temperature: 0.3 };
+    const payload: Record<string, unknown> = { model, messages: toOpenAIMessages(messages), temperature: 0.3 };
     // DeepSeek V4 默认 high 思考，排程这种结构化任务用 low 足够快，
     // 关思考（none）最快但可能忽略约束，最终仍由本地校验器兜底。
     if (config.provider === 'deepseek') {

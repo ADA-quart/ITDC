@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import db from '../db/index.js';
 import { debug } from '../utils/debug.js';
-import { parseNaturalLanguageTodos } from '../services/nl-todo.js';
+import { parseNaturalLanguageTodos, parseNaturalLanguageTodosFromImage } from '../services/nl-todo.js';
 
 const router = Router();
 
@@ -188,6 +188,32 @@ router.post('/nl', async (req: Request, res: Response) => {
     res.json(created);
   } catch (error: any) {
     debug.error('NL todo parse failed', error.message);
+    res.status(500).json({ error: error.message || '解析失败' });
+  }
+});
+
+router.post('/nl-image', async (req: Request, res: Response) => {
+  try {
+    const { image } = req.body;
+    if (!image || typeof image !== 'string' || !image.trim()) {
+      return res.status(400).json({ error: '缺少图片数据' });
+    }
+
+    debug.info('NL todo parse (image) request', { kb: Math.round(String(image).length / 1024) });
+
+    const parsedList = await parseNaturalLanguageTodosFromImage(String(image));
+
+    const insert = db.prepare(
+      'INSERT INTO todos (title, description, estimated_minutes, priority, urgency, importance, can_do_in_class, deadline, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    );
+    const created: any[] = [];
+    for (const parsed of parsedList) {
+      const result = insert.run(parsed.title, null, parsed.estimated_minutes, parsed.priority, parsed.urgency, parsed.importance, parsed.in_class ? 1 : 0, parsed.deadline || null, null);
+      created.push(db.prepare('SELECT * FROM todos WHERE id = ?').get(result.lastInsertRowid));
+    }
+    res.json(created);
+  } catch (error: any) {
+    debug.error('NL todo image parse failed', error.message);
     res.status(500).json({ error: error.message || '解析失败' });
   }
 });

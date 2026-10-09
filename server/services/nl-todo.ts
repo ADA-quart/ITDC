@@ -44,3 +44,20 @@ export async function parseNaturalLanguageTodos(text: string): Promise<ParsedTod
 
   return parseTodosFromModel(response.content);
 }
+
+/** 图片版：多模态模型直接读图提取待办，无需本地 OCR */
+export async function parseNaturalLanguageTodosFromImage(dataUrl: string): Promise<ParsedTodo[]> {
+  const provider = getActiveProvider();
+  if (!provider) {
+    throw new Error('LLM 尚未配置：请在设置中启用一个 LLM 服务商后再使用自然语言录入。');
+  }
+
+  debug.info('NL todo parse (image)', { imageKB: Math.round(dataUrl.length / 1024) });
+
+  const response = await provider.chat([
+    { role: 'system', content: fillCurrentTime(NL_TODO_LIST_SYSTEM_PROMPT, new Date()) },
+    { role: 'user', content: '请提取这张图片里的所有待办任务。', images: [dataUrl] },
+  ]);
+
+  return parseTodosFromModel(response.content);
+}

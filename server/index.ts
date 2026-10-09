@@ -49,7 +49,8 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json());
+// 图片直发（base64 data URL）请求体较大，放宽默认 100kb 限制
+app.use(express.json({ limit: '12mb' }));
 
 app.get('/api/health', (_req, res) => res.json({
   status: 'ok',
@@ -88,5 +89,4 @@ await ready;
 app.listen(Number(PORT), HOST, () => console.log(`Server http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT} (LAN: 0.0.0.0:${PORT})`));
 
 process.on('SIGINT', () => { db.close(); process.exit(0); });
-
 

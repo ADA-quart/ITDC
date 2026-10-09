@@ -2,22 +2,15 @@ package io.github.adaquart.itdc.widget;
 
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.PowerManager;
 import android.provider.Settings;
-import android.util.Base64;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
-import com.google.mlkit.vision.common.InputImage;
-import com.google.mlkit.vision.text.TextRecognition;
-import com.google.mlkit.vision.text.TextRecognizer;
-import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions;
 
 import org.json.JSONObject;
 
@@ -232,55 +225,4 @@ public class ITDCWidgetPlugin extends Plugin {
         call.resolve();
     }
 
-    // ---------- 图片文字识别（OCR） ----------
-
-    /**
-     * 中文图片文字识别：本地 ML Kit 模型，离线运行、不依赖 Google 服务。
-     * 前端把图片读成 data URL 传进来，返回纯文本 —— 由「AI 添加」链路继续解析成待办。
-     * 放在这个插件里是因为它已经是 App 的原生桥（系统设置、小组件、密钥库）。
-     */
-    @PluginMethod
-    public void recognizeText(PluginCall call) {
-        String dataUrl = call.getString("dataUrl");
-        if (dataUrl == null || dataUrl.trim().isEmpty()) {
-            call.reject("dataUrl is required");
-            return;
-        }
-        try {
-            int comma = dataUrl.indexOf(',');
-            String base64 = comma >= 0 ? dataUrl.substring(comma + 1) : dataUrl;
-            byte[] bytes = Base64.decode(base64, Base64.DEFAULT);
-            Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-            if (bitmap == null) {
-                call.reject("无法解码图片");
-                return;
-            }
-            bitmap = limitSide(bitmap, 1600);
-            InputImage image = InputImage.fromBitmap(bitmap, 0);
-            TextRecognizer recognizer = TextRecognition.getClient(new ChineseTextRecognizerOptions.Builder().build());
-            recognizer.process(image)
-                    .addOnSuccessListener(result -> {
-                        recognizer.close();
-                        JSObject ret = new JSObject();
-                        ret.put("text", result.getText());
-                        call.resolve(ret);
-                    })
-                    .addOnFailureListener(e -> {
-                        recognizer.close();
-                        call.reject(e.getMessage() == null ? "OCR failed" : e.getMessage());
-                    });
-        } catch (Exception e) {
-            call.reject("OCR failed: " + e.getMessage());
-        }
-    }
-
-    /** 长边超过 maxSide 时等比缩小，避免超大图拖慢识别 */
-    private static Bitmap limitSide(Bitmap src, int maxSide) {
-        int w = src.getWidth();
-        int h = src.getHeight();
-        int side = Math.max(w, h);
-        if (side <= maxSide) return src;
-        float ratio = (float) maxSide / side;
-        return Bitmap.createScaledBitmap(src, Math.max(1, Math.round(w * ratio)), Math.max(1, Math.round(h * ratio)), true);
-    }
 }

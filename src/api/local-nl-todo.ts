@@ -44,3 +44,21 @@ export async function parseNaturalLanguageTodosLocally(text: string): Promise<Pa
 
   return parseTodosFromModel(content);
 }
+
+/**
+ * 图片版：把截图/照片直接发给多模态模型，返回提取出的待办（无需本地 OCR）。
+ * 模型不支持图片时由调用方按错误类型识别并记录结论。
+ */
+export async function parseNaturalLanguageTodosFromImageLocally(dataUrl: string): Promise<ParsedTodo[]> {
+  const config = await getActiveLocalConfig();
+  if (!config) {
+    throw new Error('本机模式还没有配置大模型：请到「设置 → LLM 服务配置」添加一个');
+  }
+
+  const content = await chatLocal(config, [
+    { role: 'system', content: fillCurrentTime(NL_TODO_LIST_SYSTEM_PROMPT, new Date()) },
+    { role: 'user', content: '请提取这张图片里的所有待办任务。', images: [dataUrl] },
+  ]);
+
+  return parseTodosFromModel(content);
+}
