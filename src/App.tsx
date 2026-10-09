@@ -268,6 +268,16 @@ const App: React.FC = () => {
     void refreshLocalOcrState();
   }, []);
 
+  // 启动页退场：index.html 里的 #boot-splash（含「苟日新，日日新，又日新」）
+  // App 挂载后淡出并移除；秒启动的机器上一闪而过，不额外拖时间
+  useEffect(() => {
+    const splash = document.getElementById('boot-splash');
+    if (!splash) return;
+    splash.classList.add('is-hidden');
+    const timer = window.setTimeout(() => splash.remove(), 300);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   // 缩小到 1 倍以下时图片盖不满屏幕，先在底层铺一张同图的模糊放大版打底，
   // 既不会露出主题底色，看起来也像系统壁纸的「模糊填充」
   const bgShrunk = appearance.bgZoom < 1;

@@ -1,6 +1,6 @@
 {
   "appId": "io.github.adaquart.itdc",
-  "appName": "ITDC",
+  "appName": "日日新",
   "webDir": "dist",
   "android": {
     "minSdkVersion": 24,

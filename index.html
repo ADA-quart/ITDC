@@ -4,7 +4,39 @@
     <meta charset="UTF-8" />
     <!-- viewport-fit=cover：Android 15+ 强制 edge-to-edge，需它才能让 env(safe-area-inset-*) 取到系统栏高度 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>智能日历与待办规划</title>
+    <title>智能待办课表——日日新</title>
+    <style>
+      /* 启动页：App 挂载后由 src/App.tsx 移除；秒启动的机器上只会一闪而过 */
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        background: linear-gradient(135deg, #0b3e8c, #00a6d6);
+        color: #fff;
+        font-family: system-ui, -apple-system, 'HarmonyOS Sans SC', 'MiSans', 'Noto Sans SC', sans-serif;
+        transition: opacity 0.25s ease;
+      }
+      #boot-splash .splash-name {
+        font-size: 30px;
+        font-weight: 700;
+        letter-spacing: 6px;
+      }
+      #boot-splash .splash-quote {
+        font-size: 13px;
+        opacity: 0.85;
+        letter-spacing: 2px;
+      }
+      #boot-splash .splash-src {
+        font-size: 11px;
+        opacity: 0.6;
+      }
+      #boot-splash.is-hidden { opacity: 0; pointer-events: none; }
+    </style>
     <script>
 // 白屏诊断层0（内联，不依赖打包JS）：3秒后 #root 无内容 = JS bundle 没加载/没执行，显示具体原因
 (function () {
@@ -27,6 +59,11 @@
 </script>
   </head>
   <body>
+    <div id="boot-splash">
+      <div class="splash-name">日日新</div>
+      <div class="splash-quote">苟日新，日日新，又日新</div>
+      <div class="splash-src">《礼记·大学》</div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

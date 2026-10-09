@@ -1,12 +1,16 @@
 <div align="center">
 
-<img src="public/icons/icon-512.png" width="108" alt="ITDC 应用图标：日历网格与闪电">
+<img src="public/icons/icon-512.png" width="108" alt="日日新 应用图标：日历与对勾">
 
-<h1>ITDC</h1>
+<h1>智能待办课表 —— 日日新</h1>
 
-<p><b>本地优先的智能待办 · 课表 · 日历</b><br>
+<p><b>Day Day New</b> · 本地优先的智能待办 · 课表 · 日历<br>
 把待办交给算法或大模型自动排进日历空档；教务课表一键导入，提醒与桌面小组件都在本机完成<br>
 外观也能自己定义：换成自己的图，日历与小组件随手变透明、变磨砂</p>
+
+<p><i>苟日新，日日新，又日新。</i> —— 《礼记·大学》</p>
+
+<p><sub>名字取自《礼记·大学》，本项目是个人开发的课表与待办工具，<b>与商汤科技及其「日日新」（SenseNova）大模型没有任何关系</b>。</sub></p>
 
 <p>
   <a href="https://github.com/ADA-quart/ITDC/releases/latest"><b>下载 Android APK</b></a> ·

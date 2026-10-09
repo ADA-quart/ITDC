@@ -35,9 +35,9 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
       manifest: {
-        name: 'ITDC 智能日历与待办',
-        short_name: 'ITDC',
-        description: 'Eisenhower 矩阵驱动的日程与待办管理',
+        name: '智能待办课表——日日新',
+        short_name: '日日新',
+        description: '智能待办 + 课表：艾森豪威尔四象限、AI 拆解排程、离线 OCR 图片转待办（Day Day New）',
         start_url: '/',
         display: 'standalone',
         theme_color: '#1890ff',

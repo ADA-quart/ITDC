@@ -1,6 +1,6 @@
 const zh = {
   app: {
-    title: '智能日历规划',
+    title: '日日新',
     designBy: 'Designed by ADA-quart',
     offline: '未连接服务器，数据保存在本机',
   },

@@ -2,7 +2,7 @@ import type { LocaleMessages } from './zh';
 
 const en: LocaleMessages = {
   app: {
-    title: 'Smart Calendar',
+    title: 'Day Day New',
     designBy: 'Designed by ADA-quart',
     offline: 'Not connected to a server; data is stored on this device',
   },
