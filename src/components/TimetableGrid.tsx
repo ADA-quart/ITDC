@@ -11,6 +11,18 @@ import { TIMETABLE } from '../../shared/cdut-parser';
 import { useI18n } from '../i18n';
 import { secondaryTextColor, TOUCH_TARGET } from './ui';
 
+/**
+ * 每大节的真实时长（分钟）：95 / 95 / 60 / 95 / 95 / 95 / 40。
+ * 格子行高按它取比例——中午 1 小时的节不再和 1.5 小时的节一样高。
+ */
+const SECTION_MINUTES = TIMETABLE.map(([start, end]) => {
+  const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+  return Math.max(1, toMin(end) - toMin(start));
+});
+
+/** 「课外」兜底行的权重：内容不可预知（可能叠多条），取和常规节相同的高度 */
+const EXTRA_ROW_MINUTES = 95;
+
 interface Props {
   /** 该周周一 */
   weekStart: Dayjs;
@@ -350,9 +362,10 @@ const TimetableGrid: React.FC<Props> = ({
         style={{
           display: 'grid',
           gridTemplateColumns: '44px repeat(7, minmax(34px, 1fr))',
-          // 固定高度模式下：表头自适应、每个节次等分剩余高度，整张表正好一屏
+          // 固定高度模式下：表头自适应，节次行高按真实时长分配（95/95/60/95/95/95/40），
+          // 整张表正好一屏；中午 1 小时的节比 1.5 小时的节矮，占比不再失真
           gridTemplateRows: fillHeight
-            ? `auto repeat(${TIMETABLE.length + (extraCells.size > 0 ? 1 : 0)}, minmax(0, 1fr))`
+            ? `auto ${TIMETABLE.map((_, i) => `minmax(0, ${SECTION_MINUTES[i]}fr)`).join(' ')}${extraCells.size > 0 ? ` minmax(0, ${EXTRA_ROW_MINUTES}fr)` : ''}`
             : undefined,
           flex: fillHeight ? 1 : undefined,
           minHeight: 0,
@@ -377,12 +390,15 @@ const TimetableGrid: React.FC<Props> = ({
           );
         })}
 
-        {TIMETABLE.map(([start, end], section) => (
+        {TIMETABLE.map(([start, end], section) => {
+          // 40 分钟的晚课节行太矮放不下「节次号 + 起 + 止」三行，省掉结束时间防止叠字
+          const tight = SECTION_MINUTES[section] < 60;
+          return (
           <React.Fragment key={section}>
-            <div style={{ borderBottom: border, padding: '6px 4px', fontSize: 11, color: secondaryTextColor(isDark), lineHeight: 1.35, whiteSpace: 'nowrap' }}>
+            <div style={{ borderBottom: border, padding: tight ? '2px 4px' : '6px 4px', fontSize: 11, color: secondaryTextColor(isDark), lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden' }}>
               <div style={{ fontWeight: 600, color: isDark ? '#ddd' : '#333' }}>{section + 1}</div>
               <div>{start}</div>
-              <div style={{ opacity: 0.7 }}>{end}</div>
+              {!tight && <div style={{ opacity: 0.7 }}>{end}</div>}
             </div>
             {Array.from({ length: 7 }, (_, dayIdx) => {
               const items = cells.get(`${dayIdx}-${section}`) ?? [];
@@ -407,7 +423,8 @@ const TimetableGrid: React.FC<Props> = ({
               );
             })}
           </React.Fragment>
-        ))}
+          );
+        })}
 
         {/* 非课节时间（课间空档、晚间等）：单独一行，避免和上一节课叠在同一格 */}
         {extraCells.size > 0 && (
