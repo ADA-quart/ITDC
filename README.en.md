@@ -1,272 +1,227 @@
 <div align="center">
 
-<img src="public/icons/icon-512.png" width="108" alt="ITDC app icon: calendar grid with a lightning bolt">
+<img src="public/icons/icon-512.png" width="108" alt="Day Day New app icon">
 
-<h1>ITDC</h1>
+<h1>Day Day New — Smart To-dos &amp; Timetable</h1>
 
-<p><b>Local-first smart todos, timetable and calendar</b><br>
-Let an algorithm or an LLM slot your todos into the gaps; import your university timetable in one go — reminders and the home-screen widget all run on-device<br>
-Make it yours: drop in your own photo and the calendar and widget turn translucent or frosted</p>
+<p>A local-first <b>todo + class-schedule</b> app for Android (and the web).<br>
+Manage tasks in an Eisenhower matrix, then let an algorithm or an LLM slot them into the free
+periods of your real timetable — the same timetable imported straight from your school system.<br>
+Reminders, a home-screen widget and offline OCR (screenshot → todo) all run on the device.</p>
+
+<p><i>苟日新，日日新，又日新</i> — “If you can renew yourself one day, do it day after day, and keep renewing.”<br>
+The name comes from <i>The Book of Rites</i> (《礼记·大学》).</p>
 
 <p>
   <a href="https://github.com/ADA-quart/ITDC/releases/latest"><b>Download Android APK</b></a> ·
-  <a href="README.md">简体中文</a> ·
+  <a href="README.md">中文</a> ·
   <a href="docs/ARCHITECTURE.md">Architecture</a> ·
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
 <p>
-  <a href="https://github.com/ADA-quart/ITDC/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/ADA-quart/ITDC/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="https://github.com/ADA-quart/ITDC/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/ADA-quart/ITDC"></a>
-  <img alt="Platform: Web / Android / PWA" src="https://img.shields.io/badge/platform-Web%20%7C%20Android%20%7C%20PWA-informational">
-  <a href="LICENSE"><img alt="License: PolyForm Noncommercial 1.0.0" src="https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-orange.svg"></a>
+  <a href="https://github.com/ADA-quart/ITDC/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ADA-quart/ITDC/ci.yml?branch=main&label=CI"></a>
+  <a href="https://github.com/ADA-quart/ITDC/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/ADA-quart/ITDC?label=release&color=blue"></a>
+  <img alt="Platform: Web / Android / PWA" src="https://img.shields.io/badge/platform-Web%20%7C%20Android%20%7C%20PWA-blue">
+  <a href="LICENSE"><img alt="License: PolyForm Noncommercial 1.0.0" src="https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-orange"></a>
 </p>
 
-<img src="docs/images/app-schedule.png" alt="ITDC scheduling screen: todos placed into free calendar slots" width="880">
+<p><sub>This is a personal project. It has <b>no relationship with SenseTime or its “SenseNova” (日日新) large model</b>.</sub></p>
 
 </div>
 
-ITDC is a scheduler built **for personal use**: calendar, Eisenhower-matrix todos, AI/algorithmic scheduling, a daily review, university timetable import, reminders and an Android home-screen widget.
-It runs **on your device by default** — no account, no upload, and every feature works without a server. Add a self-hosted sync server only when you need multiple devices.
-
-What it is not: not team collaboration, not SaaS, and it will not ship your timetable or todos to somebody else's server.
-
 ---
 
-## Features
+## What it is
 
-| Area | What it does |
-|------|--------------|
-| 🧠 **Scheduling** | Algorithmic or LLM scheduling that fills calendar gaps by priority and deadline, then validates the result |
-| 📅 **Calendar** | Multiple calendars with their own colours, RRULE recurrence, drag to reschedule, drag the edge to resize, swipe to page, day/week views |
-| ✅ **Todos** | Eisenhower P1–P4 auto-grading, long-task splitting, countdown and overdue highlighting, natural-language input |
-| 🎓 **Timetable import** | Sign in to the university system through CAS and import a whole semester as a calendar; one fixed colour per course |
-| ⏰ **Reminders** | On-device Android notifications: todo due reminders and pre-class reminders (configurable lead time, optional silent channel) |
-| 📱 **Home-screen widget** | Today/tomorrow classes plus a scrollable todo list, room · teacher subtitles, tap anywhere to open the app (only the checkbox ticks) |
-| 📊 **Daily review** | Overdue / due today / pending / done counts with a 7-day trend |
-| 📥 **Import & export** | iCal import/export and weekly Excel export (the phone shares the file through the system share sheet) |
-| 🎨 **Personalisation** | **Custom background photo + avatar-style crop (draggable focus, 1-3x zoom)**, glass UI, calendar opacity and blur sliders, accent colour, light / dark / follow-system, independent widget appearance |
-| 📴 **Offline** | Reads and writes work offline; with sync enabled, devices merge by `sync_uid` when online |
+A tool that **connects your to-dos with your timetable**. Todo apps don't know when you have class; timetable apps don't know how much work is waiting.
 
-## Scheduling
+- **Timetable side** — import the real schedule from your school system (Mon–Sun, seven class blocks plus a night slot), week/day views, in-class todos, class reminders.
+- **Todo side** — Eisenhower four quadrants; tap *Plan* and the algorithm (or an LLM) places each task into a **free slot of your timetable**, obeying quiet-hour rules: never before 08:00, never during lunch/dinner, never squeezed into gaps under 30 minutes, and finished by 22:00 — with a 22:00–22:30 extension reserved for *urgent & important* items only.
+- **Together** — a task scheduled inside a class is **merged into that class block**; you can drag a todo to another period; long-press a class to see what you planned to do in it.
 
-Press “Generate plan”: the engine reads every open todo plus your existing events, avoids busy slots and lays out a plan by priority. Confirm it and the plan lands in your calendar, where you can still drag things around.
-
-| Mode | How it plans | Best for |
-|------|--------------|----------|
-| ⚡ Algorithmic | Deterministic, on-device, instant | Predictable, reproducible plans |
-| 🧠 LLM | Lets a model read the intent of each task | Vague or complex task descriptions |
-
-The algorithmic mode sorts by priority quadrant, then by deadline, works only inside 07:00–23:00, avoids existing events and already-scheduled todos, and caps each block at 90 minutes. After two hours of continuous work it leaves a 15-minute gap before the next block (a natural gap of 15+ minutes counts as rest already taken). Afterwards it validates conflicts, out-of-hours blocks, deadlines and past times — problems are listed instead of silently written.
-
-The LLM mode **works without any server too**: the app builds the prompt itself and calls the provider directly. OpenAI, DeepSeek, Ollama, LM Studio and any OpenAI-compatible endpoint are supported, and the prompt template is editable. API keys are encrypted with the **Android Keystore** (the browser build falls back to local plaintext and says so in Settings).
-
-## University timetable import (CDUT)
-
-1. Settings → General → **School** → Chengdu University of Technology (school definitions live in [`shared/schools.ts`](shared/schools.ts) — add new schools there)
-2. Calendar sidebar → **Import academic timetable** → sign in with your CAS credentials
-3. Pick the semester, enter the Monday of week 1 → import
-
-The result is a separate calendar where **every course has its own colour** (the same course always gets the same one), and each event carries teacher, weeks and period in its notes.
-Tick “Remember me” and the next import signs in automatically using credentials from the system keystore.
-
-> The native app talks to the university CAS and academic system directly — no relay server. Parsing lives in [`shared/cdut-parser.ts`](shared/cdut-parser.ts) and handles real-world quirks such as “several courses stacked in one cell” and “multiple week ranges per course”.
-
-## Reminders
-
-- **Todo reminders**: on-device notification at the scheduled start or the deadline.
-- **Class reminders**: for imported timetables, a notification with course, start time, room and teacher, 5–30 minutes ahead.
-- **Silent mode**: ringing and silent are two separate notification channels; the silent one only appears in the shade without sound or vibration, and you can also tune just that channel in system settings.
-
-All reminders are scheduled on the device, need no server, and are re-queued automatically when your timetable changes.
-
-## Home-screen widget
-
-<p align="center">
-  <img src="docs/images/widget.png" alt="Android home-screen widget: today and tomorrow classes plus todos" width="400">
-</p>
-
-- 🗓️ Today / tomorrow columns with course colours, room and time; finished classes fade out on their own
-- ☑️ Scrollable todo list, tick the checkbox to complete, finished items get a strike-through and sink to the bottom
-- 👆 Tapping anywhere opens the app on the calendar page
-- 🎨 Panel colour, opacity, light/dark and background image are configurable inside the app
-
-## Personalisation
-
-Beyond light / dark, you can put your own photo behind the UI: cards turn translucent + frosted so the photo shows through, while course and todo blocks keep their solid colours.
-
-<p align="center">
-  <img src="docs/images/app-schedule.png" alt="Calendar over a custom background: cards are translucent, the photo shows through" width="880">
-</p>
-
-### Background photo and avatar-style crop
-
-- Pick a photo from the gallery; it sits at the very bottom layer, while the calendar cards, timetable cells, calendar list and bottom navigation turn **translucent + frosted** so the photo shows through. Course and todo blocks keep their solid colours
-- The photo scales **proportionally between 1x and 3x**; the visible area is chosen by a **focus point** you can drag directly on the preview or nudge with the horizontal / vertical sliders
-- The frame is fixed and always filled — **no stretching and no letterboxing**. The same crop model is used by the app and the home-screen widget, so both show the same picture
-
-### Calendar opacity and blur
-
-| Slider | Effect |
-|--------|--------|
-| Calendar opacity | 0 = fully transparent, no frosting (the photo shows straight through); 100 = solid card |
-| Calendar blur | 0 = no frosted glass at all; higher values blur the background more |
-
-Course and todo blocks always stay solid — only the card base takes part in opacity and blur, so a busy photo never hurts readability.
-
-### Theme and typography
-
-- **Light / dark / follow system**, applied immediately (including system switches)
-- **Accent colour** used by buttons, selected states and the widget accent
-- Type scale and line heights follow Material 3 and Apple HIG (body 14/22, emphasis 16/24, labels 11-12), with the device CJK UI font stack, and tabular figures for times and dates
-- Contrast is calibrated to WCAG AA (secondary text in light mode is `#666`, 5.7:1)
-
-### Widget appearance
-
-The widget keeps its own appearance, independent from the app:
-
-- Panel colour, opacity, scheme (follow system / force light / force dark)
-- The background photo is pre-cropped at the chosen focus and zoom, then handed to the launcher as a high-resolution file
-- Optional "week N only" header, and course subtitles show **room · teacher** (e.g. `E1B205 · 李军`)
-- List scrollbars fade out when idle
-
-### Reset
-
-"Reset widget appearance" only touches widget colours, opacity, scheme and the background switch (accent colour and photo stay); the footer button resets everything and clears the uploaded photo.
+By default **all data stays on the device**. The network is used only for three things: calling your LLM provider, fetching your school timetable, and the cross-device sync you explicitly enable.
 
 ## Screenshots
 
-<p align="center">
-  <img src="docs/images/app-calendar.png" alt="Calendar view with week layout and multiple calendars" width="270">
-  <img src="docs/images/app-todos.png" alt="Todo list grouped by Eisenhower priority" width="270">
-  <img src="docs/images/app-review.png" alt="Daily review with counts and a 7-day trend" width="270">
-</p>
+| Calendar | Todos (four quadrants) | Smart planning |
+| :---: | :---: | :---: |
+| ![Calendar](docs/images/app-calendar.png) | ![Todos](docs/images/app-todos.png) | ![Planning](docs/images/app-schedule.png) |
 
-> **Tap** a class or todo to see its details (time, room, calendar, teacher and weeks…), **long-press** to delete; drag events to reschedule and swipe to change days.
+| Review (weekly recap / streak) | Home-screen widget |
+| :---: | :---: |
+| ![Review](docs/images/app-review.png) | ![Widget](docs/images/widget.png) |
+
+## Core features
+
+### Todos: four quadrants + automatic scheduling
+
+- **Quadrant board** — urgent & important / important / urgent / normal, each cell shows what's left and opens the full list. Tap for details, long-press to delete.
+- **Two scheduling engines** — with an LLM configured you get AI decomposition + planning (and every returned slot is re-validated by the client algorithm); without it, the app falls back to a **pure local rule engine** that still fits tasks into gaps.
+- **One shared policy** across client algorithm, server algorithm, prompt and validator (`shared/schedule-policy.ts`):
+
+| Rule | Value |
+| --- | --- |
+| Earliest start | 08:00 |
+| Latest start | 21:00 — **22:30 for “urgent & important”** |
+| Latest end | 22:00 — **22:30 for “urgent & important”** |
+| Minimum usable gap | 30 minutes |
+| Buffer before the next event | 5 minutes |
+| Protected windows | Lunch 11:50–13:00, dinner 18:00–19:00 |
+| Max segment | 90 minutes (long tasks are split, with breaks inserted) |
+
+- **“Can be done in class”** — such todos may be placed inside a class period and are merged into that course block.
+- **Split segments** — a three-hour task becomes several scheduled pieces, each checkable on its own.
+
+### Timetable: import + week grid
+
+- **One-tap import** — pick your school, enter student ID and password, and the app logs in through the unified authentication flow and pulls the current semester (no manual Excel wrangling).
+- **Daily auto-sync** — the schedule is refreshed on the first launch of each day, and there's a manual “Update timetable” button.
+- **The week view *is* the timetable grid** — seven class blocks sized by their **real duration** (95/60/40 minutes no longer look identical) plus a 21:35–22:30 “night” row, so plans made in the library until 22:30 still have a place.
+- **Course blocks** show course name, room and time; a class spanning several blocks is shown as one continuous bar; tap for details, long-press to drag or delete.
+- **Anything outside class hours** goes to a separate “extra time” row instead of being stacked on top of a class.
+
+### Screenshot → todo (multimodal + offline OCR)
+
+The “image” button on the todo page turns a screenshot into todos through a graceful degradation chain:
+
+1. **Direct multimodal** — send the image to a vision-capable model (multiple todos per image; expired ones are skipped).
+2. **On-device OCR** — if the model has no vision support or you are offline, **PP-OCRv4** (the ONNX build of PaddleOCR / RapidOCR, running on onnxruntime-web) reads the text locally and the text parser takes over. **Fully offline, no Google services required.**
+3. **Save the raw text** — if parsing also fails, the recognised text is stored as a todo you can tidy up later.
+
+The OCR models (4.7 MB detector + 10.9 MB recogniser) are not bundled: download them in *Settings → General → Offline OCR extension* and delete them any time.
+
+### Home-screen widget
+
+- Today / tomorrow columns plus a scrollable todo list; todos can be ticked straight from the home screen.
+- Tapping anywhere (except the checkbox area) opens the app.
+- Its own colours, opacity and light/dark mode — including **follow the system**, which resolves colours from `values-night` resources so the widget switches instantly without waiting for the app process to wake up.
+- Can reuse your in-app background image: fixed frame, aspect-preserving crop, identical to what you see in the app.
+
+### Review & weekly recap
+
+- “Review” has today and this-week views: classes attended, todos completed, what is overdue.
+- The weekly recap shows completed count, time invested, per-day distribution, comparison with last week, and your **streak of consecutive weeks with records**.
+- Overdue items and late completions are reported separately.
+
+### Personalisation
+
+- **Background image**: aspect-preserving crop with a draggable focal point, 0.5–3× zoom (below 1× the surroundings are filled with a blurred, enlarged copy of the same image, so no blank edges).
+- **Glassmorphism**: opacity and blur for calendar cards, timetable cells and the bottom navigation; at full transparency text colours adapt to the image's brightness.
+- **Accent colour**: eight presets + colour picker, set separately for the app and the widget.
+- **Layout tokens**: 44 px control height (Apple HIG 44 pt), one radius scale (6 / 12·8 / 12 / 14), fully tappable bottom navigation.
+
+### Data, import/export, offline
+
+- **Offline-first**: everything works without a network; writes land locally first.
+- **Import/export**: iCal (.ics) both ways, export the current week to Excel (shared through the system sheet on mobile).
+- **Optional cross-device sync**: enter a sync ID to merge both devices record by record, run your own server, or stay local-only.
 
 ## Quick start
 
-**Android**: download the APK from [Releases](https://github.com/ADA-quart/ITDC/releases/latest) (debug-signed — fine for personal use, not for app stores).
+1. **Install** — grab `itdc-vX.Y.Z.apk` from [Releases](https://github.com/ADA-quart/ITDC/releases/latest); allow “unknown sources” on first install. Upgrades usually install straight on top.
+2. **Import your timetable** — Settings → General → pick your school → enter ID and password → import the current semester.
+3. **Configure a model (optional)** — Settings → LLM: provider + API key. With it you get AI decomposition, AI planning and direct image input; without it, local rule parsing and local scheduling still work.
+4. **Add a todo and plan** — create one (or use AI / image input) and press *Plan* on the Smart planning page.
 
-**Web / desktop**
-
-```bash
-git clone https://github.com/ADA-quart/ITDC.git
-cd ITDC
-npm install
-npm run dev          # http://localhost:5173
-```
-
-That is the “this device only” mode — everything works with no configuration.
-
-**Windows**: run `install.bat`, then `start.bat` (it prints your LAN IP for connecting your phone).
-
-**Docker**
-
-```bash
-docker compose up -d
-```
+> Widget not refreshing? Set *Settings → Apps → Day Day New → Battery saver* to **unrestricted** (MIUI / HyperOS and friends freeze background refresh).
 
 ## Three ways to run it
 
-| Mode | Scenario | Setup |
-|------|----------|-------|
-| This device only (default) | Single device | Nothing to configure; data lives in IndexedDB / app storage, scheduling and LLM calls happen locally |
-| LAN | Phone + computer | Run `npm start` on the computer, enter `http://<PC-IP>:3000/api` in the app's settings |
-| Public | Multi-device anywhere | Deploy to a server or tunnel, then enter `https://<domain>/api` |
+| Mode | Where the data lives | Requirements | Good for |
+| --- | --- | --- | --- |
+| **Local only** (default) | Phone database | Nothing | Using it alone; data never leaves the phone |
+| **Cross-device sync** | Phone + sync service | A sync ID | Phone plus tablet/web |
+| **Self-hosted** | Your own server | Deploy `server/` | Full control over your data |
 
-Switching to sync **merges** both sides: records that exist on only one side are kept, and for the same record the newer `updated_at` wins.
+## Data & privacy
 
-> ⚠️ The server has no authentication — anyone who can reach the URL can read and write. Add access control before exposing it publicly; see [SECURITY.md](SECURITY.md).
+- Timetable, todos, events and appearance settings live **on the device** (IndexedDB / local database) by default.
+- LLM API keys and the school password are kept in **encrypted system storage** (Android Keystore), not in plain config files.
+- Only three operations touch the network — LLM calls, timetable import and sync — and each sends only what it needs.
+- No analytics, telemetry or third-party reporting SDKs.
 
 ## Tech stack
 
-React 18 · TypeScript · Ant Design 5 · FullCalendar 6 · Vite 6 · IndexedDB
-· Express · sql.js (SQLite compiled to WASM, no native build) · Capacitor 8 · Vitest
+| Layer | Choice |
+| --- | --- |
+| Shell & packaging | Capacitor 8 (Android + PWA share one front-end) |
+| Front-end | React + TypeScript + Vite + Ant Design 5 |
+| Calendar | FullCalendar (month/week/day) + a custom timetable grid |
+| Widget | Native Android RemoteViews (Java) with scrollable lists |
+| Offline OCR | PP-OCRv4 ONNX + onnxruntime-web (models downloaded on demand) |
+| Scheduling | Local rule engine in TypeScript, sharing one policy with the server |
+| Optional server | Node service for sync / scheduling / LLM proxying (`server/`) |
+| Tests | Vitest (240+ cases covering scheduling, parsing, sync merging) |
 
-## Repository layout
+## Project layout
 
-```text
-src/                    Frontend: calendar, todos, scheduling, review, settings, i18n
-  api/                  Local data layer, optional sync, CAS timetable client, notification scheduling
-shared/                 Shared by client and server: timetable parser, school config, course colours, prompts
-server/                 Optional sync server: Express + sql.js (routes / db / scheduler / LLM proxy)
-plugins/itdc-widget/    Android home-screen widget (local Capacitor plugin with native layouts and receivers)
-android/                Capacitor Android shell and packaging config
-docs/                   Architecture, deployment, widget and API docs plus screenshots
+```
+src/                 front-end (React)
+  api/               local storage, scheduling engine, LLM, OCR installer
+  components/        pages and components (timetable grid, quadrants, settings…)
+  i18n/              Chinese / English copy
+shared/              policy & parsers shared by client and server
+server/              optional server (sync, scheduling, LLM proxy)
+plugins/itdc-widget/ native widget plugin (Java)
+android/             Capacitor Android project
+docs/                architecture, deployment, widget notes, research
 ```
 
 ## Development
 
 ```bash
-npm run dev:all      # frontend 5173 + optional backend 3000
-npx tsc --noEmit     # type check
-npm run test         # unit tests (Vitest)
-npm run build        # build the frontend
+npm install
+npm run dev                 # develop in the browser (all front-end features work)
+npm run test                # unit tests
+npm run android:sync        # build the front-end and sync it into android/
+npm run android:open        # open in Android Studio
+
+# build a debug APK directly
+./android/gradlew.bat -p android assembleDebug
 ```
 
-Building the Android APK (the order matters — running gradle alone will not repackage the web assets):
-
-```bash
-npm run android:sync
-cd android && ./gradlew assembleDebug
-```
-
-When you touch scheduling rules, remember the algorithm exists twice (`src/api/local-scheduler.ts` and `server/services/scheduler.ts`); prompts and response parsing are shared through `shared/llm-prompt.ts`, and both sides must stay consistent.
-
-## Configuration
-
-Nothing to configure for the local-only mode. For a self-hosted sync server, copy `.env.example` to `.env`.
-
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `PORT` | `3000` | Server port |
-| `HOST` | `0.0.0.0` | Bind address; use `127.0.0.1` for local-only |
-| `DB_PATH` | `data/calendar.db` | SQLite file path |
-| `CRYPTO_SECRET` | dev default | Encrypts LLM API keys stored server-side. **Required in production** (`openssl rand -hex 32`) |
-| `CORS_ORIGINS` | empty | Extra allowed origins, comma separated |
-| `CORS_ALLOW_ALL` | empty | `1` allows any origin — only for LAN or trusted self-hosting |
+Requires Node 20+ and JDK 21 for Android builds. Release steps live in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Documentation
 
-| Document | Contents |
-|----------|----------|
-| [Architecture](docs/ARCHITECTURE.md) | Data flow, merge sync, the dual scheduling path, tech choices |
-| [Deployment](docs/DEPLOYMENT.md) | LAN, tunnels, cloud, Docker |
-| [Widget](docs/WIDGET.md) | Design, data channel, Android platform limits |
-| [API](docs/API.md) | Every HTTP endpoint |
-| [Security](SECURITY.md) | Threat model, key storage, where the data lives |
-| [Contributing](CONTRIBUTING.md) | Development conventions |
-| [Changelog](CHANGELOG.md) | Changes per release |
+- [Architecture](docs/ARCHITECTURE.md) — data flow, offline-first strategy, module boundaries
+- [Widget internals](docs/WIDGET.md) — RemoteViews, bitmap budget, refresh timing
+- [Todo research](docs/todo-research-2026-10.md) — quadrants and scheduling trade-offs
+- [API](docs/API.md) · [Deployment](docs/DEPLOYMENT.md)
+- [Changelog](CHANGELOG.md)
 
 ## FAQ
 
-**Where is my data?** Local mode keeps it in IndexedDB / app storage; sync mode keeps it in the server's `data/calendar.db`. Export iCal whenever you want a backup.
+**The widget stopped refreshing / shows “open the app to refresh” in the morning.**
+Set battery saver to *unrestricted*. Refreshes are aligned to class end, midnight, unlock and a two-hour fallback, but a frozen background process still waits for the next wake-up.
 
-**The widget stopped refreshing?** Aggressive battery policies: Settings → Apps → ITDC → battery → unrestricted.
+**“Checking for updates” says the API is rate-limited.**
+GitHub throttles anonymous requests; wait a while or open the Releases page directly.
 
-**My phone cannot reach the computer?** Same network, `start.bat` running, and allow port 3000 through the firewall.
+**Timetable import fails.**
+Check the credentials and that your network can reach the school system; a failed import never touches the existing timetable.
 
-**Timetable import failed?** The error now carries the real reason and the steps taken (with HTTP status codes) — follow it; the academic system occasionally rate-limits with “too many operations”, so retry in a few minutes.
+**How big is the OCR download?**
+4.7 MB detector + 10.9 MB recogniser ≈ 15.6 MB; fully offline afterwards and deletable at any time.
 
-**Week numbers are off by one?** Import asks for the Monday of week 1 because the academic system does not publish the calendar; a wrong date shifts the whole semester.
+**Why isn't anything scheduled after 22:00?**
+By default nothing starts after 21:00 and everything must end by 22:00; only todos marked *urgent & important* may use the 22:00–22:30 window.
 
-**Scheduling results are odd?** The algorithmic mode strictly avoids conflicts and splits long tasks; if a task needs semantic judgement, switch to LLM mode or adjust the prompt template in Settings.
+## Known limitations
 
-**Why is the APK debug-signed?** It keeps personal distribution and in-place upgrades simple; it is not meant for app stores.
+- Timetable import currently supports **Chengdu University of Technology** only (see `shared/cdut-parser.ts` to add others).
+- On-device OCR targets **phone screenshots** (horizontal text); rotated or vertical text is not supported.
+- int8 quantised OCR models return empty results on onnxruntime-web's WASM backend, so the app ships/queries fp32 models.
+- The home-screen widget is a native Android implementation; there is no iOS plan.
 
 ## Contributing
 
-Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Please make sure `npx tsc --noEmit` and `npm run test` both pass.
-
-## Open-source licences
-
-The project depends on open-source packages — 199 including transitive dependencies, all under permissive licences (MIT / ISC / Apache-2.0 / BSD / 0BSD, redistribution only requires keeping the copyright and licence notices) or file-level copyleft (MPL-2.0, which only affects modified source files). See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for the full list with repository links; it is also viewable on the app's Settings page and can be regenerated with `npm run licenses`.
+Issues and PRs are welcome. For bug reports please include version, device and reproduction steps; for changes keep `npm run test` and `npx tsc --noEmit` green and add a note under the unreleased section of `CHANGELOG.md`.
 
 ## License
 
-[PolyForm Noncommercial License 1.0.0](LICENSE) © 2026 ADA-quart
+- Code: [PolyForm Noncommercial License 1.0.0](LICENSE) — personal, non-commercial use and modification only.
+- Third-party dependencies and models: see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) (OCR models are PaddleOCR / RapidOCR, Apache-2.0).
+- The name comes from the *Book of Rites*; this project is unrelated to SenseTime's “SenseNova” (日日新) model.
 
-Free for personal and non-commercial use (personal projects, study, research, and non-profit organisations such as schools, charities and public research institutions).
-
-Commercial use requires a separate licence — including internal deployment at a company, inclusion in a paid product or service, or any other commercially motivated use. Contact the maintainer.
