@@ -150,7 +150,7 @@ OCR 的模型（检测 4.7MB + 识别 10.9MB）不随包分发，在「设置 �
 | 离线 OCR | PP-OCRv4 ONNX + onnxruntime-web（模型按需下载） |
 | 排程算法 | 本地规则引擎（TypeScript），与服务端共用同一份策略 |
 | 可选服务端 | Node + 同步 / 排程 / 大模型代理（见 `server/`） |
-| 测试 | Vitest（240+ 用例，覆盖排程、解析、同步合并等关键逻辑） |
+| 测试 | Vitest（覆盖排程、课表解析、同步合并等关键逻辑） |
 
 ## 项目结构
 
@@ -210,7 +210,6 @@ GitHub 接口对匿名请求限流，等一段时间再点，或直接去 Releas
 
 - 教务导入目前**只适配成都理工大学**（其他学校可参考 `shared/cdut-parser.ts` 扩展）。
 - 本机 OCR 面向**手机截图**（横排文字）；倾斜与竖排文字不支持。
-- OCR 的 int8 量化模型在 onnxruntime-web 的 WASM 上会输出空结果，因此线上用 fp32 模型（体积见上）。
 - 桌面小组件是 Android 原生实现，iOS 端暂无计划。
 
 ## 贡献
@@ -222,4 +221,3 @@ GitHub 接口对匿名请求限流，等一段时间再点，或直接去 Releas
 - 本项目代码采用 [PolyForm Noncommercial License 1.0.0](LICENSE)：**允许个人非商业使用与修改，禁止商业用途**。
 - 第三方依赖与模型许可见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)（OCR 模型为 PaddleOCR / RapidOCR，Apache-2.0）。
 - 应用名「日日新」取自《礼记·大学》，与商汤科技及其「日日新」（SenseNova）大模型无任何关联。
-

@@ -152,7 +152,7 @@ The OCR models (4.7 MB detector + 10.9 MB recogniser) are not bundled: download 
 | Offline OCR | PP-OCRv4 ONNX + onnxruntime-web (models downloaded on demand) |
 | Scheduling | Local rule engine in TypeScript, sharing one policy with the server |
 | Optional server | Node service for sync / scheduling / LLM proxying (`server/`) |
-| Tests | Vitest (240+ cases covering scheduling, parsing, sync merging) |
+| Tests | Vitest (covering scheduling, timetable parsing and sync merging) |
 
 ## Project layout
 
@@ -212,7 +212,6 @@ By default nothing starts after 21:00 and everything must end by 22:00; only tod
 
 - Timetable import currently supports **Chengdu University of Technology** only (see `shared/cdut-parser.ts` to add others).
 - On-device OCR targets **phone screenshots** (horizontal text); rotated or vertical text is not supported.
-- int8 quantised OCR models return empty results on onnxruntime-web's WASM backend, so the app ships/queries fp32 models.
 - The home-screen widget is a native Android implementation; there is no iOS plan.
 
 ## Contributing
@@ -224,4 +223,3 @@ Issues and PRs are welcome. For bug reports please include version, device and r
 - Code: [PolyForm Noncommercial License 1.0.0](LICENSE) — personal, non-commercial use and modification only.
 - Third-party dependencies and models: see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) (OCR models are PaddleOCR / RapidOCR, Apache-2.0).
 - The name comes from the *Book of Rites*; this project is unrelated to SenseTime's “SenseNova” (日日新) model.
-
