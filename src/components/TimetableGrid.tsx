@@ -281,7 +281,7 @@ const TimetableGrid: React.FC<Props> = ({
         minHeight: fillHeight ? 0 : 38,
         // 待办用虚线边框区分（和日历视图一致）
         border: item.isTodo ? '1px dashed rgba(255,255,255,.85)' : 'none',
-        borderRadius: 6,
+        borderRadius: 'var(--itdc-r-sm)',
         background: item.color,
         color: '#fff',
         padding: '3px 2px',
@@ -314,7 +314,7 @@ const TimetableGrid: React.FC<Props> = ({
           <span style={{
             flexShrink: 0,
             padding: '0 3px',
-            borderRadius: 6,
+            borderRadius: 'var(--itdc-r-sm)',
             background: 'rgba(255,255,255,.92)',
             color: '#333',
             fontSize: 9,
@@ -348,7 +348,7 @@ const TimetableGrid: React.FC<Props> = ({
             top: ghost.y,
             transform: 'translate(-50%, -50%)',
             padding: '4px 8px',
-            borderRadius: 6,
+            borderRadius: 'var(--itdc-r-sm)',
             background: 'rgba(0,0,0,.72)',
             color: '#fff',
             fontSize: 11,

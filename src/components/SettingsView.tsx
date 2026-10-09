@@ -859,8 +859,14 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
           </div>
           <div>
             <h4 style={sectionTitleStyle}>{t.settings.about}</h4>
-            <Space wrap style={{ marginBottom: 8 }}>
-              <Tag>{t.settings.currentVersion} v{getCurrentVersion()}</Tag>
+            <Space wrap size={8} style={{ marginBottom: 8 }} align='center'>
+              {/* 版本号以前用默认 Tag（22px 高）和 40px 的按钮混排，一行看着高低不齐；
+                  这里让它和按钮等高、同圆角，整行才是齐的 */}
+              <Tag
+                className='itdc-chip'
+              >
+                {t.settings.currentVersion} v{getCurrentVersion()}
+              </Tag>
               <Button icon={<SyncOutlined />} loading={checkingUpdate} onClick={handleCheckUpdate}>
                 {checkingUpdate ? t.settings.checking : t.settings.checkUpdate}
               </Button>

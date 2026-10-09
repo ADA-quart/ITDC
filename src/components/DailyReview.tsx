@@ -129,7 +129,7 @@ const DailyReview: React.FC = () => {
                   height: '100%',
                   boxSizing: 'border-box',
                   padding: '13px 12px 10px',
-                  borderRadius: 12,
+                  borderRadius: 'var(--itdc-r-lg)',
                   border: `1px solid ${isDark ? '#333' : '#eee'}`,
                   background: `var(--itdc-cell-bg, ${isDark ? '#1b1b1b' : '#fff'})`,
                   cursor: 'pointer',

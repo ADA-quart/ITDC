@@ -10,6 +10,33 @@ body {
 }
 
 /*
+ * 圆角只有三档，所有手写卡片/按钮都从这里取，避免 6/8/10/12/14 混用：
+ *   sm 6  小标签、课表色块
+ *   md 手机 12 / 桌面 8 控件（按钮、输入框、小标签）——与 antd themeConfig 同源，
+ *      由 App 在挂载时按 isMobile 写进 CSS 变量
+ *   lg 12 卡片（四象限、统计卡、底部导航选中态）
+ *   xl 14 浮层（Modal、底部抽屉）
+ */
+:root {
+  --itdc-r-sm: 6px;
+  --itdc-r-md: 8px;
+  --itdc-r-lg: 12px;
+  --itdc-r-xl: 14px;
+  /* 控件高度：由 App 按 isMobile 覆盖（40 / 32），跟 antd controlHeight 同源 */
+  --itdc-control-h: 32px;
+}
+
+/* 和按钮混排的小标签（版本号等）：跟按钮等高同圆角，整行才齐 */
+.itdc-chip {
+  display: inline-flex;
+  align-items: center;
+  height: var(--itdc-control-h);
+  padding-inline: 12px;
+  margin: 0;
+  border-radius: var(--itdc-r-md);
+}
+
+/*
  * 有自定义背景图时（body.itdc-has-bg-image），日历网格与 FullCalendar
  * 一起玻璃化：背景透明/半透明，让图片透出来；课程块保持自己的实色。
  */

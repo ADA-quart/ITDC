@@ -226,8 +226,12 @@ const App: React.FC = () => {
     algorithm: isDark ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
     token: {
       colorPrimary: appearance.accent,
-      // 手机上把控件放大到接近 44-48px 的触控目标（Material 48dp / HIG 44pt）
+      // 手机上把控件放大到接近 44-48px 的触控目标（Material 48dp / HIG 44pt）；
+      // 圆角沿用 1.9.0 那次整备的结论：手机 12 / 桌面 8（见 CHANGELOG 307 行），
+      // 手写元素统一从 styles.css 的 --itdc-r-* 取，避免 6/8/10/12/14 乱用
       borderRadius: isMobile ? 12 : 8,
+      borderRadiusSM: 6,
+      borderRadiusLG: 14,
       controlHeight: isMobile ? 40 : 32,
       fontSize: 14,
       // 中文界面：系统字体栈 + 稍宽的行高（中文比拉丁字母更吃行距）
@@ -249,6 +253,13 @@ const App: React.FC = () => {
   useEffect(() => {
     document.body.style.background = isDark ? '#141414' : '#f5f5f5';
   }, [isDark]);
+
+  // 控件高度也暴露成 CSS 变量：手写的小标签要和 antd 按钮等高（40 / 32）
+  useEffect(() => {
+    document.documentElement.style.setProperty('--itdc-control-h', isMobile ? '40px' : '32px');
+    // 控件圆角跟着主题走：手机 12 / 桌面 8（与 antd borderRadius 同源）
+    document.documentElement.style.setProperty('--itdc-r-md', isMobile ? '12px' : '8px');
+  }, [isMobile]);
 
   // 启动时确认离线 OCR 扩展是否装好（TodoList 是同步判断可用性的）
   useEffect(() => {
@@ -370,7 +381,7 @@ const App: React.FC = () => {
                   minWidth: 56,
                   minHeight: TOUCH_TARGET,
                   padding: '4px 10px',
-                  borderRadius: 12,
+                  borderRadius: 'var(--itdc-r-lg)',
                   cursor: 'pointer',
                   userSelect: 'none',
                   WebkitTapHighlightColor: 'transparent',
