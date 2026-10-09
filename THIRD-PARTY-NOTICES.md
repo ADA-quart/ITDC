@@ -3,7 +3,7 @@
 本项目（ITDC）的构建与运行依赖下列开源软件包。每个软件包的版权归其各自作者所有，
 并按其自身的许可协议授权。本清单由 `npm run licenses` 自动生成，请勿手动修改。
 
-共 199 个软件包（含传递依赖）。
+共 217 个软件包（含传递依赖）。
 
 | 软件包 | 版本 | 许可协议 | 仓库地址 |
 | --- | --- | --- | --- |
@@ -30,6 +30,15 @@
 | @fullcalendar/react | 6.1.20 | MIT | [链接](https://github.com/fullcalendar/fullcalendar-react) |
 | @fullcalendar/rrule | 6.1.20 | MIT | [链接](https://github.com/fullcalendar/fullcalendar) |
 | @fullcalendar/timegrid | 6.1.20 | MIT | [链接](https://github.com/fullcalendar/fullcalendar) |
+| @protobufjs/aspromise | 1.1.2 | BSD-3-Clause | [链接](https://github.com/dcodeIO/protobuf.js) |
+| @protobufjs/base64 | 1.1.2 | BSD-3-Clause | [链接](https://github.com/dcodeIO/protobuf.js) |
+| @protobufjs/codegen | 2.0.5 | BSD-3-Clause | [链接](https://github.com/dcodeIO/protobuf.js) |
+| @protobufjs/eventemitter | 1.1.1 | BSD-3-Clause | [链接](https://github.com/dcodeIO/protobuf.js) |
+| @protobufjs/fetch | 1.1.1 | BSD-3-Clause | [链接](https://github.com/dcodeIO/protobuf.js) |
+| @protobufjs/float | 1.0.2 | BSD-3-Clause | [链接](https://github.com/dcodeIO/protobuf.js) |
+| @protobufjs/path | 1.1.2 | BSD-3-Clause | [链接](https://github.com/dcodeIO/protobuf.js) |
+| @protobufjs/pool | 1.1.0 | BSD-3-Clause | [链接](https://github.com/dcodeIO/protobuf.js) |
+| @protobufjs/utf8 | 1.1.2 | BSD-3-Clause | [链接](https://github.com/protobufjs/protobuf.js) |
 | @rc-component/async-validator | 5.1.0 | MIT | [链接](https://github.com/react-component/async-validator) |
 | @rc-component/color-picker | 2.0.1 | MIT | [链接](https://github.com/react-component/color-picker) |
 | @rc-component/context | 1.4.0 | MIT | [链接](https://github.com/react-component/context) |
@@ -39,6 +48,7 @@
 | @rc-component/qrcode | 1.1.1 | MIT | [链接](https://github.com/react-component/qrcode) |
 | @rc-component/tour | 1.15.1 | MIT | [链接](https://github.com/react-component/tour) |
 | @rc-component/trigger | 2.3.1 | MIT | [链接](https://github.com/react-component/trigger) |
+| @types/node | 22.19.17 | MIT | [链接](https://github.com/DefinitelyTyped/DefinitelyTyped) |
 | accepts | 1.3.8 | MIT | [链接](https://github.com/jshttp/accepts) |
 | adler-32 | 1.2.0 | Apache-2.0 | [链接](https://github.com/SheetJS/js-adler32) |
 | adler-32 | 1.3.1 | Apache-2.0 | [链接](https://github.com/SheetJS/js-adler32) |
@@ -88,6 +98,7 @@
 | express | 4.22.1 | MIT | [链接](https://github.com/expressjs/express) |
 | fflate | 0.3.11 | MIT | [链接](https://github.com/101arrowz/fflate) |
 | finalhandler | 1.3.2 | MIT | [链接](https://github.com/pillarjs/finalhandler) |
+| flatbuffers | 25.9.23 | Apache-2.0 | [链接](https://github.com/google/flatbuffers) |
 | follow-redirects | 1.15.11 | MIT | [链接](https://github.com/follow-redirects/follow-redirects) |
 | form-data | 4.0.5 | MIT | [链接](https://github.com/form-data/form-data) |
 | forwarded | 0.2.0 | MIT | [链接](https://github.com/jshttp/forwarded) |
@@ -98,6 +109,7 @@
 | get-proto | 1.0.1 | MIT | [链接](https://github.com/ljharb/get-proto) |
 | get-tsconfig | 4.13.7 | MIT | [链接](https://github.com/privatenumber/get-tsconfig) |
 | gopd | 1.2.0 | MIT | [链接](https://github.com/ljharb/gopd) |
+| guid-typescript | 1.0.9 | ISC | [链接](https://github.com/NicolasDeveloper/guid-typescript) |
 | has-symbols | 1.1.0 | MIT | [链接](https://github.com/inspect-js/has-symbols) |
 | has-tostringtag | 1.0.2 | MIT | [链接](https://github.com/inspect-js/has-tostringtag) |
 | hasown | 2.0.4 | MIT | [链接](https://github.com/inspect-js/hasOwn) |
@@ -109,6 +121,7 @@
 | js-tokens | 4.0.0 | MIT | [链接](https://github.com/lydell/js-tokens) |
 | jsencrypt | 3.5.4 | MIT | [链接](https://github.com/travist/jsencrypt) |
 | json2mq | 0.2.0 | MIT | [链接](https://github.com/akiran/json2mq) |
+| long | 5.3.2 | Apache-2.0 | [链接](https://github.com/dcodeIO/long.js) |
 | loose-envify | 1.4.0 | MIT | [链接](https://github.com/zertosh/loose-envify) |
 | math-intrinsics | 1.1.0 | MIT | [链接](https://github.com/es-shims/math-intrinsics) |
 | media-typer | 0.3.0 | MIT | [链接](https://github.com/jshttp/media-typer) |
@@ -124,10 +137,14 @@
 | object-assign | 4.1.1 | MIT | [链接](https://github.com/sindresorhus/object-assign) |
 | object-inspect | 1.13.4 | MIT | [链接](https://github.com/inspect-js/object-inspect) |
 | on-finished | 2.4.1 | MIT | [链接](https://github.com/jshttp/on-finished) |
+| onnxruntime-common | 1.30.0 | MIT | [链接](https://github.com/Microsoft/onnxruntime) |
+| onnxruntime-web | 1.30.0 | MIT | [链接](https://github.com/Microsoft/onnxruntime) |
 | parseurl | 1.3.3 | MIT | [链接](https://github.com/pillarjs/parseurl) |
 | path-to-regexp | 0.1.13 | MIT | [链接](https://github.com/pillarjs/path-to-regexp) |
+| platform | 1.3.6 | MIT | [链接](https://github.com/bestiejs/platform.js) |
 | preact | 10.12.1 | MIT | [链接](https://github.com/preactjs/preact) |
 | printj | 1.1.2 | Apache-2.0 | [链接](https://github.com/SheetJS/printj) |
+| protobufjs | 7.6.6 | BSD-3-Clause | [链接](https://github.com/protobufjs/protobuf.js) |
 | proxy-addr | 2.0.7 | MIT | [链接](https://github.com/jshttp/proxy-addr) |
 | proxy-from-env | 2.1.0 | MIT | [链接](https://github.com/Rob--W/proxy-from-env) |
 | qs | 6.14.2 | BSD-3-Clause | [链接](https://github.com/ljharb/qs) |
@@ -199,6 +216,7 @@
 | tsx | 4.21.0 | MIT | [链接](https://github.com/privatenumber/tsx) |
 | type-is | 1.6.18 | MIT | [链接](https://github.com/jshttp/type-is) |
 | typedarray | 0.0.6 | MIT | [链接](https://github.com/substack/typedarray) |
+| undici-types | 6.21.0 | MIT | [链接](https://github.com/nodejs/undici) |
 | unpipe | 1.0.0 | MIT | [链接](https://github.com/stream-utils/unpipe) |
 | util-deprecate | 1.0.2 | MIT | [链接](https://github.com/TooTallNate/util-deprecate) |
 | utils-merge | 1.0.1 | MIT | [链接](https://github.com/jaredhanson/utils-merge) |

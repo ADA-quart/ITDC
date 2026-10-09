@@ -24,6 +24,7 @@ import { Capacitor } from '@capacitor/core';
 import { ITDCWidgetPlugin } from './capacitor/itdc-widget';
 import { pushWidgetSnapshot, consumeWidgetDoneQueue } from './api/widget-sync';
 import { maybeAutoSyncDaily } from './api/school-sync';
+import { refreshLocalOcrState } from './api/local-ocr';
 import { useI18n } from './i18n';
 import { TOUCH_TARGET, withAlpha } from './components/ui';
 import { FONT_STACK, tabularNums } from './components/ui';
@@ -248,6 +249,11 @@ const App: React.FC = () => {
   useEffect(() => {
     document.body.style.background = isDark ? '#141414' : '#f5f5f5';
   }, [isDark]);
+
+  // 启动时确认离线 OCR 扩展是否装好（TodoList 是同步判断可用性的）
+  useEffect(() => {
+    void refreshLocalOcrState();
+  }, []);
 
   // 缩小到 1 倍以下时图片盖不满屏幕，先在底层铺一张同图的模糊放大版打底，
   // 既不会露出主题底色，看起来也像系统壁纸的「模糊填充」

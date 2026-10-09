@@ -4,14 +4,37 @@
 // 没网）时，若本地 OCR 可用则改走「OCR 出文字 → 文本 AI 提取 →
 // 仍失败则降级存原文」。
 //
-// 当前版本尚未实现下载式 OCR（bundled 模型会令 APK 增大 40MB+，
-// 按需下载方案在后续版本接入）；届时只需替换本文件的实现，
-// 调用方（TodoList.handleImagePick）无需改动。
+// 引擎为 PP-OCRv4（PaddleOCR / RapidOCR 的 ONNX 版）跑在 onnxruntime-web 上：
+// 检测与识别都在本机完成，全程离线、不需要 GMS；模型与 wasm 由用户按需下载，
+// 见 ocr/installer.ts。
+import { ocrStatus, removeOcr } from './ocr/installer';
+import { recognizeImage, resetOcrEngine } from './ocr/ppocr';
+
+/** 同步可读的就绪标记：TodoList 是在点击瞬间同步判断的 */
+let available = false;
 
 export function isLocalOcrAvailable(): boolean {
-  return false; // TODO(OCR 扩展)：检测模型是否已下载并校验通过
+  return available;
 }
 
-export async function recognizeTextLocally(_dataUrl: string): Promise<string> {
-  throw new Error('本地 OCR 扩展尚未安装');
+/** App 启动 / 扩展页操作后刷新状态（读 IndexedDB 很快，但仍然异步） */
+export async function refreshLocalOcrState(): Promise<boolean> {
+  const status = await ocrStatus();
+  available = status.installed;
+  if (!available) resetOcrEngine();
+  return available;
 }
+
+export async function recognizeTextLocally(dataUrl: string): Promise<string> {
+  if (!available) throw new Error('本地 OCR 扩展尚未安装');
+  return recognizeImage(dataUrl);
+}
+
+export async function uninstallLocalOcr(): Promise<void> {
+  available = false;
+  resetOcrEngine();
+  await removeOcr();
+}
+
+export { installOcr, ocrStatus, formatBytes, OCR_TOTAL_BYTES } from './ocr/installer';
+export type { OcrProgress, OcrStatus } from './ocr/installer';

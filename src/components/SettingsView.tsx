@@ -30,6 +30,7 @@ import {
   setClassReminderLeadMin,
 } from '../api/class-reminders';
 import AppearanceSettings from './AppearanceSettings';
+import OcrExtension from './OcrExtension';
 import LicenseModal from './LicenseModal';
 import { cardStyle, hintTextStyle, sectionTitleStyle } from './ui';
 import { resetVisionSupport } from '../api/vision-support';
@@ -738,6 +739,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
               <p style={{ ...hintTextStyle(isDark), marginTop: 8 }}>{t.settings.classReminderSilentHint}</p>
             </div>
           )}
+          <OcrExtension />
           <div>
             <h4 style={sectionTitleStyle}>{t.settings.dataMode}</h4>
             <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 12 }}>

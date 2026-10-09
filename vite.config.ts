@@ -14,10 +14,26 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  resolve: {
+    alias: {
+      // onnxruntime-web 默认入口自带 webgpu/wasm 二进制（28MB），直接进包太亏。
+      // 这里指向 "extern wasm" 变体：包里只有 JS 胶水，13.6MB 的 wasm 与两个
+      // ONNX 模型都由 App 内的「离线 OCR 扩展」按需下载（src/api/ocr/installer.ts）。
+      'onnxruntime-web/wasm': path.resolve(
+        __dirname,
+        'node_modules/onnxruntime-web/dist/ort.wasm.min.mjs',
+      ),
+    },
+  },
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        // onnxruntime 的 wasm（14MB）与模型一样属于按需资源，不进 SW 预缓存
+        globIgnores: ['**/ort-wasm-*.wasm'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+      },
       manifest: {
         name: 'ITDC 智能日历与待办',
         short_name: 'ITDC',
