@@ -174,21 +174,16 @@ const AppearanceSettings: React.FC = () => {
               />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13 }}>{t.settings.backgroundOpacity}</div>
+              <div style={{ fontSize: 12 }}>{t.settings.imageZoom}</div>
               <Slider
-                min={10}
-                max={100}
-                value={appearance.bgOpacity}
-                onChange={(value) => updateAppearance({ bgOpacity: value })}
+                min={1}
+                max={3}
+                step={0.05}
+                value={appearance.bgZoom}
+                onChange={(value) => updateAppearance({ bgZoom: value })}
               />
-              <div style={{ fontSize: 13 }}>{t.settings.backgroundBlur}</div>
-              <Slider
-                min={0}
-                max={20}
-                value={appearance.bgBlur}
-                onChange={(value) => updateAppearance({ bgBlur: value })}
-              />
-              <div style={{ fontSize: 13 }}>{t.settings.focusPoint}</div>
+              <div style={{ ...hintStyle, marginTop: 0 }}>{t.settings.imageZoomHint}</div>
+              <div style={{ fontSize: 13, marginTop: 8 }}>{t.settings.focusPoint}</div>
               <div style={{ ...hintStyle, marginTop: 0 }}>{t.settings.focusHint}</div>
               <div style={{ fontSize: 12 }}>{t.settings.focusHorizontal}</div>
               <Slider
@@ -204,15 +199,20 @@ const AppearanceSettings: React.FC = () => {
                 value={appearance.bgFocusY}
                 onChange={(value) => updateAppearance({ bgFocusY: value })}
               />
-              <div style={{ fontSize: 12 }}>{t.settings.imageZoom}</div>
+              <div style={{ fontSize: 13, marginTop: 8 }}>{t.settings.backgroundOpacity}</div>
               <Slider
-                min={1}
-                max={3}
-                step={0.05}
-                value={appearance.bgZoom}
-                onChange={(value) => updateAppearance({ bgZoom: value })}
+                min={10}
+                max={100}
+                value={appearance.bgOpacity}
+                onChange={(value) => updateAppearance({ bgOpacity: value })}
               />
-              <div style={{ ...hintStyle, marginTop: 0 }}>{t.settings.imageZoomHint}</div>
+              <div style={{ fontSize: 13 }}>{t.settings.backgroundBlur}</div>
+              <Slider
+                min={0}
+                max={20}
+                value={appearance.bgBlur}
+                onChange={(value) => updateAppearance({ bgBlur: value })}
+              />
               <div style={{ fontSize: 13, marginTop: 8 }}>{t.settings.widgetCropPreview}</div>
               <div style={{ display: 'flex', gap: 10 }}>
                 {[{ label: '4×2', ratio: '2 / 1' }, { label: '4×4', ratio: '1 / 1' }].map((preset) => (
