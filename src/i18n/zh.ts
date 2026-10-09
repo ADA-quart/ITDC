@@ -184,6 +184,7 @@ const zh = {
     nlPlaceholder: '自然语言添加，如：周五下午前交周报',
     nlButton: 'AI 添加',
     nlCreated: '已创建 {n} 条待办',
+    nlCreatedOffline: '已创建 {n} 条待办（离线解析，可编辑）',
     imageAdd: '从图片添加待办（AI 识别）',
     imageDone: '已识别文字，请核对后点「AI 添加」',
     imageEmpty: '图片里没有识别到文字',

@@ -10,6 +10,7 @@ import type { ModelListResult } from './llm-models';
 import { generateLLMScheduleLocally } from './local-llm-scheduler';
 import { parseNaturalLanguageTodosLocally, parseNaturalLanguageTodosFromImageLocally } from './local-nl-todo';
 import type { ParsedTodo } from '../../shared/nl-todo-prompt';
+import { parseOfflineTodos } from '../../shared/offline-todo-parser';
 
 const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
@@ -337,13 +338,22 @@ export const todoApi = {
     return replaced[0];
   },
 
-  // 自然语言录入需要 LLM：服务器模式交给服务器，本机模式由 App 直连大模型。
-  // 返回创建的所有待办——一段文字/一张截图里可能有多条任务。
-  async parseNL(text: string): Promise<Todo[]> {
-    if (!isSyncEnabled()) {
-      return createLocalTodosFromParsed(await parseNaturalLanguageTodosLocally(text));
+  // 自然语言录入优先走 LLM（服务器模式交给服务器，本机模式由 App 直连大模型）；
+  // LLM 不可用（没网/没配置/超时）时降级到离线规则解析——纯本地算法，
+  // 对作业列表这类结构化文本够用，保证完全离线也能出结构化待办。
+  async parseNL(text: string): Promise<{ todos: Todo[]; mode: 'ai' | 'offline' }> {
+    try {
+      if (!isSyncEnabled()) {
+        return { todos: await createLocalTodosFromParsed(await parseNaturalLanguageTodosLocally(text)), mode: 'ai' };
+      }
+      return { todos: await api.post<Todo[]>('/todos/nl', { text }).then(r => r.data), mode: 'ai' };
+    } catch (err) {
+      const parsed = parseOfflineTodos(text);
+      if (parsed.length > 0) {
+        return { todos: await createLocalTodosFromParsed(parsed), mode: 'offline' };
+      }
+      throw err;
     }
-    return api.post<Todo[]>('/todos/nl', { text }).then(r => r.data);
   },
 
   // 图片直发：多模态模型直接读图提取待办（无需本地 OCR）；服务器模式交给服务器

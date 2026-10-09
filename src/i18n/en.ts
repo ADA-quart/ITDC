@@ -186,6 +186,7 @@ const en: LocaleMessages = {
     nlPlaceholder: 'Add via natural language, e.g. finish the report by Friday afternoon',
     nlButton: 'AI Add',
     nlCreated: 'Created {n} todo(s)',
+    nlCreatedOffline: 'Created {n} todo(s) (offline parsing — editable)',
     imageAdd: 'Add via image (AI recognition)',
     imageDone: 'Text recognized — review it, then tap AI add',
     imageEmpty: 'No text recognized in the image',

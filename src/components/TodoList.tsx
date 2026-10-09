@@ -86,8 +86,9 @@ const TodoList: React.FC = () => {
     if (!text) return;
     setNlLoading(true);
     try {
-      const created = await todoApi.parseNL(text);
-      message.success(t.todo.nlCreated.replace('{n}', String(created.length)));
+      const result = await todoApi.parseNL(text);
+      const template = result.mode === 'offline' ? t.todo.nlCreatedOffline : t.todo.nlCreated;
+      message.success(template.replace('{n}', String(result.todos.length)));
       setNlText('');
       loadTodos();
     } catch (err: any) {
@@ -178,8 +179,9 @@ const TodoList: React.FC = () => {
           const text = (await recognizeTextLocally(dataUrl)).trim();
           if (text) {
             try {
-              const created = await todoApi.parseNL(text);
-              message.success(t.todo.nlCreated.replace('{n}', String(created.length)));
+              const result = await todoApi.parseNL(text);
+              const template = result.mode === 'offline' ? t.todo.nlCreatedOffline : t.todo.nlCreated;
+              message.success(template.replace('{n}', String(result.todos.length)));
               loadTodos();
               return;
             } catch (textErr: any) {
