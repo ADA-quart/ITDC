@@ -69,8 +69,21 @@ public class ITDCWidgetListService extends RemoteViewsService {
                 if (LIST_TODO.equals(listType)) {
                     parseTodos(root);
                 } else {
-                    parseSchedule(root, LIST_TOMORROW.equals(listType) ? "tomorrow" : "schedule",
-                            LIST_TOMORROW.equals(listType));
+                    boolean isTomorrow = LIST_TOMORROW.equals(listType);
+                    // 新结构：按「当前日期」从 days 里取当天条目；跨天后同一份快照自然换成新一天
+                    JSONObject day = ITDCWidgetProvider.findDay(root,
+                            isTomorrow ? ITDCWidgetProvider.tomorrowDateKey() : ITDCWidgetProvider.currentDateKey());
+                    JSONArray arr;
+                    if (day != null) {
+                        arr = day.optJSONArray("items");
+                    } else if (root.optJSONArray("days") == null) {
+                        // 旧结构快照（无 days）：退回扁平的 schedule / tomorrow 字段
+                        arr = root.optJSONArray(isTomorrow ? "tomorrow" : "schedule");
+                    } else {
+                        // 新结构但覆盖不到这一天：按空处理，避免显示过期数据
+                        arr = null;
+                    }
+                    parseScheduleArray(arr, isTomorrow);
                 }
             } catch (Exception e) {
                 Log.e(TAG, "onDataSetChanged failed", e);
@@ -81,12 +94,11 @@ public class ITDCWidgetListService extends RemoteViewsService {
         /**
          * 解析课表条目。
          *
-         * 已结束的课会在渲染时被过滤掉 —— 小组件每隔一段时间会自行刷新
-         * （updatePeriodMillis + App 推送），因此课不需要打开 App 就会自动消失。
+         * 已结束的课会在渲染时被过滤掉 —— 刷新由课程结束边界闹钟 / 解锁 /
+         * App 推送共同触发，因此课不需要打开 App 就会自动消失。
          * 明天那一栏不过滤（明天的课还没开始）。
          */
-        private void parseSchedule(JSONObject root, String key, boolean isTomorrow) throws Exception {
-            JSONArray arr = root.optJSONArray(key);
+        private void parseScheduleArray(JSONArray arr, boolean isTomorrow) throws Exception {
             if (arr == null || arr.length() == 0) {
                 emptyText = context.getString(
                         isTomorrow ? R.string.widget_no_class_tomorrow : R.string.widget_no_class_today);

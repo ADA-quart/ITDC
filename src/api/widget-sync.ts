@@ -49,7 +49,25 @@ export interface WidgetTodoItem {
   done: boolean;
 }
 
+/** 单天的安排（跨天渲染用：快照一次覆盖多天，小组件自行选取"今天"） */
+export interface WidgetDaySchedule {
+  /** YYYY-MM-DD */
+  date: string;
+  /** 短日期标签，如 10.9 */
+  label: string;
+  /** 教学周次文案，如 "5"（取不到时为空） */
+  weekLabel: string;
+  /** 当天第一节课所属日历名（无课为空） */
+  boardTitle: string;
+  items: WidgetScheduleItem[];
+}
+
 export interface WidgetSnapshot {
+  /**
+   * 今天起连续 7 天的安排：小组件按当前日期自行选取「今天 / 明天」，
+   * 跨天后即使 App 没有再次推送也能正确显示，直到覆盖范围用完。
+   */
+  days: WidgetDaySchedule[];
   /** 今天已排期（含事件与已排期待办），按开始时间升序 */
   schedule: WidgetScheduleItem[];
   /** 明天已排期，用于"明天没有课啦"这类提示 */
@@ -66,6 +84,9 @@ export interface WidgetSnapshot {
   day: string;
   updated_at: string;
 }
+
+/** 快照覆盖天数：7 天足够应付一周不打开 App 的情况 */
+const SNAPSHOT_DAYS = 7;
 
 function pad2(n: number): string {
   return String(n).padStart(2, '0');
@@ -218,7 +239,19 @@ function nearestClassCalendarName(
   return '';
 }
 
-/** 用本机数据构建小组件快照：今天 + 明天课表，以及待办清单 */
+/** 当天第一条有日历名的条目：跨天渲染时用它当顶栏标题 */
+function firstCalendarName(
+  items: WidgetScheduleItem[],
+  calendarNameById: Map<number, string>
+): string {
+  for (const item of items) {
+    const name = calendarNameById.get(item.calendarId);
+    if (name) return name;
+  }
+  return '';
+}
+
+/** 用本机数据构建小组件快照：今天起 7 天课表，以及待办清单 */
 export async function buildWidgetSnapshot(): Promise<WidgetSnapshot> {
   const todos = await offline.getCachedTodos();
   const events = await offline.getEventCache();
@@ -237,6 +270,26 @@ export async function buildWidgetSnapshot(): Promise<WidgetSnapshot> {
 
   const schedule = scheduleForDay(todayDate, visibleEvents, todos, calendarColorById);
   const tomorrowItems = scheduleForDay(tomorrowDate, visibleEvents, todos, calendarColorById);
+
+  // 未来 7 天逐天展开：小组件端按当前日期选取，跨天无需 App 重新推送
+  const days: WidgetDaySchedule[] = [];
+  for (let i = 0; i < SNAPSHOT_DAYS; i++) {
+    const day = new Date(todayDate);
+    day.setDate(day.getDate() + i);
+    const items = i === 0
+      ? schedule
+      : i === 1
+        ? tomorrowItems
+        : scheduleForDay(day, visibleEvents, todos, calendarColorById);
+    const week = teachingWeek(day);
+    days.push({
+      date: dayKey(day),
+      label: shortDate(day),
+      weekLabel: week > 0 ? `${week}` : '',
+      boardTitle: firstCalendarName(items, calendarNameById),
+      items,
+    });
+  }
 
   // 待办：未完成优先，今天刚完成的排在末尾（保留划线效果到当天结束），
   // 隔天不再展示。整体按四象限优先级 + 截止时间排序。
@@ -263,6 +316,7 @@ export async function buildWidgetSnapshot(): Promise<WidgetSnapshot> {
   const week = teachingWeek(now);
 
   return {
+    days,
     schedule,
     tomorrow: tomorrowItems,
     todayLabel: shortDate(now),

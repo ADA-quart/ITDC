@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as offline from './api/offline';
-import { todoApi, calendarApi, probeSync } from './api/client';
+import { todoApi, calendarApi, probeSync, isSyncEnabled } from './api/client';
 import { ConfigProvider, Layout, Menu, theme as antTheme, Button } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import enUS from 'antd/locale/en_US';
@@ -61,10 +61,12 @@ const App: React.FC = () => {
   useEffect(() => {
     let unsub: any;
     const setOfflineState = (online: boolean) => {
-      setIsOffline(!online);
+      // 仅本机模式：断网是正常状态（本来就不连服务器），不显示离线横幅。
+      // 这条横幅只在「跨设备同步」开启、服务器不可达时才有意义。
+      setIsOffline(!online && isSyncEnabled());
     };
     unsub = offline.onOnlineChange(setOfflineState);
-    const handleOfflineMode = (e: any) => setIsOffline(e.detail?.mode === true);
+    const handleOfflineMode = (e: any) => setIsOffline(e.detail?.mode === true && isSyncEnabled());
     window.addEventListener('todo-offline-mode', handleOfflineMode);
     return () => { if (unsub) unsub(); window.removeEventListener('todo-offline-mode', handleOfflineMode); };
   }, []);

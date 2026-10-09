@@ -16,6 +16,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.RemoteViews;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.Calendar;
@@ -35,15 +36,15 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
 
     private static final String TAG = "ITDCWidget";
     /**
-     * 兜底刷新间隔。
+     * 刷新排程：对齐关键边界 + 兜底。
      *
-     * 小组件内容只在「今天 / 明天」范围内变化，真正需要定期刷新的场景只有
-     * 已结束的课要从列表消失、以及跨天。App 推快照、日期时间变化广播、App 回前台
-     * 都会刷新，所以定时只是兜底 —— 以前 30 分钟一次且用 setAndAllowWhileIdle
-     * 穿透 Doze，等于每小时把手机从深度休眠叫醒两次，是实打实的耗电。
-     * 现在放宽到 2 小时，并且不再要求唤醒。
+     * 主路径是「边界对齐」——今天每节课的结束时刻、次日 00:02 跨天——见
+     * nextRefreshTime()；这里只留一个最长兜底间隔，防止某次闹钟没投递导致链断掉。
+     * 全部不带 WAKEUP：设备睡着时不叫醒它，亮屏/解锁会立即补发（另有解锁广播直接刷新）。
      */
     private static final long REFRESH_INTERVAL_MS = 2 * 60 * 60 * 1000L;
+    /** setWindow 的窗口：醒着时最多晚 10 分钟投递；API 31+ 要求窗口不小于 10 分钟 */
+    private static final long REFRESH_WINDOW_MS = 10 * 60 * 1000L;
     private static final String PREFS = "widget_prefs";
 
     public static final String MODE_LOCAL = "local";
@@ -95,28 +96,67 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         try {
             AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
             ComponentName comp = new ComponentName(context, ITDCWidgetProvider.class.getName());
-            for (int id : awm.getAppWidgetIds(comp)) refreshWidget(context, id);
+            for (int id : awm.getAppWidgetIds(comp)) {
+                // 先让列表数据源重算（已结束的课要消失），再重绘外壳
+                awm.notifyAppWidgetViewDataChanged(id, R.id.widget_today_list);
+                awm.notifyAppWidgetViewDataChanged(id, R.id.widget_tomorrow_list);
+                awm.notifyAppWidgetViewDataChanged(id, R.id.widget_todo_list);
+                refreshWidget(context, id);
+            }
         } catch (Exception e) { Log.e(TAG, "refreshAll failed", e); }
-        // updatePeriodMillis 已关掉（见 app_widget_itdc.xml），靠这条链维持下一次兜底刷新
+        // 每次刷新后重排下一次：对齐下一个课程边界 / 跨天 / 兜底
         scheduleRefresh(context);
     }
 
     private static void scheduleRefresh(Context context) {
         try {
-            // Android 15+ 起 setInexactRepeating 周期受限、Doze 下会被跳过，
-            // 澎湃 OS 还会冻结后台进程。因此定时仅作兜底，
-            // 主要刷新时机是：App 推送快照、系统 updatePeriodMillis、App 回前台。
             AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
             Intent it = new Intent(context, ITDCWidgetProvider.class);
             it.setAction("io.github.adaquart.itdc.WIDGET_REFRESH");
             int flags = PendingIntent.FLAG_UPDATE_CURRENT;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
             PendingIntent pi = PendingIntent.getBroadcast(context, 0, it, flags);
-            long trigger = System.currentTimeMillis() + REFRESH_INTERVAL_MS;
-            // 不带 WAKEUP 的 RTC：设备睡着时不叫醒它，等下次自然亮屏（拿起手机、解锁）
-            // 时补一次刷新就够 —— 小组件是"看的时候要新"，不值得为它耗电
-            am.set(AlarmManager.RTC, trigger, pi);
+            long trigger = nextRefreshTime(context, System.currentTimeMillis());
+            // 不带 WAKEUP 的 RTC + 窗口：设备睡着时不叫醒，亮屏时过期闹钟会立即补发；
+            // 醒着时在窗口内投递。setWindow 不需要精确闹钟权限。
+            am.setWindow(AlarmManager.RTC, trigger, REFRESH_WINDOW_MS, pi);
         } catch (Exception e) { Log.e(TAG, "scheduleRefresh failed", e); }
+    }
+
+    /**
+     * 下一次刷新的时刻：对齐关键边界而不是固定周期，候选取最早的一个。
+     *
+     *  - 今天每节课的结束时刻：下课即从列表消失；
+     *  - 次日 00:02：跨天后「今天 / 明天」换成新一天（快照覆盖多天，无需 App 推送）；
+     *  - REFRESH_INTERVAL_MS 兜底：万一某次没投递，链路仍能在 2 小时内恢复。
+     */
+    private static long nextRefreshTime(Context context, long now) {
+        long next = now + REFRESH_INTERVAL_MS;
+        try {
+            long midnight = dayStart(now) + 24 * 60 * 60 * 1000L + 2 * 60 * 1000L;
+            if (midnight > now && midnight < next) next = midnight;
+
+            String snapshot = getLocalSnapshot(context);
+            if (TextUtils.isEmpty(snapshot)) return next;
+            JSONObject root = new JSONObject(snapshot);
+            JSONObject today = findDay(root, currentDateKey());
+            JSONArray items = today != null ? today.optJSONArray("items") : root.optJSONArray("schedule");
+            if (items == null) return next;
+            String nowHm = hm(now);
+            for (int i = 0; i < items.length(); i++) {
+                JSONObject o = items.optJSONObject(i);
+                if (o == null) continue;
+                String end = o.optString("end", "");
+                if (!end.matches("\\d{2}:\\d{2}")) continue;
+                // HH:mm 的字典序即时间序；只挑还没到的结束时刻
+                if (end.compareTo(nowHm) <= 0) continue;
+                long t = dayStart(now) + hmToMillis(end) + 30 * 1000L;
+                if (t > now && t < next) next = t;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "nextRefreshTime failed", e);
+        }
+        return next;
     }
 
     /** 刷新入口：本机模式用快照，同步模式拉服务器（失败回退快照） */
@@ -128,7 +168,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
                 updateHint(context, appWidgetId, context.getString(R.string.widget_local_no_data));
                 return;
             }
-            if (!isSnapshotForToday(snapshot)) {
+            if (!isSnapshotUsable(snapshot)) {
                 updateHint(context, appWidgetId, context.getString(R.string.widget_local_stale));
                 return;
             }
@@ -137,7 +177,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         }
 
         // 同步模式：先用快照立即出图，避免等待网络期间桌面空白
-        if (!TextUtils.isEmpty(snapshot) && isSnapshotForToday(snapshot)) {
+        if (!TextUtils.isEmpty(snapshot) && isSnapshotUsable(snapshot)) {
             renderSnapshot(context, appWidgetId, snapshot);
         }
 
@@ -172,10 +212,17 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             JSONObject root = null;
             try {
                 root = new JSONObject(json);
-                boardTitle = root.optString("boardTitle", "");
-                String todayLabel = root.optString("todayLabel", "");
-                String tomorrowLabel = root.optString("tomorrowLabel", "");
-                String week = root.optString("weekLabel", "");
+                // 新结构优先：按「当前日期」选当天，跨天后无需 App 重新推送
+                JSONObject today = findDay(root, currentDateKey());
+                JSONObject tomorrow = findDay(root, tomorrowDateKey());
+                String todayLabel = today != null ? today.optString("label", "") : root.optString("todayLabel", "");
+                String tomorrowLabel = tomorrow != null ? tomorrow.optString("label", "") : root.optString("tomorrowLabel", "");
+                String week = today != null ? today.optString("weekLabel", "") : root.optString("weekLabel", "");
+                boardTitle = today != null ? today.optString("boardTitle", "") : root.optString("boardTitle", "");
+                if (TextUtils.isEmpty(boardTitle) && tomorrow != null) {
+                    boardTitle = tomorrow.optString("boardTitle", "");
+                }
+                if (TextUtils.isEmpty(boardTitle)) boardTitle = root.optString("boardTitle", "");
 
                 // 顶栏只放「第 N 周」：日期已经写在「今天 10.7 / 明天 10.8」的分栏标题里，
                 // 同一日期在两处出现没有意义。拿不到周次时再退回显示日期。
@@ -391,14 +438,79 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             JSONObject obj = new JSONObject(snapshotJson);
             String day = obj.optString("day", "");
             if (day.isEmpty()) return true;
-            Calendar c = Calendar.getInstance();
-            String today = String.format(Locale.US, "%04d-%02d-%02d",
-                    c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH));
-            return today.equals(day);
+            return currentDateKey().equals(day);
         } catch (Exception e) {
             Log.e(TAG, "isSnapshotForToday failed", e);
             return true;
         }
+    }
+
+    /**
+     * 快照是否还能用于渲染：新结构看 days 是否覆盖今天（一次覆盖 7 天，
+     * 跨天不用 App 重推）；旧结构退回 day == 今天 的判断。
+     */
+    private static boolean isSnapshotUsable(String snapshotJson) {
+        try {
+            JSONObject obj = new JSONObject(snapshotJson);
+            if (obj.optJSONArray("days") != null) {
+                return findDay(obj, currentDateKey()) != null;
+            }
+            return isSnapshotForToday(snapshotJson);
+        } catch (Exception e) {
+            Log.e(TAG, "isSnapshotUsable failed", e);
+            return true;
+        }
+    }
+
+    /** 新快照：从 days 数组里取指定日期（YYYY-MM-DD）那一天，找不到返回 null */
+    static JSONObject findDay(JSONObject root, String dateKey) {
+        JSONArray days = root.optJSONArray("days");
+        if (days == null) return null;
+        for (int i = 0; i < days.length(); i++) {
+            JSONObject d = days.optJSONObject(i);
+            if (d != null && dateKey.equals(d.optString("date", ""))) return d;
+        }
+        return null;
+    }
+
+    /** 当前本地日期 YYYY-MM-DD（供数据源按同一天选取条目） */
+    static String currentDateKey() {
+        return dateKey(Calendar.getInstance());
+    }
+
+    /** 明天的 YYYY-MM-DD */
+    static String tomorrowDateKey() {
+        Calendar c = Calendar.getInstance();
+        c.add(Calendar.DAY_OF_YEAR, 1);
+        return dateKey(c);
+    }
+
+    private static String dateKey(Calendar c) {
+        return String.format(Locale.US, "%04d-%02d-%02d",
+                c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH));
+    }
+
+    /** 某时刻的当天 00:00 */
+    private static long dayStart(long millis) {
+        Calendar c = Calendar.getInstance();
+        c.setTimeInMillis(millis);
+        c.set(Calendar.HOUR_OF_DAY, 0);
+        c.set(Calendar.MINUTE, 0);
+        c.set(Calendar.SECOND, 0);
+        c.set(Calendar.MILLISECOND, 0);
+        return c.getTimeInMillis();
+    }
+
+    /** 某时刻的 HH:mm */
+    private static String hm(long millis) {
+        Calendar c = Calendar.getInstance();
+        c.setTimeInMillis(millis);
+        return String.format(Locale.US, "%02d:%02d", c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE));
+    }
+
+    /** HH:mm → 从 0 点起的毫秒数 */
+    private static long hmToMillis(String hm) {
+        return (Long.parseLong(hm.substring(0, 2)) * 60 + Long.parseLong(hm.substring(3, 5))) * 60_000L;
     }
 
     // ---------- 持久化 ----------
