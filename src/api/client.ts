@@ -352,7 +352,10 @@ export const todoApi = {
       if (parsed.length > 0) {
         return { todos: await createLocalTodosFromParsed(parsed), mode: 'offline' };
       }
-      throw err;
+      // 离线规则也没解析出结构（比如一行没有日期/时间的文字）：报"规则没识别出来"
+      // 而不是把"没配置大模型"抛给用户——那个提示会让人以为本地算法压根没跑
+      const detail = err instanceof Error ? err.message : String(err);
+      throw new Error(`本地规则没能从这段文字里拆出待办（${detail}）`);
     }
   },
 

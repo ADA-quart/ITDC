@@ -163,6 +163,7 @@ const zh = {
     // 空状态不用"暂无待办"这种系统腔，用应用名的出处原文
     noTodos: '苟日新，日日新，又日新',
     emptyHint: '点「新建待办」开始，或者把一张截图丢进左边的图片按钮',
+    nlCreatedLines: '已按行创建 {n} 条待办（纯本地规则，可编辑）',
     deleteTodo: '删除待办',
     confirmDelete: '确定要删除这个待办吗？',
     delete: '删除',

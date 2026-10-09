@@ -164,6 +164,7 @@ const en: LocaleMessages = {
     remainingDays: '{n} days left',
     noTodos: 'Renew yourself, day after day',
     emptyHint: 'Start with “New todo”, or drop a screenshot into the image button',
+    nlCreatedLines: 'Created {n} todos, one per line (local rules only, editable)',
     deleteTodo: 'Delete Todo',
     confirmDelete: 'Are you sure to delete this todo?',
     delete: 'Delete',

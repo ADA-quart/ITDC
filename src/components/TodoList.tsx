@@ -107,9 +107,30 @@ const TodoList: React.FC = () => {
 
   /** AI 不可用时的降级：把文字直接存成一条待办（标题取第一行、全文进描述） */
   const offerSaveRaw = (text: string, detail: string) => {
+    // 把识别到的原文摆给用户看：否则没人知道"本地 OCR 到底认出来没有"
+    const preview = text.length > 300 ? `${text.slice(0, 300)}…` : text;
     Modal.confirm({
       title: t.todo.saveRawTitle,
-      content: `${detail}\n\n${t.todo.saveRawHint}`,
+      width: 460,
+      content: (
+        <div style={{ fontSize: 13 }}>
+          <div style={{ marginBottom: 8 }}>{detail}</div>
+          <div
+            style={{
+              maxHeight: 160,
+              overflow: 'auto',
+              whiteSpace: 'pre-wrap',
+              background: isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.04)',
+              borderRadius: 8,
+              padding: '8px 10px',
+              fontFamily: 'monospace',
+            }}
+          >
+            {preview}
+          </div>
+          <div style={{ marginTop: 8, color: isDark ? '#a6a6a6' : '#666' }}>{t.todo.saveRawHint}</div>
+        </div>
+      ),
       okText: t.todo.saveRawOk,
       cancelText: t.todo.cancel,
       onOk: async () => {
@@ -121,6 +142,29 @@ const TodoList: React.FC = () => {
         loadTodos();
       },
     });
+  };
+
+  /**
+   * 纯算法兜底：规则解析没识别出结构时，按「每行一条」建待办。
+   *
+   * 截图里最常见的就是一行一件事（作业清单、通知列表），这种不需要大模型也不需要
+   * 日期识别——直接把行变成待办就是"纯算法"该做的事，比只弹一个"存原文"有用得多。
+   */
+  const createTodosFromLines = async (text: string): Promise<number> => {
+    const lines = text
+      .split('\n')
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 2 && s.length <= 200)
+      .slice(0, 20);
+    if (lines.length === 0) return 0;
+    for (const line of lines) {
+      await todoApi.create({
+        title: line.length > 40 ? `${line.slice(0, 40)}…` : line,
+        description: text,
+        estimated_minutes: 30,
+      });
+    }
+    return lines.length;
   };
 
   /**
@@ -185,6 +229,14 @@ const TodoList: React.FC = () => {
               loadTodos();
               return;
             } catch (textErr: any) {
+              // 纯算法兜底：规则没拆出结构时按「每行一条」建待办，
+              // 截图/清单最常见的形态就是这样，不需要大模型参与
+              const lineCount = await createTodosFromLines(text);
+              if (lineCount > 0) {
+                message.success(t.todo.nlCreatedLines.replace('{n}', String(lineCount)));
+                loadTodos();
+                return;
+              }
               const detail = textErr?.response?.data?.error || textErr.message || t.todo.loadFailed;
               const friendly = /failed to fetch|network ?error|load failed/i.test(String(detail))
                 ? t.todo.nlNetworkFail
