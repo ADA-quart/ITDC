@@ -65,6 +65,10 @@ final class WidgetAppearance {
     private static final int PANEL_LIGHT = 0xFFFFFFFF;
     private static final int PANEL_DARK = 0xFF1C1C20;
 
+    /** 缩放范围：1 = 铺满裁切，> 1 放大取局部，< 1 缩小（四周用模糊放大版打底） */
+    private static final float MIN_ZOOM = 0.5f;
+    private static final float MAX_ZOOM = 3f;
+
     private static final int TEXT_PRIMARY_LIGHT = 0xFF1A1A1A;
     private static final int TEXT_PRIMARY_DARK = 0xFFECEFF4;
     private static final int TEXT_SECONDARY_LIGHT = 0xFF6B6B6B;
@@ -90,6 +94,12 @@ final class WidgetAppearance {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
+    /** 缩放统一钳位：把越界、NaN 都收进合法区间，默认 1 倍 */
+    private static float clampZoom(float zoom) {
+        if (Float.isNaN(zoom) || Float.isInfinite(zoom)) return 1f;
+        return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+    }
+
     // ---------- 写入 ----------
 
     /** App 下发外观：colors 立即生效；image 只在换图时传，缺省表示沿用已存的文件 */
@@ -106,7 +116,7 @@ final class WidgetAppearance {
         editor.putBoolean(KEY_HAS_IMAGE, hasImage && imageFile(context).exists());
         editor.putInt(KEY_FOCUS_X, Math.max(0, Math.min(100, focusX)));
         editor.putInt(KEY_FOCUS_Y, Math.max(0, Math.min(100, focusY)));
-        editor.putFloat(KEY_ZOOM, Math.max(1f, Math.min(3f, zoom)));
+        editor.putFloat(KEY_ZOOM, clampZoom(zoom));
         editor.apply();
 
         if (!TextUtils.isEmpty(imageDataUrl)) {
@@ -216,11 +226,10 @@ final class WidgetAppearance {
         try {
             photo = decodePhoto(context, CROP_MAX_SIDE, CROP_MAX_SIDE, false);
             if (photo == null) return false;
-            Rect rect = cropRect(photo, 1, 1,
+            cropped = squareCropBitmap(photo,
                     prefs(context).getInt(KEY_FOCUS_X, 50),
                     prefs(context).getInt(KEY_FOCUS_Y, 50),
                     prefs(context).getFloat(KEY_ZOOM, 1f));
-            cropped = Bitmap.createBitmap(photo, rect.left, rect.top, rect.width(), rect.height());
             if (cropped.getWidth() > CROP_MAX_SIDE) {
                 Bitmap scaled = Bitmap.createScaledBitmap(cropped, CROP_MAX_SIDE, CROP_MAX_SIDE, true);
                 if (scaled != cropped) cropped.recycle();
@@ -370,28 +379,88 @@ final class WidgetAppearance {
             if (bw <= 0 || bh <= 0) return photo;
             int focusX = prefs(context).getInt(KEY_FOCUS_X, 50);
             int focusY = prefs(context).getInt(KEY_FOCUS_Y, 50);
-            float zoom = prefs(context).getFloat(KEY_ZOOM, 1f);
-            float z = Math.max(1f, Math.min(3f, zoom));
-            int side = Math.max(1, Math.min(Math.min(bw, bh), Math.round(Math.min(bw, bh) / z)));
-            int cx = Math.round(bw * Math.max(0, Math.min(100, focusX)) / 100f);
-            int cy = Math.round(bh * Math.max(0, Math.min(100, focusY)) / 100f);
-            int left = Math.max(0, Math.min(bw - side, cx - side / 2));
-            int top = Math.max(0, Math.min(bh - side, cy - side / 2));
+            float z = clampZoom(prefs(context).getFloat(KEY_ZOOM, 1f));
+            Bitmap square = squareCropBitmap(photo, focusX, focusY, z);
+            if (square != photo) photo.recycle();
+            int side = Math.min(square.getWidth(), square.getHeight());
             // 裁切结果直接进 RemoteViews，必须压到 Binder 事务安全范围内，
             // 否则部分桌面会抛 TransactionTooLargeException 让整个小组件变空白。
             int delivery = Math.min(side, (int) Math.floor(Math.sqrt(MAX_CROP_PIXELS)));
-            Bitmap cropped = Bitmap.createBitmap(photo, left, top, side, side);
-            if (cropped != photo) photo.recycle();
             if (delivery < side) {
-                Bitmap scaled = Bitmap.createScaledBitmap(cropped, delivery, delivery, true);
-                if (scaled != cropped) cropped.recycle();
+                Bitmap scaled = Bitmap.createScaledBitmap(square, delivery, delivery, true);
+                if (scaled != square) square.recycle();
                 return scaled;
             }
-            return cropped;
+            return square;
         } catch (Exception e) {
             Log.e(TAG, "croppedPhotoBitmap failed", e);
-            return photo;
+            return photo != null && !photo.isRecycled() ? photo : null;
         }
+    }
+
+    /**
+     * 方形裁切结果（小组件背景用的「头像式」裁切）：zoom ≥ 1 按焦点取一块正方形；
+     * zoom < 1 时整图缩小、四周铺同图的模糊放大版，不会露出透明边。
+     * 返回值由调用方负责回收，入参 photo 不受影响。
+     */
+    private static Bitmap squareCropBitmap(Bitmap photo, int focusX, int focusY, float zoom) {
+        float z = clampZoom(zoom);
+        Rect rect = cropRect(photo, 1, 1, focusX, focusY, Math.max(1f, z));
+        Bitmap cropped = Bitmap.createBitmap(photo, rect.left, rect.top, rect.width(), rect.height());
+        if (z >= 1f) return cropped;
+        Bitmap composed = composeShrunk(cropped, z, focusX, focusY);
+        if (composed != cropped) cropped.recycle();
+        return composed;
+    }
+
+    /**
+     * 缩小效果：先铺一层同图的模糊放大版打底，再把清晰图按 zoom 缩到中间。
+     * 锚点与 App 侧 CSS 的 transform-origin（焦点百分比）保持一致。
+     */
+    private static Bitmap composeShrunk(Bitmap square, float z, int focusX, int focusY) {
+        int width = square.getWidth();
+        int height = square.getHeight();
+        if (width <= 0 || height <= 0) return square;
+
+        Bitmap out = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(out);
+        Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
+
+        Bitmap blurred = blurDownscale(square);
+        canvas.drawBitmap(blurred, null, new RectF(0, 0, width, height), paint);
+        if (blurred != square) blurred.recycle();
+
+        float fx = Math.max(0, Math.min(100, focusX)) / 100f;
+        float fy = Math.max(0, Math.min(100, focusY)) / 100f;
+        float left = width * fx * (1f - z);
+        float top = height * fy * (1f - z);
+        canvas.drawBitmap(
+                square,
+                null,
+                new RectF(left, top, left + width * z, top + height * z),
+                paint);
+        return out;
+    }
+
+    /**
+     * 廉价模糊：连续 2 倍降采样到约 1/16 再插值放大，
+     * 等效一次大半径高斯但不引入 RenderScript / 三方依赖。
+     */
+    private static Bitmap blurDownscale(Bitmap src) {
+        final int target = 16;
+        Bitmap current = src;
+        int width = src.getWidth();
+        int height = src.getHeight();
+        while (Math.max(width, height) > target * 2) {
+            int nextWidth = Math.max(1, width / 2);
+            int nextHeight = Math.max(1, height / 2);
+            Bitmap next = Bitmap.createScaledBitmap(current, nextWidth, nextHeight, true);
+            if (current != src) current.recycle();
+            current = next;
+            width = nextWidth;
+            height = nextHeight;
+        }
+        return current;
     }
 
     private static int withAlpha(int color, int alpha) {
@@ -434,12 +503,24 @@ final class WidgetAppearance {
             if (photo != null) {
                 Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
                 paint.setAlpha(alpha);
-                // 头像式裁切：边框固定，图片按焦点 + 缩放选择显示区域，始终铺满
-                canvas.drawBitmap(
-                        photo,
-                        cropRect(photo, width, height, focusX, focusY, zoom),
-                        new RectF(0, 0, width, height),
-                        paint);
+                // 头像式裁切：边框固定，图片按焦点 + 缩放选择显示区域
+                float z = clampZoom(zoom);
+                Rect src = cropRect(photo, width, height, focusX, focusY, Math.max(1f, z));
+                float fx = Math.max(0, Math.min(100, focusX)) / 100f;
+                float fy = Math.max(0, Math.min(100, focusY)) / 100f;
+                float left = width * fx * (1f - z);
+                float top = height * fy * (1f - z);
+                RectF dst = new RectF(left, top, left + width * z, top + height * z);
+                if (z < 1f) {
+                    // 缩小：四周先铺一层同图模糊放大版，不会露出透明边
+                    Bitmap tiny = Bitmap.createBitmap(
+                            Math.max(2, width / 16), Math.max(2, height / 16), Bitmap.Config.ARGB_8888);
+                    new Canvas(tiny).drawBitmap(
+                            photo, src, new RectF(0, 0, tiny.getWidth(), tiny.getHeight()), paint);
+                    canvas.drawBitmap(tiny, null, new RectF(0, 0, width, height), paint);
+                    tiny.recycle();
+                }
+                canvas.drawBitmap(photo, src, dst, paint);
                 photo.recycle();
             } else {
                 // 无图或解码失败：退回纯色面板，至少不会变成透明条
@@ -453,7 +534,8 @@ final class WidgetAppearance {
     }
 
     /**
-     * 照片按目标宽高做裁切；focusX/focusY（0-100）定位置，zoom（1-3）放大取局部。
+     * 照片按目标宽高做裁切；focusX/focusY（0-100）定位置，zoom（≥1）放大取局部。
+     * 缩小（&lt;1）的画面由 {@link #composeShrunk} 处理，这里只负责「放大取局部」。
      *
      * 关键：放大时裁切框的宽和高必须同比缩小，保持与目标区域相同的宽高比，
      * 否则画到小组件里会被拉伸（上一版只缩了一个方向，脸就被横向拉宽了）。
@@ -463,7 +545,7 @@ final class WidgetAppearance {
         int bh = photo.getHeight();
         if (bw <= 0 || bh <= 0) return new Rect(0, 0, 1, 1);
 
-        float z = Math.max(1f, Math.min(3f, zoom));
+        float z = Math.max(1f, Math.min(MAX_ZOOM, Float.isNaN(zoom) ? 1f : zoom));
         float targetAspect = (float) width / height;
         float baseWidth;
         float baseHeight;

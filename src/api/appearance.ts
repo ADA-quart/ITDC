@@ -9,6 +9,13 @@ import { kvGet, kvSet } from './offline';
 /** 小组件明暗：auto 跟随系统，light/dark 由用户指定 */
 export type WidgetScheme = 'auto' | 'light' | 'dark';
 
+/**
+ * 背景图缩放范围：1 倍 = cover 铺满（头像式裁切基准），
+ * 大于 1 放大取局部，小于 1 是缩小（四周由同图模糊放大版打底，不会露白）。
+ */
+export const MIN_BG_ZOOM = 0.5;
+export const MAX_BG_ZOOM = 3;
+
 export interface AppearanceSettings {
   /** 应用主题色：#RRGGBB */
   accent: string;
@@ -21,7 +28,7 @@ export interface AppearanceSettings {
   /** 背景图焦点（0-100，50 为居中）：cover 时决定保留哪一边 */
   bgFocusX: number;
   bgFocusY: number;
-  /** 图片缩放（1-3 倍，头像式裁切：区域固定，放大图片选局部） */
+  /** 图片缩放（0.5-3 倍；1 倍为 cover 铺满，>1 放大取局部，<1 缩小并露出模糊打底） */
   bgZoom: number;
   /** 有背景图时，日历/卡片等界面的透明度 0-100（0 纯透明，100 不透明） */
   uiOpacity: number;
@@ -102,7 +109,10 @@ export function sanitizeAppearance(raw: unknown): AppearanceSettings {
     bgBlur: clamp(o.bgBlur, 0, 20, DEFAULT_APPEARANCE.bgBlur),
     bgFocusX: clamp(o.bgFocusX, 0, 100, DEFAULT_APPEARANCE.bgFocusX),
     bgFocusY: clamp(o.bgFocusY, 0, 100, DEFAULT_APPEARANCE.bgFocusY),
-    bgZoom: Math.max(1, Math.min(3, Number.isFinite(Number(o.bgZoom)) ? Number(o.bgZoom) : 1)),
+    bgZoom: Math.max(
+      MIN_BG_ZOOM,
+      Math.min(MAX_BG_ZOOM, Number.isFinite(Number(o.bgZoom)) ? Number(o.bgZoom) : 1),
+    ),
     uiOpacity: clamp(o.uiOpacity, 0, 100, DEFAULT_APPEARANCE.uiOpacity),
     uiBlur: clamp(o.uiBlur, 0, 20, DEFAULT_APPEARANCE.uiBlur),
     widgetFollowAccent: o.widgetFollowAccent !== false,

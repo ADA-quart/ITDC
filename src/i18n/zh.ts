@@ -408,7 +408,7 @@ const zh = {
     focusHorizontal: '左右位置',
     focusVertical: '上下位置',
     imageZoom: '图片缩放',
-    imageZoomHint: '小组件边框固定，放大图片后配合「左右/上下位置」选择要显示的部分，像头像裁剪一样；App 背景同步缩放',
+    imageZoomHint: '1 倍为铺满裁切；放大（1 倍以上）像头像裁剪一样取局部，缩小（1 倍以下）整图变小、四周用同图的模糊版填充；配合「左右/上下位置」选位置，App 背景与小组件同步',
     widgetCropPreview: '小组件裁切预览',
     widgetCropHint: '分别按 4×2 和 4×4 两种尺寸预览；实际效果以桌面小组件为准',
     uiOpacity: '日历透明度',

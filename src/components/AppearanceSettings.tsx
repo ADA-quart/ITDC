@@ -8,10 +8,39 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import { secondaryTextColor, sectionTitleStyle } from './ui';
 import {
   ACCENT_PRESETS,
+  MAX_BG_ZOOM,
+  MIN_BG_ZOOM,
   compressImageToDataUrl,
   pushWidgetAppearance,
   resetPushedImageCache,
 } from '../api/appearance';
+
+/**
+ * 预览用的打底层：缩放小于 1 倍时，App 背景与小组件都会在图片四周
+ * 铺一层模糊放大的同图，预览里也要有，否则看不出真实效果（还会露白底）。
+ */
+const PreviewBackdrop: React.FC<{
+  image: string;
+  focusX: number;
+  focusY: number;
+  zoom: number;
+}> = ({ image, focusX, focusY, zoom }) =>
+  zoom < 1 ? (
+    <div
+      aria-hidden
+      style={{
+        position: 'absolute',
+        inset: 0,
+        backgroundImage: `url(${image})`,
+        backgroundSize: 'cover',
+        backgroundPosition: `${focusX}% ${focusY}%`,
+        backgroundRepeat: 'no-repeat',
+        filter: 'blur(16px)',
+        transform: 'scale(1.25)',
+        pointerEvents: 'none',
+      }}
+    />
+  ) : null;
 
 /**
  * 外观设置页：主题色、应用背景图、桌面小组件配色。
@@ -27,6 +56,8 @@ const AppearanceSettings: React.FC = () => {
   const [applying, setApplying] = useState(false);
   const dragRef = useRef<{ x: number; y: number; fx: number; fy: number } | null>(null);
   const clampFocus = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
+  // 取成局部常量，闭包（.map 等）里也能拿到非空类型
+  const bgImage = appearance.bgImage;
 
   const hintStyle: React.CSSProperties = {
     fontSize: 12,
@@ -110,7 +141,7 @@ const AppearanceSettings: React.FC = () => {
               {appearance.bgImage ? t.settings.replaceImage : t.settings.uploadImage}
             </Button>
           </Upload>
-          {appearance.bgImage && (
+          {bgImage && (
             <Button
               danger
               icon={<DeleteOutlined />}
@@ -121,7 +152,7 @@ const AppearanceSettings: React.FC = () => {
           )}
         </Space>
 
-        {appearance.bgImage && (
+        {bgImage && (
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
             <div
               onPointerDown={(e) => {
@@ -158,6 +189,12 @@ const AppearanceSettings: React.FC = () => {
                 touchAction: 'none',
               }}
             >
+              <PreviewBackdrop
+                image={bgImage}
+                focusX={appearance.bgFocusX}
+                focusY={appearance.bgFocusY}
+                zoom={appearance.bgZoom}
+              />
               <div
                 aria-hidden
                 style={{
@@ -176,8 +213,8 @@ const AppearanceSettings: React.FC = () => {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12 }}>{t.settings.imageZoom}</div>
               <Slider
-                min={1}
-                max={3}
+                min={MIN_BG_ZOOM}
+                max={MAX_BG_ZOOM}
                 step={0.05}
                 value={appearance.bgZoom}
                 onChange={(value) => updateAppearance({ bgZoom: value })}
@@ -226,6 +263,12 @@ const AppearanceSettings: React.FC = () => {
                         border: `1px solid ${isDark ? '#303030' : '#e8e8e8'}`,
                       }}
                     >
+                      <PreviewBackdrop
+                        image={bgImage}
+                        focusX={appearance.bgFocusX}
+                        focusY={appearance.bgFocusY}
+                        zoom={appearance.bgZoom}
+                      />
                       <div
                         aria-hidden
                         style={{

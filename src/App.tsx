@@ -249,25 +249,49 @@ const App: React.FC = () => {
     document.body.style.background = isDark ? '#141414' : '#f5f5f5';
   }, [isDark]);
 
+  // 缩小到 1 倍以下时图片盖不满屏幕，先在底层铺一张同图的模糊放大版打底，
+  // 既不会露出主题底色，看起来也像系统壁纸的「模糊填充」
+  const bgShrunk = appearance.bgZoom < 1;
   const backgroundLayer = hasBgImage ? (
-    <div
-      aria-hidden
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: -1,
-        pointerEvents: 'none',
-        backgroundImage: `url(${appearance.bgImage})`,
-        backgroundSize: 'cover',
-        backgroundPosition: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
-        backgroundRepeat: 'no-repeat',
-        opacity: Math.max(0.1, appearance.bgOpacity / 100),
-        // 模糊会在边缘采样到透明，放大一点盖住四角暗边
-        filter: appearance.bgBlur ? `blur(${appearance.bgBlur}px)` : undefined,
-        transform: `scale(${(appearance.bgBlur ? 1.08 : 1) * appearance.bgZoom})`,
-        transformOrigin: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
-      }}
-    />
+    <>
+      {bgShrunk && (
+        <div
+          aria-hidden
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: -2,
+            pointerEvents: 'none',
+            backgroundImage: `url(${appearance.bgImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
+            backgroundRepeat: 'no-repeat',
+            opacity: Math.max(0.1, appearance.bgOpacity / 100),
+            filter: `blur(${Math.max(28, appearance.bgBlur * 2)}px)`,
+            // 放大遮住模糊在边缘采到的透明
+            transform: 'scale(1.2)',
+          }}
+        />
+      )}
+      <div
+        aria-hidden
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: -1,
+          pointerEvents: 'none',
+          backgroundImage: `url(${appearance.bgImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
+          backgroundRepeat: 'no-repeat',
+          opacity: Math.max(0.1, appearance.bgOpacity / 100),
+          // 模糊会在边缘采样到透明，放大一点盖住四角暗边
+          filter: appearance.bgBlur ? `blur(${appearance.bgBlur}px)` : undefined,
+          transform: `scale(${(appearance.bgBlur ? 1.08 : 1) * appearance.bgZoom})`,
+          transformOrigin: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
+        }}
+      />
+    </>
   ) : null;
 
   const menuItems = [

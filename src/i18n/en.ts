@@ -403,7 +403,7 @@ const en: LocaleMessages = {
     focusHorizontal: 'Horizontal position',
     focusVertical: 'Vertical position',
     imageZoom: 'Image zoom',
-    imageZoomHint: 'The widget frame is fixed; zoom in and use the position sliders to pick the visible part, like an avatar cropper. The app background zooms too',
+    imageZoomHint: '1× fills the frame; above 1× you crop into the image like an avatar cropper, below 1× the whole image shrinks and the surrounding area is filled with a blurred copy of itself. Use the position sliders to pick the area — app background and widget stay in sync',
     widgetCropPreview: 'Widget crop preview',
     widgetCropHint: 'Previewed for 4×2 and 4×4; the real result depends on the size on your home screen',
     uiOpacity: 'Calendar opacity',

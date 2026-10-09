@@ -16,7 +16,7 @@ export interface ItdcWidgetPluginInterface {
     panelOpacity: number;
     scheme: 'auto' | 'light' | 'dark';
     hasImage: boolean;
-    /** 小组件固定边框内的焦点（0-100）与缩放（1-3 倍） */
+    /** 小组件固定边框内的焦点（0-100）与缩放（0.5-3 倍，<1 为缩小 + 模糊打底） */
     focusX: number;
     focusY: number;
     zoom: number;
