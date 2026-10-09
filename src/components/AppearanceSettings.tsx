@@ -42,6 +42,23 @@ const PreviewBackdrop: React.FC<{
     />
   ) : null;
 
+/** 滑杆标题行：右侧显示当前值——只有滑块位置时，用户分不清是「调到头了」还是「没生效」 */
+const SliderLabel: React.FC<{ label: string; value: string; dim: string }> = ({ label, value, dim }) => (
+  <div
+    style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'baseline',
+      gap: 8,
+      fontSize: 13,
+      marginTop: 8,
+    }}
+  >
+    <span>{label}</span>
+    <span style={{ color: dim, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+  </div>
+);
+
 /**
  * 外观设置页：主题色、应用背景图、桌面小组件配色。
  *
@@ -211,7 +228,7 @@ const AppearanceSettings: React.FC = () => {
               />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12 }}>{t.settings.imageZoom}</div>
+              <SliderLabel label={t.settings.imageZoom} value={`${appearance.bgZoom.toFixed(2)}×`} dim={secondaryTextColor(isDark)} />
               <Slider
                 min={MIN_BG_ZOOM}
                 max={MAX_BG_ZOOM}
@@ -222,82 +239,44 @@ const AppearanceSettings: React.FC = () => {
               <div style={{ ...hintStyle, marginTop: 0 }}>{t.settings.imageZoomHint}</div>
               <div style={{ fontSize: 13, marginTop: 8 }}>{t.settings.focusPoint}</div>
               <div style={{ ...hintStyle, marginTop: 0 }}>{t.settings.focusHint}</div>
-              <div style={{ fontSize: 12 }}>{t.settings.focusHorizontal}</div>
+              <SliderLabel label={t.settings.focusHorizontal} value={`${appearance.bgFocusX}%`} dim={secondaryTextColor(isDark)} />
               <Slider
                 min={0}
                 max={100}
                 value={appearance.bgFocusX}
                 onChange={(value) => updateAppearance({ bgFocusX: value })}
               />
-              <div style={{ fontSize: 12 }}>{t.settings.focusVertical}</div>
+              <SliderLabel label={t.settings.focusVertical} value={`${appearance.bgFocusY}%`} dim={secondaryTextColor(isDark)} />
               <Slider
                 min={0}
                 max={100}
                 value={appearance.bgFocusY}
                 onChange={(value) => updateAppearance({ bgFocusY: value })}
               />
-              <div style={{ fontSize: 13, marginTop: 8 }}>{t.settings.backgroundOpacity}</div>
+              <SliderLabel label={t.settings.backgroundOpacity} value={`${appearance.bgOpacity}%`} dim={secondaryTextColor(isDark)} />
               <Slider
                 min={10}
                 max={100}
                 value={appearance.bgOpacity}
                 onChange={(value) => updateAppearance({ bgOpacity: value })}
               />
-              <div style={{ fontSize: 13 }}>{t.settings.backgroundBlur}</div>
+              <div style={{ ...hintStyle, marginTop: 0 }}>{t.settings.backgroundOpacityHint}</div>
+              <SliderLabel label={t.settings.backgroundBlur} value={`${appearance.bgBlur}px`} dim={secondaryTextColor(isDark)} />
               <Slider
                 min={0}
                 max={20}
                 value={appearance.bgBlur}
                 onChange={(value) => updateAppearance({ bgBlur: value })}
               />
-              <div style={{ fontSize: 13, marginTop: 8 }}>{t.settings.widgetCropPreview}</div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                {[{ label: '4×2', ratio: '2 / 1' }, { label: '4×4', ratio: '1 / 1' }].map((preset) => (
-                  <div key={preset.label} style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        position: 'relative',
-                        aspectRatio: preset.ratio,
-                        borderRadius: 10,
-                        overflow: 'hidden',
-                        border: `1px solid ${isDark ? '#303030' : '#e8e8e8'}`,
-                      }}
-                    >
-                      <PreviewBackdrop
-                        image={bgImage}
-                        focusX={appearance.bgFocusX}
-                        focusY={appearance.bgFocusY}
-                        zoom={appearance.bgZoom}
-                      />
-                      <div
-                        aria-hidden
-                        style={{
-                          position: 'absolute',
-                          inset: 0,
-                          backgroundImage: `url(${appearance.bgImage})`,
-                          backgroundSize: 'cover',
-                          backgroundPosition: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
-                          backgroundRepeat: 'no-repeat',
-                          transform: `scale(${appearance.bgZoom})`,
-                          transformOrigin: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
-                        }}
-                      />
-                    </div>
-                    <div style={{ fontSize: 11, textAlign: 'center', color: secondaryTextColor(isDark) }}>
-                      {preset.label}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ ...hintStyle, marginTop: 6 }}>{t.settings.widgetCropHint}</div>
-              <div style={{ fontSize: 13 }}>{t.settings.uiOpacity}</div>
+              {/* 图片层（上面几个）和界面层分开放：紧挨着才好对照调 */}
+              <SliderLabel label={t.settings.uiOpacity} value={`${appearance.uiOpacity}%`} dim={secondaryTextColor(isDark)} />
               <Slider
                 min={0}
                 max={100}
                 value={appearance.uiOpacity}
                 onChange={(value) => updateAppearance({ uiOpacity: value })}
               />
-              <div style={{ fontSize: 13 }}>{t.settings.uiBlur}</div>
+              <SliderLabel label={t.settings.uiBlur} value={`${appearance.uiBlur}px`} dim={secondaryTextColor(isDark)} />
               <Slider
                 min={0}
                 max={20}
@@ -360,7 +339,7 @@ const AppearanceSettings: React.FC = () => {
           </div>
 
           <div>
-            <div style={{ fontSize: 13 }}>{t.settings.widgetPanelOpacity}</div>
+            <SliderLabel label={t.settings.widgetPanelOpacity} value={`${appearance.widgetPanelOpacity}%`} dim={secondaryTextColor(isDark)} />
             <Slider
               min={0}
               max={100}
@@ -396,6 +375,51 @@ const AppearanceSettings: React.FC = () => {
               <p style={{ ...hintStyle, marginTop: 6 }}>{t.settings.widgetUseBgImageFirst}</p>
             )}
           </div>
+
+          {bgImage && (
+            <div>
+              <div style={{ fontSize: 13, marginBottom: 4 }}>{t.settings.widgetCropPreview}</div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {[{ label: '4×2', ratio: '2 / 1' }, { label: '4×4', ratio: '1 / 1' }].map((preset) => (
+                  <div key={preset.label} style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        position: 'relative',
+                        aspectRatio: preset.ratio,
+                        borderRadius: 10,
+                        overflow: 'hidden',
+                        border: `1px solid ${isDark ? '#303030' : '#e8e8e8'}`,
+                      }}
+                    >
+                      <PreviewBackdrop
+                        image={bgImage}
+                        focusX={appearance.bgFocusX}
+                        focusY={appearance.bgFocusY}
+                        zoom={appearance.bgZoom}
+                      />
+                      <div
+                        aria-hidden
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          backgroundImage: `url(${bgImage})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
+                          backgroundRepeat: 'no-repeat',
+                          transform: `scale(${appearance.bgZoom})`,
+                          transformOrigin: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
+                        }}
+                      />
+                    </div>
+                    <div style={{ fontSize: 11, textAlign: 'center', color: secondaryTextColor(isDark) }}>
+                      {preset.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ ...hintStyle, marginTop: 6 }}>{t.settings.widgetCropHint}</div>
+            </div>
+          )}
 
           <Space wrap>
             <Button
