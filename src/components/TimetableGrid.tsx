@@ -232,12 +232,19 @@ const TimetableGrid: React.FC<Props> = ({
     for (let i = 0; i < TIMETABLE.length; i++) {
       const [sh, sm] = TIMETABLE[i][0].split(':').map(Number);
       const [eh, em] = TIMETABLE[i][1].split(':').map(Number);
+      const sectionStart = sh * 60 + sm;
+      const sectionEnd = eh * 60 + em;
       // 严格重叠（首尾相接不算），避免 18:00 的待办蹭进 16:25 那一格
-      if (Math.min(endMinutes, eh * 60 + em) > Math.max(startMinutes, sh * 60 + sm)) {
-        const key = `${day}-${i}`;
-        cells.set(key, [...(cells.get(key) ?? []), item]);
-        placed = true;
-      }
+      const overlap = Math.min(endMinutes, sectionEnd) - Math.max(startMinutes, sectionStart);
+      if (overlap <= 0) continue;
+      // 重叠要有实质占比才画进这一格：至少占「事件与整节中较短者」的一半。
+      // 95 分钟的课拖到中午（60 分钟的节）后结束在 14:35，与下午第一节只擦过
+      // 5 分钟——以前会在这里再画一个满格块，看起来像凭空多出一节课。
+      const needed = Math.min(sectionEnd - sectionStart, endMinutes - startMinutes) / 2;
+      if (overlap < needed) continue;
+      const key = `${day}-${i}`;
+      cells.set(key, [...(cells.get(key) ?? []), item]);
+      placed = true;
     }
     if (!placed) {
       const key = String(day);

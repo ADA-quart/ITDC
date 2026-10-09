@@ -30,7 +30,7 @@ import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { findMergeTarget } from '../utils/calendar-merge';
-import { dedupeEvents } from '../../shared/event-dedupe';
+import { dedupeEvents, dedupeEventKey } from '../../shared/event-dedupe';
 import { cardStyle, hintTextStyle, secondaryTextColor, withAlpha, TOUCH_TARGET, TYPE } from './ui';
 
 const CAL_VIEW_KEY = 'itdc_calendar_view';
@@ -578,7 +578,34 @@ const CalendarView: React.FC = () => {
     }
   };
 
+  /**
+   * 与某事件「同键」（标题 + 起止 + 教室）的重复导入实例 id：
+   * 教务 + iCal 重复导入的同一门课在展示层被去重合并成一个块，
+   * 拖动它时必须把整组实例一起移动 —— 否则剩下的实例会在原时间
+   * "显形"，一节课看起来变成了两节。
+   */
+  const duplicateIdsOf = (fcEvent: any): number[] => {
+    if (fcEvent?.extendedProps?.type === 'todo') return [];
+    try {
+      const key = dedupeEventKey(fcEvent.extendedProps);
+      return (events as any[])
+        .filter((e) => e.extendedProps?.type !== 'todo' && dedupeEventKey(e.extendedProps) === key)
+        .map((e) => Number(e.extendedProps.id))
+        .filter((id) => Number.isFinite(id));
+    } catch {
+      return [];
+    }
+  };
+
+  /** 把一组重复实例一起挪到新时间 */
+  const moveInstances = async (ids: number[], startIso: string, endIso: string) => {
+    for (const id of ids) {
+      await calendarApi.updateEvent(id, { start_time: startIso, end_time: endIso });
+    }
+  };
+
   const handleGridMove = async (event: any, start: Date, end: Date) => {
+    const instanceIds = event.extendedProps?.type === 'todo' ? [] : duplicateIdsOf(event);
     try {
       if (event.extendedProps?.type === 'todo') {
         await todoApi.update(event.extendedProps.id, {
@@ -586,12 +613,9 @@ const CalendarView: React.FC = () => {
           scheduled_end: end.toISOString(),
         });
       } else {
-        await calendarApi.updateEvent(Number(event.id), {
-          start_time: start.toISOString(),
-          end_time: end.toISOString(),
-        });
+        await moveInstances(instanceIds.length > 0 ? instanceIds : [Number(event.id)], start.toISOString(), end.toISOString());
       }
-      showMovedWithUndo(event);
+      showMovedWithUndo(event, instanceIds);
       loadData();
     } catch {
       message.error(t.calendar.eventMoveFailed);
@@ -602,7 +626,7 @@ const CalendarView: React.FC = () => {
    * 移动成功后给一条带「撤销」的提示：拖错了（尤其是误触）能一键还原。
    * 撤销就是把原来的起止时间写回去，课程与待办分别走各自的接口。
    */
-  const showMovedWithUndo = (event: any) => {
+  const showMovedWithUndo = (event: any, instanceIds: number[] = []) => {
     const isTodo = event.extendedProps?.type === 'todo';
     const prevStart = String(event.start ?? event.startStr ?? '');
     const prevEnd = String(event.end ?? event.endStr ?? '');
@@ -618,10 +642,13 @@ const CalendarView: React.FC = () => {
             scheduled_end: new Date(prevEnd).toISOString(),
           });
         } else {
-          await calendarApi.updateEvent(Number(event.id), {
-            start_time: new Date(prevStart).toISOString(),
-            end_time: new Date(prevEnd).toISOString(),
-          });
+          const ids = instanceIds.length > 0 ? instanceIds : [Number(event.id)];
+          for (const id of ids) {
+            await calendarApi.updateEvent(id, {
+              start_time: new Date(prevStart).toISOString(),
+              end_time: new Date(prevEnd).toISOString(),
+            });
+          }
         }
         message.info(t.calendar.undone);
         loadData();
@@ -727,16 +754,14 @@ const CalendarView: React.FC = () => {
       return;
     }
     try {
-      await calendarApi.updateEvent(Number(dropInfo.event.id), {
-        start_time: dropInfo.event.startStr,
-        end_time: dropInfo.event.endStr,
-      });
+      const ids = duplicateIdsOf(dropInfo.event);
+      await moveInstances(ids.length > 0 ? ids : [Number(dropInfo.event.id)], dropInfo.event.startStr, dropInfo.event.endStr);
       showMovedWithUndo({
         id: dropInfo.event.id,
         start: dropInfo.oldEvent?.start ?? dropInfo.event.start,
         end: dropInfo.oldEvent?.end ?? dropInfo.event.end,
         extendedProps: props,
-      });
+      }, ids);
     } catch {
       message.error(t.calendar.eventMoveFailed);
       dropInfo.revert();
@@ -759,10 +784,8 @@ const CalendarView: React.FC = () => {
       return;
     }
     try {
-      await calendarApi.updateEvent(Number(resizeInfo.event.id), {
-        start_time: resizeInfo.event.startStr,
-        end_time: resizeInfo.event.endStr,
-      });
+      const ids = duplicateIdsOf(resizeInfo.event);
+      await moveInstances(ids.length > 0 ? ids : [Number(resizeInfo.event.id)], resizeInfo.event.startStr, resizeInfo.event.endStr);
       message.success(t.calendar.eventResized);
     } catch {
       message.error(t.calendar.eventResizeFailed);
