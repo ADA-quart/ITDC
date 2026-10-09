@@ -8,10 +8,11 @@
 // 检测与识别都在本机完成，全程离线、不需要 GMS；模型与 wasm 由用户按需下载，
 // 见 ocr/installer.ts。
 import { ocrStatus, removeOcr } from './ocr/installer';
-import { recognizeImage, resetOcrEngine } from './ocr/ppocr';
+import { ensureOcrEngine, recognizeImage, resetOcrEngine } from './ocr/ppocr';
 
 /** 同步可读的就绪标记：TodoList 是在点击瞬间同步判断的 */
 let available = false;
+let prewarmed = false;
 
 export function isLocalOcrAvailable(): boolean {
   return available;
@@ -21,8 +22,32 @@ export function isLocalOcrAvailable(): boolean {
 export async function refreshLocalOcrState(): Promise<boolean> {
   const status = await ocrStatus();
   available = status.installed;
-  if (!available) resetOcrEngine();
+  if (!available) {
+    resetOcrEngine();
+  } else {
+    prewarmLocalOcr();
+  }
   return available;
+}
+
+/**
+ * 后台预热：提前把两个 ONNX 会话建好，免得用户第一次真用 OCR 时
+ * 还要等模型读盘 + 建图（实测冷启动 10s、热识别 3.4s）。
+ * 只在扩展已安装时做，空闲时触发，失败静默。
+ */
+export function prewarmLocalOcr(): void {
+  if (prewarmed || !available) return;
+  prewarmed = true;
+  const start = () => {
+    void ensureOcrEngine().catch(() => {
+      prewarmed = false;
+    });
+  };
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(start, { timeout: 4000 });
+  } else {
+    setTimeout(start, 1500);
+  }
 }
 
 export async function recognizeTextLocally(dataUrl: string): Promise<string> {

@@ -6,6 +6,8 @@
 // 三个文件都做了「多镜像 + 体积校验 + 头字节校验」，避免下到半截的包或错误页
 // 被当成模型存下来（存坏了会在推理时才炸，排查很痛苦）。
 import { kvGet, kvSet } from '../offline';
+import { Capacitor } from '@capacitor/core';
+import { Directory, Filesystem } from '@capacitor/filesystem';
 
 export interface OcrFileSpec {
   /** IndexedDB 的键 */
@@ -23,21 +25,35 @@ export interface OcrFileSpec {
 const HF_MIRROR = 'https://hf-mirror.com/SWHL/RapidOCR/resolve/main/PP-OCRv4';
 const HF = 'https://huggingface.co/SWHL/RapidOCR/resolve/main/PP-OCRv4';
 
-// 运行时（onnxruntime-web 的 JS + 14.2MB wasm）随 APK 分发：wasm 会被打包器
-// 当成资源引用带走，与其让它白占包体又下载一次，不如只按需下模型。
+// 模型：PP-OCRv4 mobile（PaddleOCR / RapidOCR，Apache-2.0）。主源 hf-mirror、
+// 兜底 huggingface，两者都带 CORS，WebView 的 fetch 与原生下载都能取。
+//
+// 关于 int8：仓库的 ocr-models 分支 / ocr-models-v1 Release 里已托管 onnxruntime
+// 动态量化版（det 4.53→1.27MB、rec 10.35→2.76MB），但在 onnxruntime-web 的 WASM EP
+// 上加载即抛错（识别分支被 catch 吞掉，用户只看到"网络不可用"），所以暂不启用；
+// 要启用得先换成 WASM EP 支持的量化形式（QUInt8 / per-channel）并重新实测。
+//
+// 运行时（onnxruntime-web 的 JS + 14.2MB wasm）随 APK 分发：wasm 会被打包器当成
+// 资源引用带走，与其让所有人额外下载 14.2MB，不如跟包走一次（zip 里约 4MB）。
 export const OCR_FILES: OcrFileSpec[] = [
   {
     key: 'itdc_ocr_det',
-    name: 'ch_PP-OCRv4_det_infer.onnx（文字检测 4.7MB）',
+    name: 'ch_PP-OCRv4_det_infer.onnx（文字检测 4.5MB）',
     bytes: 4745517,
-    urls: [`${HF_MIRROR}/ch_PP-OCRv4_det_infer.onnx`, `${HF}/ch_PP-OCRv4_det_infer.onnx`],
+    urls: [
+      `${HF_MIRROR}/ch_PP-OCRv4_det_infer.onnx`,
+      `${HF}/ch_PP-OCRv4_det_infer.onnx`,
+    ],
     magic: [],
   },
   {
     key: 'itdc_ocr_rec',
-    name: 'ch_PP-OCRv4_rec_infer.onnx（文字识别 10.9MB）',
+    name: 'ch_PP-OCRv4_rec_infer.onnx（文字识别 10.3MB）',
     bytes: 10857958,
-    urls: [`${HF_MIRROR}/ch_PP-OCRv4_rec_infer.onnx`, `${HF}/ch_PP-OCRv4_rec_infer.onnx`],
+    urls: [
+      `${HF_MIRROR}/ch_PP-OCRv4_rec_infer.onnx`,
+      `${HF}/ch_PP-OCRv4_rec_infer.onnx`,
+    ],
     magic: [],
   },
 ];
@@ -132,6 +148,39 @@ async function downloadWithProgress(
   onProgress: (p: OcrProgress) => void,
   shouldAbort?: () => boolean,
 ): Promise<ArrayBuffer> {
+  // 原生端走 Filesystem.downloadFile：GitHub Release 的下载地址是 302 到
+  // objects.githubusercontent.com，那一跳没有 CORS 头，WebView 里 fetch 必然
+  // 报 "Failed to fetch"；原生 HTTP 不受同源策略限制。代价是没有字节级进度，
+  // 按「每个文件完成」推进进度条。
+  if (Capacitor.isNativePlatform()) {
+    const name = `ocr-dl-${fileIndex}-${Date.now()}.bin`;
+    onProgress({
+      fileName: spec.name,
+      fileIndex,
+      fileCount: OCR_FILES.length,
+      loaded: 0,
+      total: spec.bytes,
+      percent: Math.round((finishedBytes / OCR_TOTAL_BYTES) * 100),
+    });
+    try {
+      await Filesystem.downloadFile({ url, path: name, directory: Directory.Cache });
+      const file = await Filesystem.readFile({ path: name, directory: Directory.Cache });
+      const b64 = typeof file.data === 'string' ? file.data : '';
+      if (!b64) throw new Error('下载内容为空');
+      const raw = atob(b64);
+      const bytes = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i += 1) bytes[i] = raw.charCodeAt(i);
+      return bytes.buffer;
+    } finally {
+      if (shouldAbort?.()) throw new Error('已取消');
+      try {
+        await Filesystem.deleteFile({ path: name, directory: Directory.Cache });
+      } catch {
+        /* 缓存目录，删不掉也不影响 */
+      }
+    }
+  }
+
   const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const declared = Number(res.headers.get('content-length') || 0);
