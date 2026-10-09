@@ -3,6 +3,12 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [2.2.9] - 2026-10-10
+
+### 变更
+
+- **开源许可清单补全（含非 npm 依赖）**：此前清单由 `license-checker` 自动生成，只覆盖 npm 包——**OCR 的模型与内置识别字典**、**Android 侧依赖**（AndroidX / Android Gradle Plugin / Google Services 插件）都不在其中。现在清单改为三段：npm 依赖（217 个）→ **非 npm 依赖**（PP-OCRv4 检测/识别模型按需下载、随包内置的 `ppocr_keys_v1.txt` 识别字典、本项目量化衍生模型、PaddleOCR / RapidOCR 上游、AndroidX 等）→ **参考与致谢**。其中特别写明：CDUniTap 是 GPL-3.0，早期"移植自 CDUniTap"的课表解析已在更早版本整体重写为自有实现，**本项目不包含也不链接 GPL 代码**；OCR 模型不随 APK 分发，下载后仍受其上游 Apache-2.0 约束。应用内「设置 → 开源许可」页同步显示这批条目，生成脚本 `scripts/gen-licenses.mjs` 已内置这两节，后续 `npm run licenses` 不会覆盖
+
 ## [2.2.8] - 2026-10-10
 
 ### 修复
