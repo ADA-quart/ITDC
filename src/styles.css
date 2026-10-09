@@ -88,3 +88,21 @@ body.itdc-native [contenteditable='true'] {
   -webkit-user-select: text;
   user-select: text;
 }
+
+/*
+ * WebView 的默认点击高亮是「不跟随圆角的方角色块」，四象限那种大圆角卡片被
+ * 按住时会露出一块蓝底方框，和卡片形状对不上。这里统一关掉浏览器自带高亮，
+ * 改用 .itdc-tap 的按压反馈——反馈就是元素自身渲染，圆角天然一致。
+ */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.itdc-tap {
+  transition: filter 0.12s ease;
+}
+
+.itdc-tap:active {
+  /* 用 filter 而不是 background：卡片背景是内联样式，class 改背景改不动 */
+  filter: brightness(0.92);
+}

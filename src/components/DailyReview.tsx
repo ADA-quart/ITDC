@@ -116,6 +116,7 @@ const DailyReview: React.FC = () => {
               <button
                 key={p}
                 type="button"
+                className="itdc-tap"
                 aria-label={`${priorityLabel(p)}：${count} ${t.review.quadrantUnit}`}
                 onClick={() => setQuadrant(p)}
                 style={{
@@ -123,16 +124,33 @@ const DailyReview: React.FC = () => {
                   flexDirection: 'column',
                   alignItems: 'flex-start',
                   gap: 6,
-                  padding: '12px 12px 10px',
+                  // 四块卡片尺寸对齐：等高、同内边距、同圆角（顶部的优先级色条
+                  // 改成内嵌元素，否则 3px 顶边会把上方两个圆角撑变形）
+                  height: '100%',
+                  boxSizing: 'border-box',
+                  padding: '13px 12px 10px',
                   borderRadius: 12,
                   border: `1px solid ${isDark ? '#333' : '#eee'}`,
-                  borderTop: `3px solid ${PRIORITY_COLORS[p]}`,
                   background: `var(--itdc-cell-bg, ${isDark ? '#1b1b1b' : '#fff'})`,
                   cursor: 'pointer',
                   textAlign: 'left',
                   minHeight: TOUCH_TARGET,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  WebkitTapHighlightColor: 'transparent',
                 }}
               >
+                <span
+                  aria-hidden
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 3,
+                    background: PRIORITY_COLORS[p],
+                  }}
+                />
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
                   <span style={{ width: 8, height: 8, borderRadius: 4, background: PRIORITY_COLORS[p], flexShrink: 0 }} />
                   {priorityLabel(p)}

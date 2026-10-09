@@ -3,6 +3,13 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 修复
+
+- **点击时的蓝框和卡片圆角对不上**：四象限、课表色块这类手写 `<button>` 没关掉 WebView 自带的点击高亮——Android 上它是一块**不跟随 `border-radius` 的方角蓝底**，大圆角卡片被按住时特别明显。现在全局关闭浏览器高亮（底部导航早就单独关过），改用 `.itdc-tap:active { filter: brightness(.92) }` 做按压反馈：反馈就是元素自身渲染，圆角天然一致
+- **四象限四块卡片尺寸 / 位置不齐**：顶部优先级色条原本用 `border-top: 3px` 实现，会把上方两个圆角撑变形，也让卡片高度对不齐。改成卡片内嵌的 3px 色条（配合 `overflow: hidden` 自动跟随圆角），四块统一 `height: 100%` + `box-sizing: border-box` + 同内边距。实测四块均为 **189×133**、坐标严格对齐（x 28 / 227，y 341 / 484）
+
 ## [2.2.2] - 2026-10-10
 
 ### 新增
