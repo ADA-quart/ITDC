@@ -17,7 +17,7 @@ import {
 import CalendarView from './components/CalendarView';
 import TodoList from './components/TodoList';
 import SchedulePanel from './components/SchedulePanel';
-import DailyReview from './components/DailyReview';
+import ReviewPage from './components/ReviewPage';
 import SettingsView from './components/SettingsView';
 import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
@@ -186,7 +186,7 @@ const App: React.FC = () => {
     navigateTo(key);
   };
 
-  // 页面内部（如今日回顾弹窗里的「去待办管理」）请求切页，走同一条不写历史的路径
+  // 页面内部（如回顾页弹窗里的「去待办管理」）请求切页，走同一条不写历史的路径
   useEffect(() => {
     const handler = (e: Event) => {
       const page = (e as CustomEvent<{ page?: string }>).detail?.page;
@@ -206,7 +206,7 @@ const App: React.FC = () => {
       case 'schedule':
         return <SchedulePanel />;
       case 'review':
-        return <DailyReview />;
+    return <ReviewPage />;
       case 'settings':
         return <SettingsView initialTab={settingsTab} />;
     }

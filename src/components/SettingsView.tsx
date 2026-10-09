@@ -620,7 +620,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
                 fontSize: 11,
                 maxHeight: 200,
                 overflow: 'auto',
-                background: isDark ? '#303030' : '#f5f5f5',
+                background: `var(--itdc-cell-bg, ${isDark ? '#1b1b1b' : '#fff'})`,
                 color: isDark ? '#d9d9d9' : undefined,
                 padding: 8,
                 borderRadius: 4,

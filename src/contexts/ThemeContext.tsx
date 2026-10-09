@@ -49,6 +49,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [appearance, setAppearance] = useState<AppearanceSettings>(() => loadAppearance());
   const [appearanceLoaded, setAppearanceLoaded] = useState(false);
+  /** 背景图平均亮度（暗=true）；用于「图片主导视觉时自动切换明暗方案」 */
+  const [bgImageDark, setBgImageDark] = useState<boolean | null>(null);
 
   // 背景图存在 IndexedDB，启动时异步补上；补齐前先用纯色，避免白屏等待
   useEffect(() => {
@@ -77,7 +79,13 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, []);
 
-  const isDark = mode === 'dark' || (mode === 'system' && systemDark);
+  // 背景图主导视觉（uiOpacity 很低、卡片几乎全透）时按图自适应：
+  // 深色照片上白卡变全透后黑字会看不清——此时直接跟随图片明暗切换方案
+  // （深图 → 深玻璃 + 白字；亮图 → 浅玻璃 + 黑字）。透明度较高（卡片仍以浅色为主）时不干预。
+  let isDark = mode === 'dark' || (mode === 'system' && systemDark);
+  if (appearance.bgImage && bgImageDark !== null && appearance.uiOpacity < 50) {
+    isDark = bgImageDark;
+  }
 
   const setMode = useCallback((m: ThemeMode) => {
     setModeState(m);
@@ -129,6 +137,45 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     document.documentElement.style.setProperty('--itdc-accent', appearance.accent);
   }, [appearance.accent]);
 
+  // 采样背景图平均亮度（32×32 缩略图 + 相对亮度公式）
+  useEffect(() => {
+    const img = appearance.bgImage;
+    if (!img) {
+      setBgImageDark(null);
+      return;
+    }
+    let alive = true;
+    const el = new Image();
+    el.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.drawImage(el, 0, 0, 32, 32);
+        const data = ctx.getImageData(0, 0, 32, 32).data;
+        let sum = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+        }
+        // 阈值 100：只有明显偏暗的图才切深色方案；
+        // 中亮图（100-160 之间）用黑字更稳——黑白字在"半亮"底上都勉强，
+        // 但亮区更多时黑字的对比度普遍更好。
+        if (alive) setBgImageDark(sum / (data.length / 4) < 100);
+      } catch {
+        if (alive) setBgImageDark(null);
+      }
+    };
+    el.onerror = () => {
+      if (alive) setBgImageDark(null);
+    };
+    el.src = img;
+    return () => {
+      alive = false;
+    };
+  }, [appearance.bgImage]);
+
   // 有自定义背景图时把卡片/课表格子玻璃化：图片透出来，文字仍有底可读
   useEffect(() => {
     const root = document.documentElement;
@@ -173,6 +220,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         : (isDark ? '#1f1f1f' : '#fff')
     );
     root.style.setProperty('--itdc-nav-blur', navBlur);
+    // 图片主导（低透明度）时次级文字加深/加亮：灰字压半透背景最容易糊
+    const imageDominant = glass && appearance.uiOpacity < 50;
+    root.style.setProperty(
+      '--itdc-fg-secondary',
+      imageDominant ? (isDark ? '#d9d9d9' : '#333333') : (isDark ? '#a6a6a6' : '#666666')
+    );
   }, [appearance.bgImage, appearance.uiOpacity, appearance.uiBlur, isDark]);
 
   // 外观变化推给桌面小组件。150ms 防抖：拖动不透明度滑块时不必每帧重建一次桌面视图。

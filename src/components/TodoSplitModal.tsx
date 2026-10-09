@@ -208,7 +208,7 @@ const TodoSplitModal: React.FC<Props> = ({ todo, onClose, onSaved }) => {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {segments.map((seg, idx) => (
-          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: isDark ? '#303030' : '#fafafa', borderRadius: 4 }}>
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: `var(--itdc-cell-bg, ${isDark ? '#1b1b1b' : '#fff'})`, borderRadius: 4 }}>
             <span style={{ fontWeight: 'bold', minWidth: 24 }}>#{idx + 1}</span>
             <DatePicker
               showTime

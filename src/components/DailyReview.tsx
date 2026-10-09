@@ -127,7 +127,7 @@ const DailyReview: React.FC = () => {
                   borderRadius: 12,
                   border: `1px solid ${isDark ? '#333' : '#eee'}`,
                   borderTop: `3px solid ${PRIORITY_COLORS[p]}`,
-                  background: isDark ? '#1f1f1f' : '#fff',
+                  background: `var(--itdc-cell-bg, ${isDark ? '#1b1b1b' : '#fff'})`,
                   cursor: 'pointer',
                   textAlign: 'left',
                   minHeight: TOUCH_TARGET,
@@ -149,7 +149,7 @@ const DailyReview: React.FC = () => {
                   {count}
                 </span>
                 <span style={{ ...TYPE.label, color: secondaryTextColor(isDark) }}>{t.review.quadrantUnit}</span>
-                <span style={{ display: 'block', width: '100%', height: 3, borderRadius: 2, background: isDark ? '#333' : '#f0f0f0' }}>
+                <span style={{ display: 'block', width: '100%', height: 3, borderRadius: 2, background: `var(--itdc-head-bg, ${isDark ? '#232323' : '#fafafa'})` }}>
                   <span style={{ display: 'block', width: `${percent}%`, height: 3, borderRadius: 2, background: PRIORITY_COLORS[p] }} />
                 </span>
               </button>
@@ -160,18 +160,53 @@ const DailyReview: React.FC = () => {
 
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 13, color: isDark ? '#aaa' : '#888', marginBottom: 12 }}>{t.review.trend}</div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', height: 160 }}>
-          {trend.map((x, idx) => (
-            <div key={x.dayKey} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-              <div style={{ display: 'flex', gap: 2 }}>
-                <div style={{ width: 10, height: Math.round((x.created / maxTrend) * 130), backgroundColor: '#1890ff', borderRadius: 2 }} />
-                <div style={{ width: 10, height: Math.round((x.done / maxTrend) * 130), backgroundColor: '#52c41a', borderRadius: 2 }} />
+        <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: 124 }}>
+          {trend.map((x, idx) => {
+            const isToday = idx === trend.length - 1;
+            const bars = [
+              { v: x.created, color: '#1890ff' },
+              { v: x.done, color: '#52c41a' },
+            ];
+            return (
+              <div key={x.dayKey} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 96 }}>
+                  {bars.map((bar, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        width: 14,
+                        height: 96,
+                        borderRadius: 7,
+                        background: `var(--itdc-head-bg, ${isDark ? '#232323' : '#fafafa'})`,
+                        display: 'flex',
+                        alignItems: 'flex-end',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: '100%',
+                          height: `${Math.round((bar.v / maxTrend) * 100)}%`,
+                          borderRadius: 7,
+                          background: bar.color,
+                          opacity: bar.v > 0 ? 1 : 0,
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: isToday ? '#1677ff' : isDark ? '#a6a6a6' : '#666',
+                    fontWeight: isToday ? 600 : 400,
+                  }}
+                >
+                  {isToday ? t.review.today : x.dayKey.slice(5)}
+                </div>
               </div>
-              <div style={{ fontSize: 11, color: isDark ? '#a6a6a6' : '#666' }}>
-                {idx === trend.length - 1 ? t.review.today : x.dayKey.slice(5)}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -222,7 +257,7 @@ const DailyReview: React.FC = () => {
                   padding: '10px 12px',
                   marginBottom: 8,
                   borderRadius: 10,
-                  background: isDark ? '#262626' : '#fafafa',
+                  background: `var(--itdc-cell-bg, ${isDark ? '#1b1b1b' : '#fff'})`,
                   borderLeft: `3px solid ${PRIORITY_COLORS[td.priority]}`,
                 }}
               >

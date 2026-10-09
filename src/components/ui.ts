@@ -80,7 +80,11 @@ export function hintTextStyle(isDark: boolean): CSSProperties {
   };
 }
 
-/** 统一的次要文字颜色（浅色模式一律 #666，避免各处写 #999 掉到 2.8:1） */
+/**
+ * 统一的次要文字颜色（浅色模式一律 #666，避免各处写 #999 掉到 2.8:1）。
+ * 图片主导（低透明度背景图）时由主题层写入更高对比的 --itdc-fg-secondary，
+ * 灰字压半透明背景最容易糊。
+ */
 export function secondaryTextColor(isDark: boolean): string {
-  return isDark ? '#a6a6a6' : '#666';
+  return `var(--itdc-fg-secondary, ${isDark ? '#a6a6a6' : '#666'})`;
 }
