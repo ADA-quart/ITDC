@@ -7,6 +7,9 @@ import {
   WORK_START_HOUR,
   WORK_END_HOUR,
   LATE_START_HOUR,
+  canUseLateNightWindow,
+  dayEndMinutes,
+  latestStartMinutes,
   findProtectedWindow,
 } from '../../shared/schedule-policy.js';
 import { decrypt, isEncrypted } from '../utils/crypto.js';
@@ -114,13 +117,14 @@ function validateSchedule(items: ScheduledItem[]): { valid: boolean; errors: str
 
   for (const item of items) {
     const todo = db.prepare(
-      'SELECT id, title, estimated_minutes, deadline, can_do_in_class FROM todos WHERE id = ?'
+      'SELECT id, title, estimated_minutes, deadline, can_do_in_class, priority FROM todos WHERE id = ?'
     ).get(item.todo_id) as {
       id: number;
       title: string;
       estimated_minutes: number;
       deadline: string | null;
       can_do_in_class: number | null;
+      priority: string | null;
     } | undefined;
     if (!todo) {
       errors.push(`待办 ${item.title} 的 todo_id (${item.todo_id}) 不存在`);
@@ -132,9 +136,11 @@ function validateSchedule(items: ScheduledItem[]): { valid: boolean; errors: str
 
     const startMinutes = itemStart.getHours() * 60 + itemStart.getMinutes();
     const endMinutes = itemEnd.getHours() * 60 + itemEnd.getMinutes();
-    if (startMinutes < WORK_START_HOUR * 60 || endMinutes > WORK_END_HOUR * 60) {
+    // 22:00-22:30 只留给「紧急重要」；其余任务 21:00 后不新开、22:00 前结束
+    const allowLateNight = canUseLateNightWindow(todo.priority);
+    if (startMinutes < WORK_START_HOUR * 60 || endMinutes > dayEndMinutes(allowLateNight)) {
       errors.push(`待办 "${item.title}" 被安排在深夜时段`);
-    } else if (startMinutes >= LATE_START_HOUR * 60) {
+    } else if (startMinutes >= latestStartMinutes(allowLateNight)) {
       errors.push(`待办 "${item.title}" 被安排在深夜时段`);
     }
     // 与本地校验保持一致：已经过去的时段写进库等于永远做不了

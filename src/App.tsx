@@ -232,7 +232,9 @@ const App: React.FC = () => {
       borderRadius: isMobile ? 12 : 8,
       borderRadiusSM: 6,
       borderRadiusLG: 14,
-      controlHeight: isMobile ? 40 : 32,
+      // 手机端控件高度对齐 Apple HIG 的 44pt（之前 40 是"接近 44-48"的折中，
+      // 而手写行/卡片一直用 48，等于两套标准；现在统一到 44）
+      controlHeight: isMobile ? 44 : 32,
       fontSize: 14,
       // 中文界面：系统字体栈 + 稍宽的行高（中文比拉丁字母更吃行距）
       fontFamily: FONT_STACK,
@@ -256,7 +258,7 @@ const App: React.FC = () => {
 
   // 控件高度也暴露成 CSS 变量：手写的小标签要和 antd 按钮等高（40 / 32）
   useEffect(() => {
-    document.documentElement.style.setProperty('--itdc-control-h', isMobile ? '40px' : '32px');
+    document.documentElement.style.setProperty('--itdc-control-h', isMobile ? '44px' : '32px');
     // 控件圆角跟着主题走：手机 12 / 桌面 8（与 antd borderRadius 同源）
     document.documentElement.style.setProperty('--itdc-r-md', isMobile ? '12px' : '8px');
   }, [isMobile]);

@@ -1,6 +1,7 @@
 // 本地排程引擎：算法调度完整跑在客户端，无需服务器。
-// 与 server/services/scheduler.ts 保持同一策略：按优先级+截止时间贪心，避开已有安排，
-// 工作时段 7:00-23:00，每连续 2 小时插入 15 分钟休息，单段上限 90 分钟。
+// 与 server/services/scheduler.ts 保持同一策略（数值都在 shared/schedule-policy.ts）：
+// 按优先级+截止时间贪心、避开已有安排；工作时段 8:00-22:00，21:00 之后不新开任务，
+// 课间不足 30 分钟不用、与下一日程留 5 分钟缓冲，午饭 11:50-13:00、晚饭 18:00-19:00 保护。
 import type { CalendarEvent, Priority, Todo } from '../types';
 import { looksLikeCourse } from '../../shared/cdut-parser';
 import {
@@ -9,6 +10,9 @@ import {
   LATE_START_HOUR,
   MIN_USABLE_GAP_MINUTES,
   SLOT_BUFFER_MINUTES,
+  canUseLateNightWindow,
+  dayEndMinutes,
+  latestStartMinutes,
   findProtectedWindow,
   atMinutesOfDay,
 } from '../../shared/schedule-policy';
@@ -49,12 +53,15 @@ export function isWithinWorkHours(dt: Date): boolean {
   return h >= WORK_START_HOUR && h < WORK_END_HOUR;
 }
 
-export function advanceToWorkHours(dt: Date): Date {
+export function advanceToWorkHours(dt: Date, allowLateNight = false): Date {
   const result = new Date(dt);
-  if (result.getHours() >= WORK_END_HOUR) {
+  // 超过当天可排终点（普通 22:00 / 紧急重要 22:30）才顺延到次日 08:00
+  const limit = dayEndMinutes(allowLateNight);
+  const minutes = result.getHours() * 60 + result.getMinutes();
+  if (minutes >= limit) {
     result.setDate(result.getDate() + 1);
     result.setHours(WORK_START_HOUR, 0, 0, 0);
-  } else if (result.getHours() < WORK_START_HOUR) {
+  } else if (minutes < WORK_START_HOUR * 60) {
     result.setHours(WORK_START_HOUR, 0, 0, 0);
   }
   return result;
@@ -96,25 +103,36 @@ export function findNextFreeSlot(
   busySlots: BusySlot[],
   deadline: Date | null,
   /** 该待办是否允许整段落在课程事件内（can_do_in_class） */
-  allowClassOverlap = false
+  allowClassOverlap = false,
+  /** 「紧急重要」才允许用 22:00-22:30 的加时窗口 */
+  allowLateNight = false
 ): Date | null {
-  let start = advanceToWorkHours(new Date(currentStart));
+  let start = advanceToWorkHours(new Date(currentStart), allowLateNight);
   const maxDate = deadline || new Date(start.getTime() + HORIZON_DAYS * 24 * 60 * 60 * 1000);
+  const startLimit = latestStartMinutes(allowLateNight);
+  const endLimit = dayEndMinutes(allowLateNight);
 
   let attempts = 0;
   const maxAttempts = 500;
 
   while (start < maxDate && attempts < maxAttempts) {
     attempts++;
-    // 21:00 之后不开始新任务（晚课 21:45 下课就更不该排）
-    if (start.getHours() >= LATE_START_HOUR) {
+    // 21:00 之后不开始新任务（晚课 21:45 下课就更不该排）；紧急重要放宽到 22:30
+    const startMinutes = start.getHours() * 60 + start.getMinutes();
+    if (startMinutes >= startLimit) {
       start.setDate(start.getDate() + 1);
       start.setHours(WORK_START_HOUR, 0, 0, 0);
       continue;
     }
     const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
 
-    if (end.getHours() >= WORK_END_HOUR || !isWithinWorkHours(start)) {
+    // 超出当天可排窗口（普通 22:00 / 紧急重要 22:30）或跨天：顺延到次日
+    const endMinutes = end.getHours() * 60 + end.getMinutes();
+    if (
+      end.getDate() !== start.getDate()
+      || endMinutes > endLimit
+      || startMinutes < WORK_START_HOUR * 60
+    ) {
       start.setDate(start.getDate() + 1);
       start.setHours(WORK_START_HOUR, 0, 0, 0);
       continue;
@@ -125,7 +143,7 @@ export function findNextFreeSlot(
     // 早饭/午饭/晚饭等保护时段：再空也不排
     const protectedWindow = findProtectedWindow(start, end);
     if (protectedWindow) {
-      start = advanceToWorkHours(atMinutesOfDay(start, protectedWindow.end));
+      start = advanceToWorkHours(atMinutesOfDay(start, protectedWindow.end), allowLateNight);
       continue;
     }
 
@@ -146,7 +164,7 @@ export function findNextFreeSlot(
           continue;
         }
         conflict = true;
-        start = advanceToWorkHours(new Date(Math.max(start.getTime(), slotEnd.getTime())));
+        start = advanceToWorkHours(new Date(Math.max(start.getTime(), slotEnd.getTime())), allowLateNight);
         break;
       }
     }
@@ -154,8 +172,7 @@ export function findNextFreeSlot(
     if (!conflict) {
       // 可用的连续空档：到下一个忙碌块开始为止；课内可做则还要受课堂结束时间限制
       const nextBoundary = busySlots.find((s) => new Date(s.start).getTime() >= end.getTime());
-      const dayEnd = new Date(start);
-      dayEnd.setHours(WORK_END_HOUR, 0, 0, 0);
+      const dayEnd = atMinutesOfDay(start, endLimit);
       const nextBoundaryMs = nextBoundary ? new Date(nextBoundary.start).getTime() : dayEnd.getTime();
       const windowEndMs = Math.min(
         allowedWindowEnd === null ? Number.POSITIVE_INFINITY : allowedWindowEnd,
@@ -166,7 +183,7 @@ export function findNextFreeSlot(
       // 课间太短（<30 分钟）或放不下「任务 + 5 分钟缓冲」时，直接跳到空档结束
       if (availableMinutes < MIN_USABLE_GAP_MINUTES
         || availableMinutes < durationMinutes + SLOT_BUFFER_MINUTES) {
-        start = advanceToWorkHours(new Date(windowEndMs));
+        start = advanceToWorkHours(new Date(windowEndMs), allowLateNight);
         continue;
       }
       return start;
@@ -185,7 +202,9 @@ export function findNextClassSlot(
   currentStart: Date,
   durationMinutes: number,
   busySlots: BusySlot[],
-  deadline: Date | null
+  deadline: Date | null,
+  /** 「紧急重要」才允许用 22:00-22:30 的加时窗口 */
+  allowLateNight = false
 ): Date | null {
   const classSlots = busySlots
     .filter((s) => s.isClass)
@@ -194,14 +213,15 @@ export function findNextClassSlot(
   const needMs = (durationMinutes + SLOT_BUFFER_MINUTES) * 60000;
 
   for (const cls of classSlots) {
-    let cursor = new Date(Math.max(cls.start, advanceToWorkHours(new Date(currentStart)).getTime()));
+    let cursor = new Date(Math.max(cls.start, advanceToWorkHours(new Date(currentStart), allowLateNight).getTime()));
+    const startLimit = latestStartMinutes(allowLateNight);
     while (cursor.getTime() + needMs <= cls.end) {
-      if (cursor.getHours() >= LATE_START_HOUR) break;
+      if (cursor.getHours() * 60 + cursor.getMinutes() >= startLimit) break;
       const end = new Date(cursor.getTime() + durationMinutes * 60000);
       if (deadline && end > deadline) return null;
       const protectedWindow = findProtectedWindow(cursor, end);
       if (protectedWindow) {
-        cursor = advanceToWorkHours(atMinutesOfDay(cursor, protectedWindow.end));
+        cursor = advanceToWorkHours(atMinutesOfDay(cursor, protectedWindow.end), allowLateNight);
         continue;
       }
       const blockers = busySlots.filter((s) => {
@@ -215,7 +235,7 @@ export function findNextClassSlot(
         if (availableMinutes >= MIN_USABLE_GAP_MINUTES) return cursor;
       } else {
         const latestEnd = Math.max(...blockers.map((s) => new Date(s.end).getTime()));
-        cursor = advanceToWorkHours(new Date(latestEnd));
+        cursor = advanceToWorkHours(new Date(latestEnd), allowLateNight);
         continue;
       }
       break;
@@ -315,11 +335,12 @@ export function generateScheduleLocally(
     const searchStart = new Date(now.getTime());
     const deadline = todo.deadline ? new Date(todo.deadline) : null;
     const allowClassOverlap = !!todo.can_do_in_class;
+    const allowLateNight = canUseLateNightWindow(todo.priority);
     /** 普通空闲窗口与课堂窗口取更早的一个；课内可做才查课堂 */
     const pickStart = (from: Date, minutes: number): Date | null => {
-      const normal = findNextFreeSlot(from, minutes, newBusySlots, deadline, allowClassOverlap);
+      const normal = findNextFreeSlot(from, minutes, newBusySlots, deadline, allowClassOverlap, allowLateNight);
       const inClass = allowClassOverlap
-        ? findNextClassSlot(from, minutes, newBusySlots, deadline)
+        ? findNextClassSlot(from, minutes, newBusySlots, deadline, allowLateNight)
         : null;
       if (normal && inClass) {
         return normal.getTime() <= inClass.getTime() ? normal : inClass;
@@ -438,10 +459,12 @@ export function validateScheduleLocally(
     const todo = todoById.get(item.todo_id);
     const startMinutes = start.getHours() * 60 + start.getMinutes();
     const endMinutes = end.getHours() * 60 + end.getMinutes();
-    if (startMinutes < WORK_START_HOUR * 60 || endMinutes > WORK_END_HOUR * 60) {
+    // 22:00-22:30 只允许「紧急重要」（口径与算法、服务端、提示词一致）
+    const allowLateNight = canUseLateNightWindow(item.priority ?? todo?.priority);
+    if (startMinutes < WORK_START_HOUR * 60 || endMinutes > dayEndMinutes(allowLateNight)) {
       errors.push(`超出工作时段：${item.title}`);
     }
-    if (startMinutes >= LATE_START_HOUR * 60) {
+    if (startMinutes >= latestStartMinutes(allowLateNight)) {
       errors.push(`安排在深夜时段：${item.title}`);
     }
     const protectedWindow = findProtectedWindow(start, end);

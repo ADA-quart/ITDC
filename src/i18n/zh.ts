@@ -12,6 +12,7 @@ const zh = {
     settings: '设置',
   },
   calendar: {
+    nightRow: '夜',
     calendarList: '日历列表',
     newCalendar: '新建日历',
     newEvent: '新建事件',

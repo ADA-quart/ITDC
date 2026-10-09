@@ -14,6 +14,7 @@ const en: LocaleMessages = {
     settings: 'Settings',
   },
   calendar: {
+    nightRow: 'Night',
     calendarList: 'Calendars',
     newCalendar: 'New Calendar',
     newEvent: 'New Event',

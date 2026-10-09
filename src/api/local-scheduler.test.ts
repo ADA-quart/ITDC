@@ -527,4 +527,40 @@ describe('validateScheduleLocally', () => {
     const result = validateScheduleLocally(items, []);
     expect(result.errors.some(e => e.startsWith('安排在深夜时段'))).toBe(true);
   });
+
+  it('紧急重要的 22:00-22:30 不算深夜，普通待办算', () => {
+    const urgent = validateScheduleLocally(
+      [{ todo_id: 1, title: '紧急收尾', start: at(1, 22, 0).toISOString(), end: at(1, 22, 30).toISOString(), priority: 'urgent-important' as const }],
+      [],
+    );
+    expect(urgent.errors.some(e => e.includes('深夜') || e.includes('超出工作时段'))).toBe(false);
+
+    const normal = validateScheduleLocally(
+      [{ todo_id: 1, title: '普通收尾', start: at(1, 22, 0).toISOString(), end: at(1, 22, 30).toISOString(), priority: 'normal' as const }],
+      [],
+    );
+    expect(normal.errors.some(e => e.includes('深夜') || e.includes('超出工作时段'))).toBe(true);
+  });
+
+  it('22:00-22:30 只给紧急重要：普通待办顺延到次日，紧急重要可以排进去', () => {
+    const at22 = new Date(2026, 9, 12, 22, 0, 0, 0); // 周一 22:00
+    const normal = findNextFreeSlot(at22, 30, [], null, false, false);
+    expect(normal?.getDate()).toBe(13); // 顺延到次日
+    expect(normal?.getHours()).toBe(8); // 次日 08:00
+
+    // 加时窗口 22:00-22:30，扣掉 5 分钟缓冲后最多放 25 分钟
+    const urgent = findNextFreeSlot(at22, 20, [], null, false, true);
+    expect(urgent?.getDate()).toBe(12);
+    expect(urgent?.getHours()).toBe(22);
+    expect(urgent?.getMinutes()).toBe(0);
+
+    // 超出窗口（30 分钟排不进带缓冲的 30 分钟窗口）→ 顺延次日
+    const tooLong = findNextFreeSlot(at22, 30, [], null, false, true);
+    expect(tooLong?.getDate()).toBe(13);
+
+    // 22:30 之后仍然不行（加时窗口有上限）
+    const at2235 = new Date(2026, 9, 12, 22, 35, 0, 0);
+    const tooLate = findNextFreeSlot(at2235, 30, [], null, false, true);
+    expect(tooLate?.getDate()).toBe(13);
+  });
 });

@@ -295,9 +295,13 @@ const TodoList: React.FC = () => {
     />,
   ];
 
-  // 手机：排在内容下方的一排按钮。图标 + 短文字，高度 ≥40px，符合触控目标建议
+  // 手机：排在内容下方的一排按钮。图标 + 短文字，高度跟随控件 token（手机 44px）
   const mobileActions = (todo: Todo) => {
-    const style: React.CSSProperties = { minHeight: 40, minWidth: 44, paddingInline: 10 };
+    const style: React.CSSProperties = {
+      minHeight: 'var(--itdc-control-h)',
+      minWidth: 44,
+      paddingInline: 10,
+    };
     return [
       <Button
         key="done"

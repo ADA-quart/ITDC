@@ -22,7 +22,7 @@ body {
   --itdc-r-md: 8px;
   --itdc-r-lg: 12px;
   --itdc-r-xl: 14px;
-  /* 控件高度：由 App 按 isMobile 覆盖（40 / 32），跟 antd controlHeight 同源 */
+  /* 控件高度：由 App 按 isMobile 覆盖（手机 44 / 桌面 32），跟 antd controlHeight 同源 */
   --itdc-control-h: 32px;
 }
 

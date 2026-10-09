@@ -15,7 +15,16 @@ import { secondaryTextColor, TOUCH_TARGET } from './ui';
  * 每大节的真实时长（分钟）：95 / 95 / 60 / 95 / 95 / 95 / 40。
  * 格子行高按它取比例——中午 1 小时的节不再和 1.5 小时的节一样高。
  */
-const SECTION_MINUTES = TIMETABLE.map(([start, end]) => {
+/**
+ * 表格行 = 教务的 7 个大节 + 一节「夜间」（21:35–22:30）。
+ *
+ * 第 7 节 21:35 就下课了，但人实际会待到 22:00 / 22:30（图书馆、自习、晚归）：
+ * 没有这一行，那些时段的事件只能塞进「课外」兜底行（看不出几点），拖拽也没有目标格。
+ * 只影响课表渲染，不动 TIMETABLE——导入解析仍按教务的 7 节来。
+ */
+const GRID_SECTIONS: readonly [string, string][] = [...TIMETABLE, ['21:35', '22:30']];
+
+const SECTION_MINUTES = GRID_SECTIONS.map(([start, end]) => {
   const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
   return Math.max(1, toMin(end) - toMin(start));
 });
@@ -52,6 +61,8 @@ interface GridItem {
   mergedCount: number;
   /** 这一格本身就是一条待办（而不是课程） */
   isTodo: boolean;
+  /** 同格内与课程重叠、被折成角标的待办数（课程优先，不让待办把课挤矮） */
+  overlapTodoCount?: number;
 }
 
 const TimetableGrid: React.FC<Props> = ({
@@ -198,7 +209,7 @@ const TimetableGrid: React.FC<Props> = ({
     const cell = cellUnder(x, y);
     if (!cell) return;
     // 起点换成目标节次的开始时间，时长照旧（连堂课拖过去仍然连堂）
-    const [sh, sm] = TIMETABLE[cell.section][0].split(':').map(Number);
+    const [sh, sm] = GRID_SECTIONS[cell.section][0].split(':').map(Number);
     const start = weekStart.add(cell.day, 'day').hour(sh).minute(sm).second(0).millisecond(0);
     const minutes = Math.max(1, dayjs(item.event.end).diff(dayjs(item.event.start), 'minute'));
     onMoveEvent(item.event, start.toDate(), start.add(minutes, 'minute').toDate());
@@ -229,9 +240,9 @@ const TimetableGrid: React.FC<Props> = ({
       isTodo: ev.extendedProps?.type === 'todo',
     };
     let placed = false;
-    for (let i = 0; i < TIMETABLE.length; i++) {
-      const [sh, sm] = TIMETABLE[i][0].split(':').map(Number);
-      const [eh, em] = TIMETABLE[i][1].split(':').map(Number);
+    for (let i = 0; i < GRID_SECTIONS.length; i++) {
+      const [sh, sm] = GRID_SECTIONS[i][0].split(':').map(Number);
+      const [eh, em] = GRID_SECTIONS[i][1].split(':').map(Number);
       const sectionStart = sh * 60 + sm;
       const sectionEnd = eh * 60 + em;
       // 严格重叠（首尾相接不算），避免 18:00 的待办蹭进 16:25 那一格
@@ -323,6 +334,19 @@ const TimetableGrid: React.FC<Props> = ({
             {item.mergedCount}
           </span>
         )}
+        {!!item.overlapTodoCount && (
+          <span style={{
+            flexShrink: 0,
+            padding: '0 3px',
+            borderRadius: 'var(--itdc-r-sm)',
+            background: 'rgba(0,0,0,.45)',
+            color: '#fff',
+            fontSize: 9,
+            lineHeight: '13px',
+          }}>
+            {t.calendar.todoTag} {item.overlapTodoCount}
+          </span>
+        )}
       </span>
       <span style={{ display: 'flex', alignItems: 'center', gap: 3, minWidth: 0 }}>
         {item.room && (
@@ -372,7 +396,7 @@ const TimetableGrid: React.FC<Props> = ({
           // 固定高度模式下：表头自适应，节次行高按真实时长分配（95/95/60/95/95/95/40），
           // 整张表正好一屏；中午 1 小时的节比 1.5 小时的节矮，占比不再失真
           gridTemplateRows: fillHeight
-            ? `auto ${TIMETABLE.map((_, i) => `minmax(0, ${SECTION_MINUTES[i]}fr)`).join(' ')}${extraCells.size > 0 ? ` minmax(0, ${EXTRA_ROW_MINUTES}fr)` : ''}`
+            ? `auto ${GRID_SECTIONS.map((_, i) => `minmax(0, ${SECTION_MINUTES[i]}fr)`).join(' ')}${extraCells.size > 0 ? ` minmax(0, ${EXTRA_ROW_MINUTES}fr)` : ''}`
             : undefined,
           flex: fillHeight ? 1 : undefined,
           minHeight: 0,
@@ -397,18 +421,28 @@ const TimetableGrid: React.FC<Props> = ({
           );
         })}
 
-        {TIMETABLE.map(([start, end], section) => {
-          // 40 分钟的晚课节行太矮放不下「节次号 + 起 + 止」三行，省掉结束时间防止叠字
+        {GRID_SECTIONS.map(([start, end], section) => {
+          // 40 分钟的晚课节行最矮，藏掉结束时间会让人以为"这节被渲染短了"，
+          // 所以三行都保留，只把字号和行距压小，保证 45px 的行也放得下
           const tight = SECTION_MINUTES[section] < 60;
           return (
           <React.Fragment key={section}>
-            <div style={{ borderBottom: border, padding: tight ? '2px 4px' : '6px 4px', fontSize: 11, color: secondaryTextColor(isDark), lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden' }}>
-              <div style={{ fontWeight: 600, color: isDark ? '#ddd' : '#333' }}>{section + 1}</div>
+            <div style={{ borderBottom: border, padding: tight ? '1px 4px' : '6px 4px', fontSize: tight ? 10 : 11, color: secondaryTextColor(isDark), lineHeight: tight ? 1.15 : 1.3, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+              <div style={{ fontWeight: 600, color: isDark ? '#ddd' : '#333' }}>
+                {section < TIMETABLE.length ? section + 1 : t.calendar.nightRow}
+              </div>
               <div>{start}</div>
-              {!tight && <div style={{ opacity: 0.7 }}>{end}</div>}
+              <div style={{ opacity: 0.7 }}>{end}</div>
             </div>
             {Array.from({ length: 7 }, (_, dayIdx) => {
               const items = cells.get(`${dayIdx}-${section}`) ?? [];
+              // 课程优先：同格既有课又有待办时，待办不再平分格高（会把课挤掉一半），
+              // 只折成角标；整格只有待办时才照旧平铺
+              const courses = items.filter((i) => !i.isTodo);
+              const todos = items.filter((i) => i.isTodo);
+              const shown = courses.length
+                ? courses.map((c, idx) => (idx === 0 ? { ...c, overlapTodoCount: todos.length } : c))
+                : todos;
               return (
                 <div
                   key={dayIdx}
@@ -425,7 +459,7 @@ const TimetableGrid: React.FC<Props> = ({
                     outlineOffset: -2,
                   }}
                 >
-                  {items.map((item, idx) => renderBlock(item, `${item.title}-${idx}`))}
+                  {shown.map((item, idx) => renderBlock(item, `${item.title}-${idx}`))}
                 </div>
               );
             })}

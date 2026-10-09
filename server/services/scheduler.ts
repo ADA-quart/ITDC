@@ -6,6 +6,9 @@ import {
   LATE_START_HOUR,
   MIN_USABLE_GAP_MINUTES,
   SLOT_BUFFER_MINUTES,
+  canUseLateNightWindow,
+  dayEndMinutes,
+  latestStartMinutes,
   findProtectedWindow,
   atMinutesOfDay,
 } from '../../shared/schedule-policy.js';
@@ -114,12 +117,15 @@ export function isWithinWorkHours(dt: Date): boolean {
   return h >= WORK_START_HOUR && h < WORK_END_HOUR;
 }
 
-export function advanceToWorkHours(dt: Date): Date {
+export function advanceToWorkHours(dt: Date, allowLateNight = false): Date {
   const result = new Date(dt);
-  if (result.getHours() >= WORK_END_HOUR) {
+  // 超过当天可排终点（普通 22:00 / 紧急重要 22:30）才顺延到次日 08:00
+  const limit = dayEndMinutes(allowLateNight);
+  const minutes = result.getHours() * 60 + result.getMinutes();
+  if (minutes >= limit) {
     result.setDate(result.getDate() + 1);
     result.setHours(WORK_START_HOUR, 0, 0, 0);
-  } else if (result.getHours() < WORK_START_HOUR) {
+  } else if (minutes < WORK_START_HOUR * 60) {
     result.setHours(WORK_START_HOUR, 0, 0, 0);
   }
   return result;
@@ -130,10 +136,14 @@ export function findNextFreeSlot(
   durationMinutes: number,
   busySlots: BusySlot[],
   deadline: Date | null,
-  allowClassOverlap = false
+  allowClassOverlap = false,
+  /** 「紧急重要」才允许用 22:00-22:30 的加时窗口 */
+  allowLateNight = false
 ): Date | null {
   let start = new Date(currentStart);
-  start = advanceToWorkHours(start);
+  start = advanceToWorkHours(start, allowLateNight);
+  const startLimit = latestStartMinutes(allowLateNight);
+  const endLimit = dayEndMinutes(allowLateNight);
 
   const maxDate = deadline || new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000);
 
@@ -142,7 +152,8 @@ export function findNextFreeSlot(
 
   while (start < maxDate && attempts < maxAttempts) {
     attempts++;
-    if (start.getHours() >= LATE_START_HOUR) {
+    const startMinutes = start.getHours() * 60 + start.getMinutes();
+    if (startMinutes >= startLimit) {
       start = new Date(start);
       start.setDate(start.getDate() + 1);
       start.setHours(WORK_START_HOUR, 0, 0, 0);
@@ -150,7 +161,12 @@ export function findNextFreeSlot(
     }
     const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
 
-    if (end.getHours() >= WORK_END_HOUR || !isWithinWorkHours(start)) {
+    const endMinutes = end.getHours() * 60 + end.getMinutes();
+    if (
+      end.getDate() !== start.getDate()
+      || endMinutes > endLimit
+      || startMinutes < WORK_START_HOUR * 60
+    ) {
       start = new Date(start);
       start.setDate(start.getDate() + 1);
       start.setHours(WORK_START_HOUR, 0, 0, 0);
@@ -163,7 +179,7 @@ export function findNextFreeSlot(
 
     const protectedWindow = findProtectedWindow(start, end);
     if (protectedWindow) {
-      start = advanceToWorkHours(atMinutesOfDay(start, protectedWindow.end));
+      start = advanceToWorkHours(atMinutesOfDay(start, protectedWindow.end), allowLateNight);
       continue;
     }
 
@@ -185,7 +201,7 @@ export function findNextFreeSlot(
         }
         conflict = true;
         start = new Date(Math.max(start.getTime(), slotEnd.getTime()));
-        start = advanceToWorkHours(start);
+        start = advanceToWorkHours(start, allowLateNight);
         break;
       }
     }
@@ -193,7 +209,8 @@ export function findNextFreeSlot(
     if (!conflict) {
       const nextBoundary = busySlots.find((s) => new Date(s.start).getTime() >= end.getTime());
       const dayEnd = new Date(start);
-      dayEnd.setHours(WORK_END_HOUR, 0, 0, 0);
+      dayEnd.setHours(0, 0, 0, 0);
+      dayEnd.setMinutes(endLimit);
       const nextBoundaryMs = nextBoundary ? new Date(nextBoundary.start).getTime() : dayEnd.getTime();
       const windowEndMs = Math.min(
         allowedWindowEnd === null ? Number.POSITIVE_INFINITY : allowedWindowEnd,
@@ -203,7 +220,7 @@ export function findNextFreeSlot(
       const availableMinutes = (windowEndMs - start.getTime()) / 60000;
       if (availableMinutes < MIN_USABLE_GAP_MINUTES
         || availableMinutes < durationMinutes + SLOT_BUFFER_MINUTES) {
-        start = advanceToWorkHours(new Date(windowEndMs));
+        start = advanceToWorkHours(new Date(windowEndMs), allowLateNight);
         continue;
       }
       return start;
@@ -218,7 +235,9 @@ export function findNextClassSlot(
   currentStart: Date,
   durationMinutes: number,
   busySlots: BusySlot[],
-  deadline: Date | null
+  deadline: Date | null,
+  /** 「紧急重要」才允许用 22:00-22:30 的加时窗口 */
+  allowLateNight = false
 ): Date | null {
   const classSlots = busySlots
     .filter((s) => s.isClass)
@@ -227,14 +246,15 @@ export function findNextClassSlot(
   const needMs = (durationMinutes + SLOT_BUFFER_MINUTES) * 60000;
 
   for (const cls of classSlots) {
-    let cursor = new Date(Math.max(cls.start, advanceToWorkHours(new Date(currentStart)).getTime()));
+    let cursor = new Date(Math.max(cls.start, advanceToWorkHours(new Date(currentStart), allowLateNight).getTime()));
+    const startLimit = latestStartMinutes(allowLateNight);
     while (cursor.getTime() + needMs <= cls.end) {
-      if (cursor.getHours() >= LATE_START_HOUR) break;
+      if (cursor.getHours() * 60 + cursor.getMinutes() >= startLimit) break;
       const end = new Date(cursor.getTime() + durationMinutes * 60000);
       if (deadline && end > deadline) return null;
       const protectedWindow = findProtectedWindow(cursor, end);
       if (protectedWindow) {
-        cursor = advanceToWorkHours(atMinutesOfDay(cursor, protectedWindow.end));
+        cursor = advanceToWorkHours(atMinutesOfDay(cursor, protectedWindow.end), allowLateNight);
         continue;
       }
       const blockers = busySlots.filter((s) => {
@@ -248,7 +268,7 @@ export function findNextClassSlot(
         if (availableMinutes >= MIN_USABLE_GAP_MINUTES) return cursor;
       } else {
         const latestEnd = Math.max(...blockers.map((s) => new Date(s.end).getTime()));
-        cursor = advanceToWorkHours(new Date(latestEnd));
+        cursor = advanceToWorkHours(new Date(latestEnd), allowLateNight);
         continue;
       }
       break;
@@ -283,10 +303,11 @@ export function generateSchedule(): ScheduledItem[] {
     const searchStart = new Date(now.getTime());
     const deadline = todo.deadline ? new Date(todo.deadline) : null;
     const allowClassOverlap = !!todo.can_do_in_class;
+    const allowLateNight = canUseLateNightWindow(todo.priority);
     const pickStart = (from: Date, minutes: number): Date | null => {
-      const normal = findNextFreeSlot(from, minutes, newBusySlots, deadline, allowClassOverlap);
+      const normal = findNextFreeSlot(from, minutes, newBusySlots, deadline, allowClassOverlap, allowLateNight);
       const inClass = allowClassOverlap
-        ? findNextClassSlot(from, minutes, newBusySlots, deadline)
+        ? findNextClassSlot(from, minutes, newBusySlots, deadline, allowLateNight)
         : null;
       if (normal && inClass) {
         return normal.getTime() <= inClass.getTime() ? normal : inClass;
