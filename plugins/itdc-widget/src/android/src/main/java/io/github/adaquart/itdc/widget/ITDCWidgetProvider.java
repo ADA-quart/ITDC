@@ -4,9 +4,11 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.net.Uri;
@@ -55,6 +57,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
     @Override
     public void onReceive(Context context, Intent intent) {
         super.onReceive(context, intent);
+        ensureConfigReceiver(context);
         if (intent.getData() != null) {
             String widgetIdStr = intent.getData().toString()
                     .substring(intent.getData().toString().lastIndexOf('/') + 1);
@@ -67,6 +70,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
 
     @Override
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
+        ensureConfigReceiver(context);
         for (int id : appWidgetIds) refreshWidget(context, id);
         scheduleRefresh(context);
     }
@@ -91,6 +95,42 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             am.cancel(pi);
         } catch (Exception e) { Log.e(TAG, "onDisabled failed", e); }
     }
+
+    /**
+     * 系统深/浅色切换时，系统并不会主动重绘 App Widget——不自己刷新的话，
+     * 「跟随系统」要等到下一次定时刷新（解锁 / 下课 / 跨天 / 兜底 2 小时）才生效，
+     * 用户看到的现象就是「切了深色，小组件还是白的」。
+     *
+     * 这个广播只能动态注册（清单里声明收不到），所以每次 onUpdate / onReceive
+     * 都确保注册一次：进程活着时就能实时跟随，进程被杀则退回定时刷新。
+     */
+    static void ensureConfigReceiver(Context context) {
+        if (configReceiverRegistered) return;
+        try {
+            IntentFilter filter = new IntentFilter(Intent.ACTION_CONFIGURATION_CHANGED);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(CONFIG_RECEIVER, filter, Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                context.registerReceiver(CONFIG_RECEIVER, filter);
+            }
+            configReceiverRegistered = true;
+        } catch (Exception e) {
+            Log.e(TAG, "register config receiver failed", e);
+        }
+    }
+
+    private static boolean configReceiverRegistered = false;
+
+    private static final BroadcastReceiver CONFIG_RECEIVER = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            try {
+                refreshAll(context);
+            } catch (Exception e) {
+                Log.e(TAG, "config refresh failed", e);
+            }
+        }
+    };
 
     private static void refreshAll(Context context) {
         try {
@@ -326,6 +366,8 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
      */
     private static void applyAppearance(Context context, RemoteViews rv, int appWidgetId) {
         try {
+            // 先钉住这一轮的明暗，后面列表项取色会复用，不会拼出混合态
+            WidgetAppearance.pinNight(context);
             // Android 12+：圆角和面板色交给根布局（保留 ShapeDrawable 的圆角），
             // 图片层用 centerCrop 等比填满，位图尺寸和桌面尺寸不一致也不会拉伸。
             if (Build.VERSION.SDK_INT >= 31) {

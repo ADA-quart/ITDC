@@ -17,6 +17,16 @@ import org.json.JSONObject;
 @CapacitorPlugin(name = "itdc-widget")
 public class ITDCWidgetPlugin extends Plugin {
 
+    /** App 一起就把系统深/浅色监听接上：切主题时小组件立刻重绘，不用等定时刷新 */
+    @Override
+    public void load() {
+        try {
+            ITDCWidgetProvider.ensureConfigReceiver(getContext());
+        } catch (Exception ignored) {
+            // 拿不到 Context 也不影响其它功能，退回定时刷新
+        }
+    }
+
     @PluginMethod
     public void setServerUrl(PluginCall call) {
         String url = call.getString("url");

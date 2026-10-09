@@ -49,6 +49,8 @@ final class WidgetAppearance {
     private static final String KEY_ZOOM = "ap_zoom";
     private static final String KEY_CROP_FILE = "ap_crop_file";
     private static final String KEY_CROP_SIG = "ap_crop_sig";
+    /** 外壳渲染时定下的明暗，列表项晚些渲染也要用同一套，避免拼出混合态 */
+    private static final String KEY_RENDERED_NIGHT = "ap_rendered_night";
     private static final String IMAGE_NAME = "widget_bg.jpg";
     /** 桌面自己解码的高清裁切图（走 FileProvider，不进 Binder） */
     private static final String CROP_DIR = "widget";
@@ -307,12 +309,36 @@ final class WidgetAppearance {
     }
 
     static boolean isNight(Context context) {
+        return renderedNight(context);
+    }
+
+    /** 当前系统配置下的明暗（真实值，不受"钉住"影响） */
+    private static boolean currentNight(Context context) {
         String scheme = prefs(context).getString(KEY_SCHEME, SCHEME_AUTO);
         if (SCHEME_LIGHT.equals(scheme)) return false;
         if (SCHEME_DARK.equals(scheme)) return true;
         int uiMode = context.getResources().getConfiguration().uiMode
                 & Configuration.UI_MODE_NIGHT_MASK;
         return uiMode == Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    /**
+     * 把这一轮渲染用的明暗钉下来。
+     *
+     * 外壳（面板色、标题）与列表项（待办标题）是在不同时刻取色的，
+     * 如果各自去读"当前系统配置"，切主题时就会拼出「深色面板 + 黑色标题」
+     * 这种文字直接看不见的混合态。所以每次重绘外壳前钉一次，列表项复用同一个值。
+     */
+    static void pinNight(Context context) {
+        boolean night = currentNight(context);
+        // 默认取反值：首次（键不存在）一定写入，之后同值跳过，避免一次重绘写三遍
+        if (prefs(context).getBoolean(KEY_RENDERED_NIGHT, !night) == night) return;
+        prefs(context).edit().putBoolean(KEY_RENDERED_NIGHT, night).apply();
+    }
+
+    /** 渲染用明暗：优先用外壳钉住的值；没钉过（首次安装）则按当前系统配置 */
+    private static boolean renderedNight(Context context) {
+        return prefs(context).getBoolean(KEY_RENDERED_NIGHT, currentNight(context));
     }
 
     static int textPrimary(Context context) {
