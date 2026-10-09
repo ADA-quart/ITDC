@@ -407,6 +407,7 @@ const zh = {
     focusPoint: '画面焦点',
     focusHint: '拖动预览图或下面的滑杆，调整裁切保留的位置（0 最左/最上，100 最右/最下）；App 背景与小组件共用',
     focusHorizontal: '左右位置',
+    previewScreenRatio: '按当前屏幕比例预览（就是主界面会显示的区域）',
     focusVertical: '上下位置',
     imageZoom: '图片缩放',
     imageZoomHint: '1 倍为铺满裁切；放大（1 倍以上）像头像裁剪一样取局部，缩小（1 倍以下）整图变小、四周用同图的模糊版填充；配合「左右/上下位置」选位置，App 背景与小组件同步',

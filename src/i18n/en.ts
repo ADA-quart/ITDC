@@ -402,6 +402,7 @@ const en: LocaleMessages = {
     focusPoint: 'Focal point',
     focusHint: 'Drag the preview or use the sliders to choose the crop position (0 = left/top, 100 = right/bottom); shared by the app background and widget',
     focusHorizontal: 'Horizontal position',
+    previewScreenRatio: 'Previewed at your screen ratio — exactly what the home screen shows',
     focusVertical: 'Vertical position',
     imageZoom: 'Image zoom',
     imageZoomHint: '1× fills the frame; above 1× you crop into the image like an avatar cropper, below 1× the whole image shrinks and the surrounding area is filled with a blurred copy of itself. Use the position sliders to pick the area — app background and widget stay in sync',

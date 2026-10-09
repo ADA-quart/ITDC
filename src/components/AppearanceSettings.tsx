@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button, ColorPicker, Popconfirm, Slider, Space, Switch, Upload, message } from 'antd';
 import { BgColorsOutlined, DeleteOutlined, PictureOutlined, UploadOutlined } from '@ant-design/icons';
 import { Capacitor } from '@capacitor/core';
@@ -72,6 +72,23 @@ const AppearanceSettings: React.FC = () => {
   const [processing, setProcessing] = useState(false);
   const [applying, setApplying] = useState(false);
   const dragRef = useRef<{ x: number; y: number; fx: number; fy: number } | null>(null);
+  // 预览框必须和真实屏幕同比例：横着的预览框里看到的是另一块区域，
+  // 用户没法判断图片实际会被裁成什么样（之前只能靠猜）
+  const [viewAspect, setViewAspect] = useState(() =>
+    typeof window === 'undefined' ? 9 / 19.5 : window.innerWidth / Math.max(1, window.innerHeight),
+  );
+  useEffect(() => {
+    const onResize = () => setViewAspect(window.innerWidth / Math.max(1, window.innerHeight));
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
+    };
+  }, []);
+  // 宽度取上限、高度反推：手机上就是一块竖向的屏幕形状
+  const previewWidth = Math.min(isMobile ? 230 : 190, Math.round(320 * viewAspect));
+  const previewHeight = Math.max(90, Math.round(previewWidth / Math.max(0.2, viewAspect)));
   const clampFocus = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
   // 取成局部常量，闭包（.map 等）里也能拿到非空类型
   const bgImage = appearance.bgImage;
@@ -171,7 +188,8 @@ const AppearanceSettings: React.FC = () => {
 
         {bgImage && (
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
-            <div
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+              <div
               onPointerDown={(e) => {
                 dragRef.current = {
                   x: e.clientX,
@@ -195,37 +213,40 @@ const AppearanceSettings: React.FC = () => {
               onPointerUp={() => { dragRef.current = null; }}
               onPointerCancel={() => { dragRef.current = null; }}
               style={{
-                position: 'relative',
-                width: isMobile ? '100%' : 180,
-                height: 110,
-                borderRadius: 8,
-                overflow: 'hidden',
-                border: `1px solid ${isDark ? '#303030' : '#e8e8e8'}`,
-                flexShrink: 0,
-                cursor: 'grab',
-                touchAction: 'none',
-              }}
-            >
-              <PreviewBackdrop
-                image={bgImage}
-                focusX={appearance.bgFocusX}
-                focusY={appearance.bgFocusY}
-                zoom={appearance.bgZoom}
-              />
-              <div
-                aria-hidden
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  backgroundImage: `url(${appearance.bgImage})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
-                  backgroundRepeat: 'no-repeat',
-                  transform: `scale(${appearance.bgZoom})`,
-                  transformOrigin: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
-                  pointerEvents: 'none',
+                  position: 'relative',
+                  width: previewWidth,
+                  height: previewHeight,
+                  borderRadius: isMobile ? 14 : 8,
+                  overflow: 'hidden',
+                  border: `1px solid ${isDark ? '#303030' : '#e8e8e8'}`,
+                  cursor: 'grab',
+                  touchAction: 'none',
                 }}
-              />
+              >
+                <PreviewBackdrop
+                  image={bgImage}
+                  focusX={appearance.bgFocusX}
+                  focusY={appearance.bgFocusY}
+                  zoom={appearance.bgZoom}
+                />
+                <div
+                  aria-hidden
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    backgroundImage: `url(${appearance.bgImage})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
+                    backgroundRepeat: 'no-repeat',
+                    transform: `scale(${appearance.bgZoom})`,
+                    transformOrigin: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
+                    pointerEvents: 'none',
+                  }}
+                />
+              </div>
+              <div style={{ fontSize: 11, color: secondaryTextColor(isDark) }}>
+                {t.settings.previewScreenRatio}
+              </div>
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <SliderLabel label={t.settings.imageZoom} value={`${appearance.bgZoom.toFixed(2)}×`} dim={secondaryTextColor(isDark)} />
