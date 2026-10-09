@@ -193,8 +193,10 @@ const TodoList: React.FC = () => {
               return;
             }
           }
-        } catch {
-          /* OCR 失败则继续走底部的错误提示 */
+        } catch (ocrErr) {
+          // 不要把失败原因吞掉：OCR 挂了和"模型不支持视觉"是两码事，
+          // 保留最后一条错误便于排查（控制台也留一份）
+          console.warn('[ITDC] 本地 OCR 失败：', ocrErr);
         }
       }
 

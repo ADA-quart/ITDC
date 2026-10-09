@@ -7,7 +7,7 @@
 // 引擎为 PP-OCRv4（PaddleOCR / RapidOCR 的 ONNX 版）跑在 onnxruntime-web 上：
 // 检测与识别都在本机完成，全程离线、不需要 GMS；模型与 wasm 由用户按需下载，
 // 见 ocr/installer.ts。
-import { ocrStatus, removeOcr } from './ocr/installer';
+import { installOcr, ocrStatus, removeOcr } from './ocr/installer';
 import { ensureOcrEngine, recognizeImage, resetOcrEngine } from './ocr/ppocr';
 
 /** 同步可读的就绪标记：TodoList 是在点击瞬间同步判断的 */
@@ -63,3 +63,20 @@ export async function uninstallLocalOcr(): Promise<void> {
 
 export { installOcr, ocrStatus, formatBytes, OCR_TOTAL_BYTES } from './ocr/installer';
 export type { OcrProgress, OcrStatus } from './ocr/installer';
+
+/**
+ * 诊断入口：把 `localStorage.itdc_debug` 设成 '1' 并重载后，控制台可用
+ * `__itdcOcr.recognizeImage(dataUrl)` 直接跑一遍识别（跳过"是否已安装"的判断），
+ * 排查模型/算子问题用。平时不暴露。
+ */
+if (typeof window !== 'undefined' && window.localStorage?.getItem('itdc_debug') === '1') {
+  (window as unknown as Record<string, unknown>).__itdcOcr = {
+    recognizeImage,
+    recognizeTextLocally,
+    refreshLocalOcrState,
+    prewarmLocalOcr,
+    ocrStatus,
+    installOcr,
+    resetOcrEngine,
+  };
+}

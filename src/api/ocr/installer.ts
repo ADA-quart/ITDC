@@ -28,10 +28,12 @@ const HF = 'https://huggingface.co/SWHL/RapidOCR/resolve/main/PP-OCRv4';
 // 模型：PP-OCRv4 mobile（PaddleOCR / RapidOCR，Apache-2.0）。主源 hf-mirror、
 // 兜底 huggingface，两者都带 CORS，WebView 的 fetch 与原生下载都能取。
 //
-// 关于 int8：仓库的 ocr-models 分支 / ocr-models-v1 Release 里已托管 onnxruntime
-// 动态量化版（det 4.53→1.27MB、rec 10.35→2.76MB），但在 onnxruntime-web 的 WASM EP
-// 上加载即抛错（识别分支被 catch 吞掉，用户只看到"网络不可用"），所以暂不启用；
-// 要启用得先换成 WASM EP 支持的量化形式（QUInt8 / per-channel）并重新实测。
+// 关于 int8（试过，结论：对本模型不可用）：仓库的 ocr-models 分支 / ocr-models-v1
+// Release 里托管了 onnxruntime 动态量化版，实测——
+//   * det int8 正常出框，但同一张图整条流水线从 2.1s 变 4.9s（WASM 上 ConvInteger 比 fp32 慢）；
+//   * rec int8 直接输出空字符串，只量化卷积主干（保留 MatMul 头）也一样空；
+//     det32+rec8 / det8+rec8 均为空、det8+rec32 正常 → 破的是识别模型本身。
+// 所以仍用 fp32；要做小得换静态量化（QDQ + 校准集）或 fp16，并重新实测精度。
 //
 // 运行时（onnxruntime-web 的 JS + 14.2MB wasm）随 APK 分发：wasm 会被打包器当成
 // 资源引用带走，与其让所有人额外下载 14.2MB，不如跟包走一次（zip 里约 4MB）。
