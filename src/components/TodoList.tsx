@@ -403,8 +403,35 @@ const TodoList: React.FC = () => {
       </div>
 
       <Spin spinning={loading}>
+        {/* 空状态：不用 antd 默认的灰色插图（和这个 App 的气质不搭），
+            改成应用图标 + 出典题记 + 一行引导 */}
         {todos.length === 0 ? (
-          <Empty description={t.todo.noTodos} />
+          <div style={{ textAlign: 'center', padding: '26px 12px 32px' }}>
+            <img
+              src='/icons/icon-192.png'
+              alt=''
+              width={64}
+              height={64}
+              style={{
+                borderRadius: 16,
+                boxShadow: isDark ? '0 6px 18px rgba(0,0,0,.45)' : '0 6px 18px rgba(0,0,0,.14)',
+              }}
+            />
+            <div
+              style={{
+                marginTop: 16,
+                fontSize: 16,
+                fontWeight: 600,
+                letterSpacing: 1.5,
+                color: isDark ? '#e8e8e8' : '#333',
+              }}
+            >
+              {t.todo.noTodos}
+            </div>
+            <div style={{ marginTop: 8, fontSize: 12, color: isDark ? '#a6a6a6' : '#666' }}>
+              {t.todo.emptyHint}
+            </div>
+          </div>
         ) : (
           Object.entries(groups).map(([priority, items]) => {
             if (items.length === 0) return null;
