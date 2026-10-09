@@ -2,7 +2,13 @@
 //
 // 提示词与字段校验来自 shared/nl-todo-prompt.ts，与服务端同源，
 // 保证「周五下午」这类相对时间在两种模式下解析一致。
-import { NL_TODO_SYSTEM_PROMPT, parseTodoFromModel, type ParsedTodo } from '../../shared/nl-todo-prompt';
+import {
+  NL_TODO_SYSTEM_PROMPT,
+  NL_TODO_LIST_SYSTEM_PROMPT,
+  parseTodoFromModel,
+  parseTodosFromModel,
+  type ParsedTodo,
+} from '../../shared/nl-todo-prompt';
 import { fillCurrentTime } from '../../shared/current-time';
 import { chatLocal } from './llm-local';
 import { getActiveLocalConfig } from './llm-config-local';
@@ -19,4 +25,22 @@ export async function parseNaturalLanguageTodoLocally(text: string): Promise<Par
   ]);
 
   return parseTodoFromModel(content);
+}
+
+/**
+ * 批量版：一段文字（多行清单 / 截图识别结果）里的所有任务。
+ * 例：一张作业列表截图里有三道课后作业，逐条提取而不是只挑一条。
+ */
+export async function parseNaturalLanguageTodosLocally(text: string): Promise<ParsedTodo[]> {
+  const config = await getActiveLocalConfig();
+  if (!config) {
+    throw new Error('本机模式还没有配置大模型：请到「设置 → LLM 服务配置」添加一个');
+  }
+
+  const content = await chatLocal(config, [
+    { role: 'system', content: fillCurrentTime(NL_TODO_LIST_SYSTEM_PROMPT, new Date()) },
+    { role: 'user', content: '请提取这段文字里的所有待办任务：\n' + text },
+  ]);
+
+  return parseTodosFromModel(content);
 }

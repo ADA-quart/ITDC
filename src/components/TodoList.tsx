@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { List, Tag, Button, Modal, message, Badge, Empty, Spin, ColorPicker, Input } from 'antd';
-import { CheckOutlined, DeleteOutlined, EditOutlined, SplitCellsOutlined, UndoOutlined } from '@ant-design/icons';
+import { CheckOutlined, DeleteOutlined, EditOutlined, SplitCellsOutlined, UndoOutlined, PictureOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { todoApi, scheduleApi } from '../api/client';
 import type { Todo, Priority, TodoStatus } from '../types';
@@ -13,6 +13,8 @@ import { useI18n } from '../i18n';
 import { cardStyle } from './ui';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { Capacitor } from '@capacitor/core';
+import { ITDCWidgetPlugin } from '../capacitor/itdc-widget';
 
 const STATUS_KEYS: Record<string, string> = {
   pending: 'pending',
@@ -32,6 +34,8 @@ const TodoList: React.FC = () => {
   const [splitTodo, setSplitTodo] = useState<Todo | null>(null);
   const [nlText, setNlText] = useState('');
   const [nlLoading, setNlLoading] = useState(false);
+  const [nlOcrLoading, setNlOcrLoading] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const statusLabels: Record<TodoStatus, string> = {
     pending: t.todo.pending,
@@ -79,14 +83,43 @@ const TodoList: React.FC = () => {
     if (!text) return;
     setNlLoading(true);
     try {
-      await todoApi.parseNL(text);
-      message.success(t.todo.created);
+      const created = await todoApi.parseNL(text);
+      message.success(t.todo.nlCreated.replace('{n}', String(created.length)));
       setNlText('');
       loadTodos();
     } catch (err: any) {
       message.error(err?.response?.data?.error || err.message || t.todo.loadFailed);
     } finally {
       setNlLoading(false);
+    }
+  };
+
+  /**
+   * 图片 → 待办：本地 OCR（ML Kit，离线）识别文字后填入输入框，
+   * 用户核对无误再点「AI 添加」，由大模型提取成待办（一张图可能有多条）。
+   */
+  const handleImagePick = async (file: File | null) => {
+    if (!file) return;
+    setNlOcrLoading(true);
+    try {
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('read failed'));
+        reader.readAsDataURL(file);
+      });
+      const { text } = await ITDCWidgetPlugin.recognizeText({ dataUrl });
+      const recognized = (text || '').trim();
+      if (!recognized) {
+        message.warning(t.todo.imageEmpty);
+        return;
+      }
+      setNlText(recognized);
+      message.success(t.todo.imageDone);
+    } catch {
+      message.error(t.todo.imageFail);
+    } finally {
+      setNlOcrLoading(false);
     }
   };
 
@@ -240,6 +273,26 @@ const TodoList: React.FC = () => {
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {Capacitor.isNativePlatform() && (
+          <>
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                void handleImagePick(e.target.files?.[0] ?? null);
+                e.target.value = '';
+              }}
+            />
+            <Button
+              icon={<PictureOutlined />}
+              loading={nlOcrLoading}
+              onClick={() => imageInputRef.current?.click()}
+              title={t.todo.imageAdd}
+            />
+          </>
+        )}
         <Input
           placeholder={t.todo.nlPlaceholder}
           value={nlText}

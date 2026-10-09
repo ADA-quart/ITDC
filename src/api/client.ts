@@ -8,7 +8,7 @@ import { exportFile } from './export-file';
 import { colorForCourse } from '../../shared/course-colors';
 import type { ModelListResult } from './llm-models';
 import { generateLLMScheduleLocally } from './local-llm-scheduler';
-import { parseNaturalLanguageTodoLocally } from './local-nl-todo';
+import { parseNaturalLanguageTodosLocally } from './local-nl-todo';
 
 const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
@@ -314,12 +314,15 @@ export const todoApi = {
     return replaced[0];
   },
 
-  // 自然语言录入需要 LLM：服务器模式交给服务器，本机模式由 App 直连大模型
-  async parseNL(text: string): Promise<Todo> {
+  // 自然语言录入需要 LLM：服务器模式交给服务器，本机模式由 App 直连大模型。
+  // 返回创建的所有待办——一段文字/一张截图里可能有多条任务。
+  async parseNL(text: string): Promise<Todo[]> {
     if (!isSyncEnabled()) {
-      const parsed = await parseNaturalLanguageTodoLocally(text);
+      const parsedList = await parseNaturalLanguageTodosLocally(text);
       const todos = await offline.getCachedTodos();
-        const created = offline.localCreate({
+      const createdTodos: Todo[] = [];
+      for (const parsed of parsedList) {
+        const item = offline.localCreate({
           title: parsed.title,
           estimated_minutes: parsed.estimated_minutes,
           priority: parsed.priority as Todo['priority'],
@@ -328,12 +331,14 @@ export const todoApi = {
           can_do_in_class: parsed.in_class,
           deadline: parsed.deadline,
         });
-      todos.push(created);
+        todos.push(item);
+        createdTodos.push(item);
+      }
       await offline.saveCachedTodos(todos);
       notifyDataChanged();
-      return created;
+      return createdTodos;
     }
-    return api.post<Todo>('/todos/nl', { text }).then(r => r.data);
+    return api.post<Todo[]>('/todos/nl', { text }).then(r => r.data);
   },
 };
 

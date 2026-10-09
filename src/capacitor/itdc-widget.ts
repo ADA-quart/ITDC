@@ -34,6 +34,11 @@ export interface ItdcWidgetPluginInterface {
   secureSet(params: { key: string; value: string }): Promise<void>;
   secureGet(params: { key: string }): Promise<{ value?: string | null }>;
   secureRemove(params: { key: string }): Promise<void>;
+  /**
+   * 中文图片文字识别（ML Kit 本地模型，离线、不依赖 Google 服务）。
+   * 前端把图片读成 data URL 传入，返回纯文本，交给「AI 添加」继续解析成待办。
+   */
+  recognizeText(params: { dataUrl: string }): Promise<{ text: string }>;
 }
 
 export const ITDCWidgetPlugin = registerPlugin<ItdcWidgetPluginInterface>("itdc-widget");

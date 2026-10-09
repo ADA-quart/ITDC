@@ -27,4 +27,6 @@ dependencies {
     implementation project(':capacitor-android')
     implementation "androidx.appcompat:appcompat:1.7.1"
     implementation "androidx.core:core:1.17.0"
+    // 中文 OCR（bundled 模型）：离线可用、不依赖 Google Play Services
+    implementation "com.google.mlkit:text-recognition-chinese:16.0.1"
 }
