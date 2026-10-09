@@ -225,8 +225,36 @@
 | word | 0.3.0 | Apache-2.0 | [链接](https://github.com/SheetJS/js-word) |
 | xlsx-js-style | 1.2.0 | Apache-2.0 | [链接](https://github.com/gitbrent/xlsx-js-style) |
 
+## 非 npm 依赖（模型 / 内置数据 / Android 侧）
+
+下面这些不是 npm 包，`license-checker` 扫不到，但确实被项目使用或分发：
+
+| 名称 | 版本 / 形态 | 许可协议 | 来源 |
+| --- | --- | --- | --- |
+| PP-OCRv4 文字检测模型（ch_PP-OCRv4_det_infer.onnx） | 按需下载 4.7MB | Apache-2.0 | [链接](https://huggingface.co/SWHL/RapidOCR) |
+| PP-OCRv4 文字识别模型（ch_PP-OCRv4_rec_infer.onnx） | 按需下载 10.9MB | Apache-2.0 | [链接](https://huggingface.co/SWHL/RapidOCR) |
+| PP-OCRv4 识别字典（ppocr_keys_v1.txt） | 随包内置 | Apache-2.0 | [链接](https://github.com/PaddlePaddle/PaddleOCR) |
+| 本项目量化衍生模型（int8，ocr-models 分支 / ocr-models-v1 Release） | 托管但未默认启用 | Apache-2.0 | [链接](https://github.com/ADA-quart/ITDC/tree/ocr-models) |
+| PaddleOCR（PP-OCRv4 原始模型与训练代码，上游） | — | Apache-2.0 | [链接](https://github.com/PaddlePaddle/PaddleOCR) |
+| RapidOCR（PaddleOCR 权重转 ONNX 的工具与发布，上游） | — | Apache-2.0 | [链接](https://github.com/RapidAI/RapidOCR) |
+| AndroidX AppCompat | 1.7.1 | Apache-2.0 | [链接](https://github.com/androidx/androidx) |
+| AndroidX Core | 1.17.0 | Apache-2.0 | [链接](https://github.com/androidx/androidx) |
+| AndroidX CoordinatorLayout | 1.3.0 | Apache-2.0 | [链接](https://github.com/androidx/androidx) |
+| AndroidX Core SplashScreen | 1.2.0 | Apache-2.0 | [链接](https://github.com/androidx/androidx) |
+| AndroidX Activity / Fragment / WebKit | 1.11.0 / 1.8.9 / 1.14.0 | Apache-2.0 | [链接](https://github.com/androidx/androidx) |
+| Android Gradle Plugin | 8.13.0 | Apache-2.0 | [链接](https://developer.android.com/build/releases/gradle-plugin) |
+| Google Services Gradle Plugin | 4.4.4 | Apache-2.0 | [链接](https://developers.google.com/android/guides/google-services-plugin) |
+
+## 参考与致谢（未随包分发代码）
+
+| 名称 | 说明 | 许可协议 | 来源 |
+| --- | --- | --- | --- |
+| CDUniTap（统一认证接口的设计参考） | 仅参考，未分发代码 | GPL-3.0 | [链接](https://github.com/kengwang/CDUniTap) |
+
 ## 常见协议说明
 
 - **MIT / ISC / BSD / Apache-2.0**：宽松许可，再分发时保留版权声明与许可文本即可。
 - **MPL-2.0**（如 ical.js）：文件级 copyleft，仅在修改其源文件并分发时需要公开相应修改。
+- **GPL-3.0**：强 copyleft。本项目**不包含也不链接** GPL 代码（`参考资料`一节的项目只用于设计参考）。
 - 各软件包的完整许可文本见其发布包内的 LICENSE 文件（本地安装于 node_modules 中对应目录）。
+- OCR 模型默认不随 APK 分发，由用户在应用内按需下载，下载后仍受其上游许可（Apache-2.0）约束。
