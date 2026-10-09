@@ -162,7 +162,7 @@ const en: LocaleMessages = {
     expired: 'Expired',
     remainingHours: '{n} hours left',
     remainingDays: '{n} days left',
-    noTodos: 'No todos',
+    noTodos: 'Renew yourself, day after day',
     deleteTodo: 'Delete Todo',
     confirmDelete: 'Are you sure to delete this todo?',
     delete: 'Delete',

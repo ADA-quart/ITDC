@@ -160,7 +160,8 @@ const zh = {
     expired: '已过期',
     remainingHours: '剩余 {n} 小时',
     remainingDays: '剩余 {n} 天',
-    noTodos: '暂无待办',
+    // 空状态不用"暂无待办"这种系统腔，用应用名的出处原文
+    noTodos: '苟日新，日日新，又日新',
     deleteTodo: '删除待办',
     confirmDelete: '确定要删除这个待办吗？',
     delete: '删除',

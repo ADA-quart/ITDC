@@ -3,6 +3,12 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [2.2.6] - 2026-10-10
+
+### 变更
+
+- **待办列表空状态改用出典原文**：没有待办时不再显示"暂无待办"，而是「苟日新，日日新，又日新」（英文界面为 "Renew yourself, day after day"），和应用名的出处保持一致
+
 ## [2.2.5] - 2026-10-10
 
 ### 修复
