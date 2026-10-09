@@ -379,6 +379,28 @@ final class WidgetAppearance {
         return withAlpha(panelColor(context), Math.round(opacity * 255f / 100f));
     }
 
+    /** 面板不透明度（0-1），跟随系统时改用 View.setAlpha 叠加，颜色留给资源 */
+    static float panelAlpha(Context context) {
+        int opacity = prefs(context).getInt(KEY_OPACITY, DEFAULT_OPACITY);
+        return Math.max(0, Math.min(100, opacity)) / 100f;
+    }
+
+    /**
+     * 是否可以完全交给资源（values / values-night）决定配色。
+     *
+     * 条件：明暗选「跟随系统」且没有钉死面板底色。这种组合下所有颜色都由布局里的
+     * {@code @color/widget_*} 提供，桌面在切系统深/浅色时自己就能重新解析并重绘，
+     * 不需要叫醒被冻结的 App 进程（Android 14+ 会推迟发给冻结进程的广播）。
+     *
+     * 反之（指定浅色 / 深色，或用户钉了面板底色）必须运行时染色，此时颜色由
+     * {@link #pinNight} 钉住，保证外壳与列表项一致。
+     */
+    static boolean useConfigColors(Context context) {
+        String scheme = prefs(context).getString(KEY_SCHEME, SCHEME_AUTO);
+        if (!SCHEME_AUTO.equals(scheme)) return false;
+        return TextUtils.isEmpty(prefs(context).getString(KEY_PANEL, ""));
+    }
+
     static boolean hasImage(Context context) {
         return prefs(context).getBoolean(KEY_HAS_IMAGE, false) && imageFile(context).exists();
     }

@@ -7,4 +7,7 @@
     <color name="widget_text_secondary">#FFA8A8B3</color>
     <color name="widget_text_empty">#FF7E7E8A</color>
     <color name="widget_section_label">#FFD8D8E0</color>
+    <color name="widget_text_done">#FF80808C</color>
+    <color name="widget_panel">#FF1C1C20</color>
+    <color name="widget_check_outline">#FFA8A8B3</color>
 </resources>

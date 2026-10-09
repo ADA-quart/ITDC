@@ -350,7 +350,9 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             RemoteViews rv = new RemoteViews(context.getPackageName(), R.layout.widget_today_error);
             applyAppearance(context, rv, appWidgetId);
             rv.setTextViewText(R.id.error_text, msg);
-            rv.setTextColor(R.id.error_text, WidgetAppearance.textPrimary(context));
+            if (!WidgetAppearance.useConfigColors(context)) {
+                rv.setTextColor(R.id.error_text, WidgetAppearance.textPrimary(context));
+            }
             rv.setOnClickPendingIntent(R.id.widget_root, openAppIntent(context));
             AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
             awm.updateAppWidget(appWidgetId, rv);
@@ -372,13 +374,19 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             // 图片层用 centerCrop 等比填满，位图尺寸和桌面尺寸不一致也不会拉伸。
             if (Build.VERSION.SDK_INT >= 31) {
                 boolean hasImage = WidgetAppearance.hasImage(context);
+                boolean configColors = WidgetAppearance.useConfigColors(context);
                 // 有图时根底色透明，让壁纸从图片透明度里透出来；无图时才是用户的面板色
-                int rootTint = hasImage ? 0x00000000 : WidgetAppearance.panelColorWithAlpha(context);
+                int rootTint = hasImage || configColors
+                        ? 0x00000000
+                        : WidgetAppearance.panelColorWithAlpha(context);
                 rv.setColorStateList(
                         R.id.widget_root,
                         "setBackgroundTintList",
                         android.content.res.ColorStateList.valueOf(rootTint));
                 if (hasImage) {
+                    // 清掉上一轮可能留下的资源底（跟随系统切到自定义色时会残留）
+                    rv.setInt(R.id.widget_bg_image, "setBackgroundResource", android.R.color.transparent);
+                    rv.setFloat(R.id.widget_bg_image, "setAlpha", 1f);
                     // 优先让桌面自己读高清裁切图（FileProvider）：位图走 Binder
                     // 有 1MB 量级的事务上限，只能传缩略图，放大后就是糊的。
                     Uri crop = cropUri(context);
@@ -398,7 +406,16 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
                             rv.setViewVisibility(R.id.widget_bg_image, android.view.View.GONE);
                         }
                     }
+                } else if (configColors) {
+                    // 跟随系统且没有自定义面板色：底色交给 values / values-night，
+                    // 桌面在切深/浅色时自己重新解析即可重绘，不用等 App 进程被唤醒；
+                    // 用户设的「面板不透明度」用 View.setAlpha 叠在这层上。
+                    rv.setInt(R.id.widget_bg_image, "setBackgroundResource", R.drawable.widget_panel_bg);
+                    rv.setFloat(R.id.widget_bg_image, "setAlpha", WidgetAppearance.panelAlpha(context));
+                    rv.setViewVisibility(R.id.widget_bg_image, android.view.View.VISIBLE);
                 } else {
+                    rv.setInt(R.id.widget_bg_image, "setBackgroundResource", android.R.color.transparent);
+                    rv.setFloat(R.id.widget_bg_image, "setAlpha", 1f);
                     rv.setViewVisibility(R.id.widget_bg_image, android.view.View.GONE);
                 }
                 return;
@@ -457,6 +474,9 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
 
     /** 文字配色只作用于主布局：提示页没有这些控件 */
     private static void applyTextColors(Context context, RemoteViews rv) {
+        // 跟随系统时不做运行时染色：布局里的 @color/widget_* 由桌面按当前配置解析，
+        // 这样切主题时桌面自己就能重绘（运行时染色会把资源色覆盖掉，必须靠刷新）
+        if (WidgetAppearance.useConfigColors(context)) return;
         rv.setTextColor(R.id.widget_board_title, WidgetAppearance.textPrimary(context));
         rv.setTextColor(R.id.widget_date, WidgetAppearance.textSecondary(context));
         rv.setTextColor(R.id.widget_today_label, WidgetAppearance.textSection(context));

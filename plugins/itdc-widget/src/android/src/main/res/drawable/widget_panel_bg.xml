@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 「跟随系统」时的圆角面板底：颜色来自 values / values-night，由桌面解析；
+     用户设定的是「面板不透明度」，用 View.setAlpha 叠加这一层。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/widget_panel" />
+    <corners android:radius="26dp" />
+</shape>

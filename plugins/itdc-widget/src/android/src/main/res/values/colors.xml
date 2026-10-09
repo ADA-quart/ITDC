@@ -10,4 +10,8 @@
     <color name="widget_section_label">#FF3D3D3D</color>
     <!-- 已完成待办的「完成线」默认色，运行时会按明暗替换成 WidgetAppearance.textDone -->
     <color name="widget_text_done">#FF9E9E9E</color>
+    <!-- 「跟随系统」时的面板底色：交给桌面按当前配置解析（切主题不用叫醒 App） -->
+    <color name="widget_panel">#FFFFFFFF</color>
+    <!-- 未完成待办的空心框描边（显式浅/深色时会被运行时 setColorFilter 覆盖） -->
+    <color name="widget_check_outline">#FF6B6B6B</color>
 </resources>
