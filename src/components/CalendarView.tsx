@@ -13,8 +13,9 @@ import {
 import {
   PlusOutlined, UploadOutlined, DeleteOutlined,
   FolderAddOutlined, DownloadOutlined, ImportOutlined,
-  LeftOutlined, RightOutlined,
+  LeftOutlined, RightOutlined, SyncOutlined,
 } from '@ant-design/icons';
+import { syncSchoolTimetable } from '../api/school-sync';
 import dayjs from 'dayjs';
 import { Capacitor } from '@capacitor/core';
 import { calendarApi, todoApi, getApiBase } from '../api/client';
@@ -94,6 +95,7 @@ const CalendarView: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [cdutOpen, setCdutOpen] = useState(false);
+  const [syncingSchool, setSyncingSchool] = useState(false);
   const [schoolEnabled, setSchoolEnabled] = useState(false);
   const [addCalOpen, setAddCalOpen] = useState(false);
   const [addCalForm] = Form.useForm();
@@ -924,7 +926,31 @@ const CalendarView: React.FC = () => {
         </div>
         <div style={{ borderTop: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`, paddingTop: 12, marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {schoolEnabled && (
+            <>
             <Button icon={<ImportOutlined />} block onClick={() => setCdutOpen(true)}>{t.calendar.schoolImport}</Button>
+            <Button
+              icon={<SyncOutlined />}
+              block
+              loading={syncingSchool}
+              style={{ marginTop: 8 }}
+              onClick={async () => {
+                setSyncingSchool(true);
+                try {
+                  const r = await syncSchoolTimetable();
+                  if (r) {
+                    message.success(t.schoolImport.synced.replace('{count}', String(r.courses)));
+                    loadData();
+                  }
+                } catch (err: any) {
+                  message.error(err?.message || t.schoolImport.importFail);
+                } finally {
+                  setSyncingSchool(false);
+                }
+              }}
+            >
+              {t.schoolImport.syncBtn}
+            </Button>
+            </>
           )}
           <Button icon={<DownloadOutlined />} block onClick={() => setImportOpen(true)}>{t.calendar.importIcal}</Button>
           <Button icon={<UploadOutlined />} block loading={exportingIcal} onClick={handleExportIcal}>{t.calendar.exportIcal}</Button>

@@ -23,6 +23,7 @@ import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { ITDCWidgetPlugin } from './capacitor/itdc-widget';
 import { pushWidgetSnapshot, consumeWidgetDoneQueue } from './api/widget-sync';
+import { maybeAutoSyncDaily } from './api/school-sync';
 import { useI18n } from './i18n';
 import { TOUCH_TARGET, withAlpha } from './components/ui';
 import { FONT_STACK, tabularNums } from './components/ui';
@@ -78,6 +79,11 @@ const App: React.FC = () => {
       if (reachable) window.dispatchEvent(new CustomEvent('todo-data-changed'));
       else setIsOffline(false); // 本机模式不是异常状态，不显示离线警告
     });
+  }, []);
+
+  // 每天早上首次打开 App 时静默同步教务课表（精确 6 点后台受系统限制，这是等效方案）
+  useEffect(() => {
+    void maybeAutoSyncDaily();
   }, []);
 
   // 桌面小组件数据桥：启动时与每次数据变更后，把最新快照推给原生侧。

@@ -14,6 +14,7 @@ import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { getSelectedSchool, setSelectedSchool } from '../api/school-prefs';
+import { getAutoSyncEnabled, setAutoSyncEnabled } from '../api/school-sync';
 import {
   isAndroid,
   syncClassReminders,
@@ -98,6 +99,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
   const [testingServer, setTestingServer] = useState(false);
   const [debugLog, setDebugLog] = useState('');
   const [schoolId, setSchoolId] = useState<string>('');
+  const [autoSyncSchool, setAutoSyncSchool] = useState(getAutoSyncEnabled());
   const [classReminderOn, setClassReminderOn] = useState(getClassReminderEnabled());
   const [classLeadMin, setClassLeadMin] = useState(getClassReminderLeadMin());
   const [classReminderSilent, setClassReminderSilentState] = useState(getClassReminderSilent());
@@ -673,6 +675,16 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
                 { value: 'cdut', label: '成都理工大学' },
               ]}
             />
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Switch
+                checked={autoSyncSchool}
+                onChange={(v) => {
+                  setAutoSyncSchool(v);
+                  setAutoSyncEnabled(v);
+                }}
+              />
+              <span style={{ fontSize: 13 }}>{t.settings.autoSyncSchool}</span>
+            </div>
           </div>
           {isAndroid() && (
             <div>
