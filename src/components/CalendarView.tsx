@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -973,6 +974,15 @@ const CalendarView: React.FC = () => {
     }
   };
 
+  /** 主操作「新建事件」：手机端放进右下角拇指区（Hoober 研究：49% 单手持机） */
+  const openNewEvent = () => {
+    form.resetFields();
+    form.setFieldsValue({ calendar_id: calendars.length > 0 ? calendars[0].id : undefined });
+    setModalOpen(true);
+  };
+  // 悬浮按钮要浮在底栏上方：底栏高度 + 安全区 + 间距（液态玻璃的底栏是悬浮胶囊，再抬高 12px）
+  const fabBottom = `calc(${appearance.liquidGlass ? 80 : 68}px + var(--itdc-inset-bottom, env(safe-area-inset-bottom, 0px)))`;
+
   return (
     <div style={{
       display: 'flex',
@@ -1068,9 +1078,40 @@ const CalendarView: React.FC = () => {
         order: isMobile ? 1 : 0,
         minHeight: 0,
       }}>
-        <div style={{ marginBottom: 12 }}>
-          <Button type="primary" icon={<PlusOutlined />} block={isMobile} onClick={() => { form.resetFields(); form.setFieldsValue({ calendar_id: calendars.length > 0 ? calendars[0].id : undefined }); setModalOpen(true); }}>{t.calendar.newEvent}</Button>
-        </div>
+        {/* 桌面：常规按钮；手机：主操作挪到右下角拇指区（FAB，56dp ≥ 7-10mm 触控标准） */}
+        {!isMobile && (
+          <div style={{ marginBottom: 12 }}>
+            <Button type="primary" icon={<PlusOutlined />} block onClick={openNewEvent}>{t.calendar.newEvent}</Button>
+          </div>
+        )}
+        {isMobile && createPortal(
+          <button
+            type="button"
+            className="itdc-tap"
+            aria-label={t.calendar.newEvent}
+            onClick={openNewEvent}
+            style={{
+              position: 'fixed',
+              right: 18,
+              bottom: fabBottom,
+              width: 56,
+              height: 56,
+              borderRadius: 19,
+              border: 'none',
+              background: appearance.accent,
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 10px 26px rgba(15,23,42,.28)',
+              zIndex: 90,
+              cursor: 'pointer',
+            }}
+          >
+            <PlusOutlined style={{ fontSize: 22 }} />
+          </button>,
+          document.body,
+        )}
         {/* 手机端自绘导航：标题一行放得下，按钮分组不再挤成一团 */}
         {isMobile && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
@@ -1131,7 +1172,9 @@ const CalendarView: React.FC = () => {
             <div
               style={{
                 overflow: 'hidden',
-                height: isMobile ? 'calc(100dvh - 232px)' : undefined,
+                // 顶部不再有「新建事件」按钮（挪成右下角 FAB），可用高度增加；
+                // 悬浮玻璃底栏比通栏略高，整体按「一屏 - 200px」算（原 232px）
+                height: isMobile ? 'calc(100dvh - 200px)' : undefined,
                 minHeight: isMobile ? 320 : undefined,
               }}
             >
@@ -1337,7 +1380,7 @@ const CalendarView: React.FC = () => {
             eventDragStart={() => { draggingRef.current = true; }}
             // 手机上让日历铺满一整屏：高度按视口算（扣掉顶部新建按钮、日期行与底部导航），
             // 日历列表与导入/导出顺延到下一屏，往上滑即可看到
-            height={isMobile ? 'calc(100dvh - 232px)' : 'auto'}
+            height={isMobile ? 'calc(100dvh - 200px)' : 'auto'}
             allDaySlot={true}
             // 待办拖进课程时段时并排显示，而不是盖住课程（课程优先，待办不占课的位置）
             slotEventOverlap={false}
