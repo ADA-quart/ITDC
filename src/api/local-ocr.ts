@@ -8,7 +8,7 @@
 // 检测与识别都在本机完成，全程离线、不需要 GMS；模型与 wasm 由用户按需下载，
 // 见 ocr/installer.ts。
 import { installOcr, ocrStatus, removeOcr } from './ocr/installer';
-import { ensureOcrEngine, recognizeImage, resetOcrEngine } from './ocr/ppocr';
+import { ensureOcrEngine, recognizeImage, recognizeImageDetailed, resetOcrEngine } from './ocr/ppocr';
 
 /** 同步可读的就绪标记：TodoList 是在点击瞬间同步判断的 */
 let available = false;
@@ -72,6 +72,7 @@ export type { OcrProgress, OcrStatus } from './ocr/installer';
 if (typeof window !== 'undefined' && window.localStorage?.getItem('itdc_debug') === '1') {
   (window as unknown as Record<string, unknown>).__itdcOcr = {
     recognizeImage,
+    recognizeImageDetailed,
     recognizeTextLocally,
     refreshLocalOcrState,
     prewarmLocalOcr,

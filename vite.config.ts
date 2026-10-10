@@ -11,6 +11,13 @@ const BACKEND_PORT = process.env.BACKEND_PORT || process.env.PORT || 3000;
 const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')) as { version: string };
 
 export default defineConfig({
+  // onnxruntime-web 的 wasm 变体不做依赖预构建：预构建会把 import.meta.url 指到
+  // node_modules/.vite/deps/，运行时按该路径去取 14MB 的 ort-wasm-*.wasm 会 404
+  // （dev 只能拿到 index.html 的 HTML 回退）。排除后 dev 直接按原始路径加载；
+  // 生产构建走 bundle，不受这里影响。
+  optimizeDeps: {
+    exclude: ['onnxruntime-web/wasm'],
+  },
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
