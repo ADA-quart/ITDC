@@ -32,6 +32,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { findMergeTarget } from '../utils/calendar-merge';
 import { dedupeEvents, dedupeEventKey } from '../../shared/event-dedupe';
+import { textColorFor } from '../../shared/course-colors';
 import { cardStyle, hintTextStyle, secondaryTextColor, withAlpha, TOUCH_TARGET, TYPE } from './ui';
 
 const CAL_VIEW_KEY = 'itdc_calendar_view';
@@ -202,6 +203,7 @@ const CalendarView: React.FC = () => {
           rrule: e.rrule || undefined,
           backgroundColor: color,
           borderColor: color,
+          textColor: textColorFor(color),
           extendedProps: { ...e },
         };
       });
@@ -216,6 +218,7 @@ const CalendarView: React.FC = () => {
           end: todo.scheduled_end as string,
           backgroundColor: color,
           borderColor: color,
+          textColor: textColorFor(color),
           extendedProps: { type: 'todo', ...todo },
         };
       });

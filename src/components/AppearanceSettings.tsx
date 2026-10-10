@@ -121,7 +121,17 @@ const AppearanceSettings: React.FC = () => {
   };
 
   const accentSwatches = (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+    <>
+      {/* 固定成 N 列不换行：色块等分整行，永远不会挤到第二行 */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${ACCENT_PRESETS.length}, minmax(0, 1fr))`,
+          gap: 6,
+          alignItems: 'center',
+          marginBottom: 10,
+        }}
+      >
       {ACCENT_PRESETS.map(({ hex: color, name }) => {
         const active = appearance.accent.toUpperCase() === color.toUpperCase();
         return (
@@ -132,8 +142,8 @@ const AppearanceSettings: React.FC = () => {
             title={`${name} ${color}`}
             onClick={() => updateAppearance({ accent: color })}
             style={{
-              width: 28,
-              height: 28,
+              width: '100%',
+              aspectRatio: '1',
               borderRadius: '50%',
               background: color,
               cursor: 'pointer',
@@ -143,13 +153,14 @@ const AppearanceSettings: React.FC = () => {
           />
         );
       })}
+      </div>
       <ColorPicker
         value={appearance.accent}
         disabledAlpha
         showText
         onChangeComplete={(color) => updateAppearance({ accent: color.toHexString().toUpperCase() })}
       />
-    </div>
+    </>
   );
 
   return (

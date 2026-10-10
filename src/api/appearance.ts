@@ -63,7 +63,8 @@ export interface AppearanceSettings {
  *     在意可读性的话选别的预设即可。
  */
 export const ACCENT_PRESETS: { hex: string; name: string }[] = [
-  { hex: '#4C9AFF', name: '天蓝' },
+  // 11 个：和控制项同宽排成一行（多了会折行）；原来还有个 #4C9AFF「天蓝」
+  // 和「拂晓蓝」几乎一样，删掉腾位置
   { hex: '#1677FF', name: '拂晓蓝' },
   { hex: '#722ED1', name: '酱紫' },
   { hex: '#EB2F96', name: '洋红' },
