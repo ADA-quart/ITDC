@@ -179,15 +179,29 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // 有自定义背景图时把卡片/课表格子玻璃化：图片透出来，文字仍有底可读
   useEffect(() => {
     const root = document.documentElement;
-    const glass = !!appearance.bgImage;
+    const hasBg = !!appearance.bgImage;
+    const liquid = appearance.liquidGlass;
+    // 液态玻璃可以在没有背景图时也打开：卡片变半透 + 更强模糊/饱和度 + 内高光
+    const glass = hasBg || liquid;
     const ui = appearance.uiOpacity / 100;
     const cellAlpha = Math.max(0, ui * 0.7);
     const headAlpha = Math.min(1, ui * 0.85);
     // 底部导航即使把日历调到全透明也要保持可读，否则列表文字会从下面透上来重影
     const navAlpha = Math.min(1, Math.max(0.92, ui + 0.12));
-    const navBlur = glass ? `blur(${Math.max(appearance.uiBlur, 8)}px)` : 'none';
-    const blur = glass && appearance.uiBlur > 0 ? `blur(${appearance.uiBlur}px)` : 'none';
+    const blurPx = Math.max(appearance.uiBlur, liquid ? 20 : 0);
+    const blur = glass && blurPx > 0 ? `blur(${blurPx}px)${liquid ? ' saturate(180%)' : ''}` : 'none';
+    const navBlur = glass
+      ? `blur(${Math.max(appearance.uiBlur, liquid ? 20 : 8)}px)${liquid ? ' saturate(180%)' : ''}`
+      : 'none';
     document.body.classList.toggle('itdc-has-bg-image', glass);
+    document.body.classList.toggle('itdc-liquid-glass', liquid);
+    // 液态玻璃的内高光边：写在 shadow 变量里，卡片/小组件预览都不用各自加 border
+    root.style.setProperty(
+      '--itdc-card-shadow',
+      liquid
+        ? `inset 0 1px 0 rgba(255,255,255,${isDark ? 0.16 : 0.55}), 0 12px 32px rgba(15,23,42,0.18)`
+        : (isDark ? 'none' : '0 1px 2px rgba(0,0,0,0.03), 0 2px 8px rgba(0,0,0,0.05)'),
+    );
     root.style.setProperty(
       '--itdc-card-bg',
       glass
@@ -224,12 +238,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // "分钟"这类 addon 默认是半透明填充，会透出壁纸，用它改成不透明白/黑
     root.style.setProperty('--itdc-field-bg', isDark ? '#141414' : '#ffffff');
     // 图片主导（低透明度）时次级文字加深/加亮：灰字压半透背景最容易糊
-    const imageDominant = glass && appearance.uiOpacity < 50;
+    const imageDominant = hasBg && appearance.uiOpacity < 50;
     root.style.setProperty(
       '--itdc-fg-secondary',
       imageDominant ? (isDark ? '#d9d9d9' : '#333333') : (isDark ? '#a6a6a6' : '#666666')
     );
-  }, [appearance.bgImage, appearance.uiOpacity, appearance.uiBlur, isDark]);
+  }, [appearance.bgImage, appearance.uiOpacity, appearance.uiBlur, appearance.liquidGlass, isDark]);
 
   // 外观变化推给桌面小组件。150ms 防抖：拖动不透明度滑块时不必每帧重建一次桌面视图。
   useEffect(() => {

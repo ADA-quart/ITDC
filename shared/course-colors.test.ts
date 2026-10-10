@@ -5,6 +5,7 @@ import {
   COURSE_PALETTE,
   colorForCourse,
   contrastRatio,
+  courseTextColor,
   readableTextColor,
 } from './course-colors';
 
@@ -59,5 +60,13 @@ describe('assignCourseColors（一套课表内不撞色）', () => {
   it('明亮底色用石墨灰字，深色底自动回白字', () => {
     expect(readableTextColor('#ffccc7')).toBe(COURSE_INK);
     expect(readableTextColor('#1d4ed8')).toBe('#fff');
+  });
+
+  it('字色档位：白/黑档直出，灰档保留智能兜底', () => {
+    expect(courseTextColor('#facc15', 'white')).toBe('#ffffff');
+    expect(courseTextColor('#facc15', 'black')).toBe('#000000');
+    expect(courseTextColor('#facc15', 'ink')).toBe(COURSE_INK);
+    // 灰档遇到用户自选的深色底仍然自动切白，不会把灰字压上去
+    expect(courseTextColor('#1d4ed8', 'ink')).toBe('#fff');
   });
 });

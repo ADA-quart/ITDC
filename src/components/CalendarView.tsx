@@ -32,7 +32,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { findMergeTarget } from '../utils/calendar-merge';
 import { dedupeEvents, dedupeEventKey } from '../../shared/event-dedupe';
-import { COURSE_PALETTE_BY_HUE, assignCourseColors, readableTextColor } from '../../shared/course-colors';
+import { COURSE_PALETTE_BY_HUE, assignCourseColors, courseTextColor } from '../../shared/course-colors';
 import {
   COURSE_COLORS_CHANGED,
   getCourseColorOverrides,
@@ -219,8 +219,8 @@ const CalendarView: React.FC = () => {
           rrule: e.rrule || undefined,
           backgroundColor: color,
           borderColor: color,
-          // 自定义浅色时自动用黑字；自动配色都是白字
-          textColor: readableTextColor(color),
+          // 字色档位由外观设置决定（灰 / 白 / 黑）
+          textColor: courseTextColor(color, appearance.courseTextTone),
           extendedProps: { ...e },
         };
       });
@@ -235,8 +235,8 @@ const CalendarView: React.FC = () => {
           end: todo.scheduled_end as string,
           backgroundColor: color,
           borderColor: color,
-          // 待办色板本来偏亮，交给对比度决定黑/白字
-          textColor: readableTextColor(color),
+          // 待办块同样跟随字色档位
+          textColor: courseTextColor(color, appearance.courseTextTone),
           extendedProps: { type: 'todo', ...todo },
         };
       });
@@ -1120,8 +1120,8 @@ const CalendarView: React.FC = () => {
         <div
           ref={swipeRef}
           style={{
-            // 今日底色调淡（默认是 rgba(255,220,40,.15) 的整列黄底）
-            ['--fc-today-bg-color' as any]: 'rgba(24,144,255,0.05)',
+            // 今日底色调淡并跟随主题色（默认是 rgba(255,220,40,.15) 的整列黄底）
+            ['--fc-today-bg-color' as any]: withAlpha(appearance.accent, 0.10),
           } as React.CSSProperties}
         >
           {timetableMode && (

@@ -81,7 +81,7 @@ const DEFAULT_MODELS: Record<string, string> = {
 
 const SettingsView: React.FC<Props> = ({ initialTab }) => {
   const { t, locale, setLocale } = useI18n();
-  const { mode: themeMode, setMode: setThemeMode, isDark } = useTheme();
+  const { isDark } = useTheme();
   const isMobile = useIsMobile();
 
   const [configs, setConfigs] = useState<LLMConfig[]>([]);
@@ -877,20 +877,6 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
               ]}
             />
           </div>
-          <div>
-            <h4 style={sectionTitleStyle}>{t.settings.theme}</h4>
-            <Select
-              value={themeMode}
-              onChange={setThemeMode}
-              style={{ width: 200 }}
-              options={[
-                { value: 'light', label: t.settings.light },
-                { value: 'dark', label: t.settings.dark },
-                { value: 'system', label: t.settings.system },
-              ]}
-            />
-          </div>
-
           {Capacitor.isNativePlatform() && (
             <div>
               <h4 style={sectionTitleStyle}>{t.settings.widgetSection}</h4>

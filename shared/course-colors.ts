@@ -43,6 +43,20 @@ export const COURSE_PALETTE = [
 /** 明亮课程色上的默认字色：石墨灰（不用纯黑，和浅彩底更搭） */
 export const COURSE_INK = '#3f3f46';
 
+/** 课程块字色档位：ink=石墨灰（智能兜底），white / black 由用户指定 */
+export type CourseTextTone = 'ink' | 'white' | 'black';
+
+/**
+ * 按用户选择的档位给出字色。
+ * ink 档沿用智能逻辑（灰优先，遇到用户自选的深色自动回白/黑），
+ * white / black 则是明确指定——白字在这套亮底上对比度不达标，选它是观感取舍。
+ */
+export function courseTextColor(hex: string, tone: CourseTextTone = 'ink'): string {
+  if (tone === 'white') return '#ffffff';
+  if (tone === 'black') return '#000000';
+  return readableTextColor(hex);
+}
+
 /** sRGB 相对亮度（WCAG 2.2 的定义），用来算对比度 */
 export function relativeLuminance(hex: string): number {
   const m = /^#?([0-9a-fA-F]{6})$/.exec(String(hex ?? '').trim());

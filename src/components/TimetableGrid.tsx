@@ -9,9 +9,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import dayjs, { type Dayjs } from 'dayjs';
 import { TIMETABLE } from '../../shared/cdut-parser';
-import { assignCourseColors, readableTextColor } from '../../shared/course-colors';
+import { assignCourseColors, courseTextColor } from '../../shared/course-colors';
 import { getCourseColorOverrides } from '../api/course-color-overrides';
 import { useI18n } from '../i18n';
+import { useTheme } from '../contexts/ThemeContext';
 import { secondaryTextColor, TOUCH_TARGET } from './ui';
 
 /**
@@ -83,6 +84,7 @@ const TimetableGrid: React.FC<Props> = ({
   fillHeight = false,
 }) => {
   const { t } = useI18n();
+  const { appearance } = useTheme();
   // 拖拽 / 长按：pointer 事件在 WebView 里触摸与鼠标都走
   const drag = useRef<{
     item: GridItem | null;
@@ -564,8 +566,8 @@ const TimetableGrid: React.FC<Props> = ({
     const spillHeight = continuation?.spillRatio != null
       ? `${Math.max(10, Math.round(continuation.spillRatio * 100))}%`
       : undefined;
-    // 自动配色都托得住白字；用户自选的浅色自动切黑字（对比度取白/黑里更高的一档）
-    const textColor = readableTextColor(item.color);
+    // 字色档位由外观设置决定：灰（智能兜底）/ 白 / 黑
+    const textColor = courseTextColor(item.color, appearance.courseTextTone);
     return (
     <button
       key={key}
@@ -702,7 +704,7 @@ const TimetableGrid: React.FC<Props> = ({
             padding: '4px 3px',
             borderRadius: 'var(--itdc-r-sm)',
             background: ghost.color,
-            color: readableTextColor(ghost.color),
+            color: courseTextColor(ghost.color, appearance.courseTextTone),
             boxShadow: '0 8px 20px rgba(0,0,0,.28)',
             opacity: 0.95,
             fontSize: 12,
@@ -753,10 +755,10 @@ const TimetableGrid: React.FC<Props> = ({
           const isToday = day.isSame(new Date(), 'day');
           return (
             <div key={i} style={{ background: headBg, borderBottom: border, borderLeft: border, padding: '6px 2px', textAlign: 'center' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: isToday ? '#1677ff' : (isDark ? '#ddd' : '#333') }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: isToday ? appearance.accent : (isDark ? '#ddd' : '#333') }}>
                 {day.format('ddd')}
               </div>
-              <div style={{ fontSize: 11, color: isToday ? '#1677ff' : secondaryTextColor(isDark) }}>{day.format('M.D')}</div>
+              <div style={{ fontSize: 11, color: isToday ? appearance.accent : secondaryTextColor(isDark) }}>{day.format('M.D')}</div>
             </div>
           );
         })}
@@ -797,7 +799,7 @@ const TimetableGrid: React.FC<Props> = ({
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 2,
-                    outline: hoverCell === `${dayIdx}-${section}` ? '2px solid #1677ff' : 'none',
+                    outline: hoverCell === `${dayIdx}-${section}` ? `2px solid ${appearance.accent}` : 'none',
                     outlineOffset: -2,
                   }}
                 >

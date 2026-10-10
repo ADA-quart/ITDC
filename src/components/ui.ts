@@ -71,7 +71,8 @@ export function cardStyle(
     backdropFilter: 'var(--itdc-card-blur, none)',
     borderRadius: CARD_RADIUS,
     padding: opts.padding ?? (isMobile ? 16 : 24),
-    boxShadow: isDark ? 'none' : '0 1px 2px rgba(0,0,0,0.03), 0 2px 8px rgba(0,0,0,0.05)',
+    // 液态玻璃时由 ThemeContext 写入更强的内高光 + 投影，否则退回原来的轻阴影
+    boxShadow: `var(--itdc-card-shadow, ${isDark ? 'none' : '0 1px 2px rgba(0,0,0,0.03), 0 2px 8px rgba(0,0,0,0.05)'})`,
   };
 }
 

@@ -5,6 +5,7 @@
 import { Capacitor } from '@capacitor/core';
 import { ITDCWidgetPlugin } from '../capacitor/itdc-widget';
 import { kvGet, kvSet } from './offline';
+import type { CourseTextTone } from '../../shared/course-colors';
 
 /** 小组件明暗：auto 跟随系统，light/dark 由用户指定 */
 export type WidgetScheme = 'auto' | 'light' | 'dark';
@@ -19,6 +20,10 @@ export const MAX_BG_ZOOM = 3;
 export interface AppearanceSettings {
   /** 应用主题色：#RRGGBB */
   accent: string;
+  /** 课程 / 日历块的字色档位：ink=石墨灰（智能兜底深色），white / black 用户指定 */
+  courseTextTone: CourseTextTone;
+  /** 液态玻璃：更强的模糊 + 饱和度 + 内高光，卡片与底栏像玻璃 */
+  liquidGlass: boolean;
   /** 应用背景图（base64 data URL），null 表示纯色背景 */
   bgImage: string | null;
   /** 背景图不透明度 0-100 */
@@ -81,6 +86,8 @@ export const ACCENT_PRESETS: { hex: string; name: string }[] = [
 
 export const DEFAULT_APPEARANCE: AppearanceSettings = {
   accent: '#1677FF',
+  courseTextTone: 'ink',
+  liquidGlass: false,
   bgImage: null,
   bgOpacity: 100,
   bgBlur: 0,
@@ -119,9 +126,15 @@ export function sanitizeAppearance(raw: unknown): AppearanceSettings {
     o.widgetScheme === 'light' || o.widgetScheme === 'dark' || o.widgetScheme === 'auto'
       ? o.widgetScheme
       : DEFAULT_APPEARANCE.widgetScheme;
+  const tone: CourseTextTone =
+    o.courseTextTone === 'white' || o.courseTextTone === 'black' || o.courseTextTone === 'ink'
+      ? o.courseTextTone
+      : DEFAULT_APPEARANCE.courseTextTone;
 
   return {
     accent: hex(o.accent, DEFAULT_APPEARANCE.accent),
+    courseTextTone: tone,
+    liquidGlass: o.liquidGlass === true,
     // 背景图不放 localStorage，只从 IndexedDB 单独恢复
     bgImage: typeof o.bgImage === 'string' && o.bgImage.startsWith('data:image/') ? o.bgImage : null,
     bgOpacity: clamp(o.bgOpacity, 0, 100, DEFAULT_APPEARANCE.bgOpacity),

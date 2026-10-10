@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, ColorPicker, Popconfirm, Slider, Space, Switch, Upload, message } from 'antd';
+import { Button, ColorPicker, Popconfirm, Segmented, Slider, Space, Switch, Upload, message } from 'antd';
 import { BgColorsOutlined, DeleteOutlined, PictureOutlined, UploadOutlined } from '@ant-design/icons';
 import { Capacitor } from '@capacitor/core';
 import { useTheme } from '../contexts/ThemeContext';
+import type { CourseTextTone } from '../../shared/course-colors';
 import { useI18n } from '../i18n';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { secondaryTextColor, sectionTitleStyle } from './ui';
@@ -67,7 +68,7 @@ const SliderLabel: React.FC<{ label: string; value: string; dim: string }> = ({ 
  */
 const AppearanceSettings: React.FC = () => {
   const { t } = useI18n();
-  const { isDark, appearance, updateAppearance, resetAppearance, resetWidgetAppearance } = useTheme();
+  const { isDark, mode, setMode, appearance, updateAppearance, resetAppearance, resetWidgetAppearance } = useTheme();
   const isMobile = useIsMobile();
   const [processing, setProcessing] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -165,6 +166,45 @@ const AppearanceSettings: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+      {/* ---------- 明暗模式（从通用设置挪到外观） ---------- */}
+      <div>
+        <h4 style={sectionTitleStyle}>{t.settings.theme}</h4>
+        <Segmented
+          value={mode}
+          onChange={(value) => setMode(value as 'light' | 'dark' | 'system')}
+          options={[
+            { value: 'light', label: t.settings.light },
+            { value: 'dark', label: t.settings.dark },
+            { value: 'system', label: t.settings.system },
+          ]}
+        />
+      </div>
+
+      {/* ---------- 液态玻璃 ---------- */}
+      <div>
+        <h4 style={sectionTitleStyle}>{t.settings.liquidGlass}</h4>
+        <Switch
+          checked={appearance.liquidGlass}
+          onChange={(checked) => updateAppearance({ liquidGlass: checked })}
+        />
+        <p style={{ ...hintStyle, marginTop: 8 }}>{t.settings.liquidGlassHint}</p>
+      </div>
+
+      {/* ---------- 课块字色档位 ---------- */}
+      <div>
+        <h4 style={sectionTitleStyle}>{t.settings.courseTextTone}</h4>
+        <Segmented
+          value={appearance.courseTextTone}
+          onChange={(value) => updateAppearance({ courseTextTone: value as CourseTextTone })}
+          options={[
+            { value: 'ink', label: t.settings.toneInk },
+            { value: 'white', label: t.settings.toneWhite },
+            { value: 'black', label: t.settings.toneBlack },
+          ]}
+        />
+        <p style={{ ...hintStyle, marginTop: 8 }}>{t.settings.courseTextToneHint}</p>
+      </div>
+
       {/* ---------- 应用主题色 ---------- */}
       <div>
         <h4 style={sectionTitleStyle}>
