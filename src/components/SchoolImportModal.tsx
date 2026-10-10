@@ -184,6 +184,8 @@ const SchoolImportModal: React.FC<Props> = ({ open, onClose, onImported }) => {
             value={weekStart}
             onChange={(d) => setWeekStart(d)}
             inputReadOnly
+            // 手机端由 styles.css 收成贴底日历卡片，避免下拉面板盖住弹窗按钮
+            popupClassName="itdc-week-picker"
           />
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>{t.schoolImport.weekStartHint}</Typography.Text>
         </Space>

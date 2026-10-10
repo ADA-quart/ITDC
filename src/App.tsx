@@ -244,6 +244,10 @@ const App: React.FC = () => {
       Modal: { borderRadiusLG: 14 },
       Card: { borderRadiusLG: 12 },
       Segmented: { borderRadius: 10 },
+      // 全局 controlHeight=44 是给触控目标用的，但日期面板的格子宽度是按
+      // controlHeightSM×1.5 算的：7 列凑出来约 360px，窄弹窗里又大又放不下。
+      // 面板宽度单独收回到手机尺寸，输入框本身仍是 44 的触控高度。
+      DatePicker: { cellWidth: isMobile ? 38 : 36 },
     },
   };
 

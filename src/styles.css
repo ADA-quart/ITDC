@@ -145,3 +145,28 @@ body.itdc-native [contenteditable='true'] {
   /* 用 filter 而不是 background：卡片背景是内联样式，class 改背景改不动 */
   filter: brightness(0.92);
 }
+
+/*
+ * 导入教务课表的「第一周周一日期」：弹窗较矮，桌面式下拉日历会盖住弹窗按钮、
+ * 还溢出到弹窗外。手机上收成贴底的日历卡片：位置固定在屏幕底部、宽度跟随屏幕，
+ * 日期表格是 table-layout:fixed 的 100% 表，会自动按 7 等分铺满。
+ */
+@media (max-width: 768px) {
+  .ant-picker-dropdown.itdc-week-picker {
+    position: fixed !important;
+    inset: auto 10px calc(10px + env(safe-area-inset-bottom)) 10px !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+
+  .itdc-week-picker .ant-picker-panel-container,
+  .itdc-week-picker .ant-picker-panels,
+  .itdc-week-picker .ant-picker-date-panel {
+    width: 100% !important;
+  }
+
+  .itdc-week-picker .ant-picker-panel-container {
+    border-radius: 16px;
+    overflow: hidden;
+  }
+}
