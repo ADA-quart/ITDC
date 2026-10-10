@@ -103,7 +103,15 @@ const TimetableGrid: React.FC<Props> = ({
   });
   // 拖过或长按过之后紧跟着的 click 要吞掉，否则会弹出详情
   const suppressClick = useRef(false);
-  const [ghost, setGhost] = useState<{ x: number; y: number; title: string } | null>(null);
+  /** 拖动预览：直接克隆被拖的课程卡片（同色 + 课名/教室），而不是另外画一个黑条 */
+  const [ghost, setGhost] = useState<{
+    x: number;
+    y: number;
+    title: string;
+    room: string;
+    color: string;
+    id: string;
+  } | null>(null);
   const [hoverCell, setHoverCell] = useState<string | null>(null);
 
   const clearLongPress = () => {
@@ -184,12 +192,15 @@ const TimetableGrid: React.FC<Props> = ({
       try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* 某些 WebView 不支持 */ }
     }
     if (!st.moved) return;
-    // 浮起来的课名不要被屏幕边缘裁掉：按最大宽度 160px 的一半 + 余量留边
-    const half = 88;
+    // 拎起来的卡片不要被屏幕边缘裁掉：卡片宽 72px，中心至少留出半宽 + 余量
+    const half = 48;
     setGhost({
       x: Math.min(Math.max(e.clientX, half), Math.max(half, window.innerWidth - half)),
       y: Math.min(Math.max(e.clientY, 24), Math.max(24, window.innerHeight - 24)),
       title: st.item.title,
+      room: st.item.room,
+      color: st.item.color,
+      id: String(st.item.event?.id ?? ''),
     });
     const cell = cellUnder(e.clientX, e.clientY);
     setHoverCell(cell ? `${cell.day}-${cell.section}` : null);
@@ -455,6 +466,9 @@ const TimetableGrid: React.FC<Props> = ({
         color: textColor,
         // 白字才加阴影兜一点抗锯齿边缘；黑字加阴影会发糊
         textShadow: textColor === '#fff' ? '0 1px 2px rgba(0,0,0,.28)' : 'none',
+        // 被拎起来的那张卡：原位淡下去，让"卡片跟着手指走"更直观
+        opacity: ghost && ghost.id === String(item.event?.id ?? '') ? 0.35 : 1,
+        transition: 'opacity .15s ease',
         padding: '3px 2px',
         textAlign: 'left',
         cursor: 'pointer',
@@ -541,21 +555,40 @@ const TimetableGrid: React.FC<Props> = ({
             position: 'fixed',
             left: ghost.x,
             top: ghost.y,
-            transform: 'translate(-50%, -50%)',
-            padding: '4px 8px',
+            // 和课表里的课块同款：同色、同圆角、课名 + 教室；拎起来稍微放大并加投影
+            transform: 'translate(-50%, -50%) scale(1.04)',
+            width: 72,
+            padding: '4px 5px',
             borderRadius: 'var(--itdc-r-sm)',
-            background: 'rgba(0,0,0,.72)',
-            color: '#fff',
+            background: ghost.color,
+            color: readableTextColor(ghost.color),
+            boxShadow: '0 8px 20px rgba(0,0,0,.28)',
+            opacity: 0.95,
             fontSize: 11,
+            fontWeight: 600,
+            lineHeight: 1.22,
             pointerEvents: 'none',
             zIndex: 2000,
-            maxWidth: 160,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
             overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
           }}
         >
-          {ghost.title}
+          <span style={{
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            wordBreak: 'break-word',
+          }}>
+            {ghost.title}
+          </span>
+          {ghost.room && (
+            <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {ghost.room}
+            </span>
+          )}
         </div>,
         document.body,
       )}
