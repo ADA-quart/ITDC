@@ -45,6 +45,8 @@ interface Props {
   onSelectEvent: (event: any) => void;
   /** 拖到别的格子：按目标格子的节次时间给出新的起止（时长保持不变） */
   onMoveEvent: (event: any, start: Date, end: Date) => void;
+  /** 大课（跨多节 / 连堂）整体拖动：一次给出这一整条里每一段的新起止 */
+  onMoveEvents?: (moves: Array<{ event: any; start: Date; end: Date }>) => void;
   /** 长按不动：请求删除（课程/日程；待办不删） */
   onDeleteEvent: (event: any) => void;
   /** 拖动开始/结束：父容器据此决定是否要把横向手势当成翻页 */
@@ -75,6 +77,7 @@ const TimetableGrid: React.FC<Props> = ({
   isDark,
   onSelectEvent,
   onMoveEvent,
+  onMoveEvents,
   onDeleteEvent,
   onDragStateChange,
   fillHeight = false,
@@ -93,6 +96,15 @@ const TimetableGrid: React.FC<Props> = ({
     timer: number | null;
     /** 被拖卡片的实际宽度：浮层要保持同样的窄长比例，不能拉宽 */
     width: number;
+    /** 被抓住的那一格（大课整体拖动时作为锚点） */
+    day: number;
+    section: number;
+    /** 视觉上连在一起的整条大课：跨多节的事件 / 同课名同教室的连堂 */
+    run: Array<{ day: number; section: number; item: GridItem }>;
+    /** 整条大课在屏幕上的高度（浮层克隆整条，而不是只拎抓住的那半截） */
+    height: number;
+    /** 手指抓住的位置在整条里的偏移：浮层贴住手指，不跳位 */
+    grabOffsetY: number;
   }>({
     item: null,
     startX: 0,
@@ -103,6 +115,11 @@ const TimetableGrid: React.FC<Props> = ({
     longPressed: false,
     timer: null,
     width: 0,
+    day: 0,
+    section: -1,
+    run: [],
+    height: 0,
+    grabOffsetY: 0,
   });
   // 拖过或长按过之后紧跟着的 click 要吞掉，否则会弹出详情
   const suppressClick = useRef(false);
@@ -115,6 +132,10 @@ const TimetableGrid: React.FC<Props> = ({
     color: string;
     id: string;
     width: number;
+    height: number;
+    grabOffsetY: number;
+    /** 整条大课包含的事件 id：一起淡出原位置 */
+    ids: string[];
   } | null>(null);
   const [hoverCell, setHoverCell] = useState<string | null>(null);
 
@@ -141,7 +162,12 @@ const TimetableGrid: React.FC<Props> = ({
     return { day, section };
   };
 
-  const onBlockPointerDown = (item: GridItem) => (e: React.PointerEvent<HTMLButtonElement>) => {
+  const onBlockPointerDown = (
+    item: GridItem,
+    day: number,
+    section: number,
+    run: Array<{ day: number; section: number; item: GridItem }>,
+  ) => (e: React.PointerEvent<HTMLButtonElement>) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     // 新手势开始，先清掉上一轮的"别弹详情"标记。
     // 不清的话：在课程块上滑了一页（浏览器不会补 click）之后，
@@ -157,6 +183,11 @@ const TimetableGrid: React.FC<Props> = ({
       longPressed: false,
       timer: null,
       width: 0,
+      day,
+      section,
+      run: run.length > 0 ? run : [{ day, section, item }],
+      height: 0,
+      grabOffsetY: 0,
     };
     // 先按住一小会儿才进入"可拖动"状态：直接横滑是翻页手势，不该把课拖走
     if (e.pointerType !== 'mouse') {
@@ -197,18 +228,36 @@ const TimetableGrid: React.FC<Props> = ({
       try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* 某些 WebView 不支持 */ }
       // 记住被拎起卡片的实际宽度：浮层保持课块那种窄长条，不横向拉宽
       st.width = e.currentTarget.getBoundingClientRect().width;
+      // 一上午/一下午/一晚上的大课在视觉上是一条：量出整条高度，浮层一次拎起整条
+      const runEls = st.run
+        .map((r) => document.querySelector<HTMLElement>(`[data-cell="${r.day}-${r.section}"]`))
+        .filter((el): el is HTMLElement => !!el);
+      const fallback = e.currentTarget.getBoundingClientRect();
+      const rects = runEls.length > 0 ? runEls.map((el) => el.getBoundingClientRect()) : [fallback];
+      const top = Math.min(...rects.map((r) => r.top));
+      const bottom = Math.max(...rects.map((r) => r.bottom));
+      st.height = Math.max(44, bottom - top - 4);
+      st.grabOffsetY = Math.min(Math.max(e.clientY - top, 16), Math.max(16, st.height - 16));
     }
     if (!st.moved) return;
-    // 拎起来的卡片不要被屏幕边缘裁掉：中心至少留出半宽 + 余量
+    // 拎起来的卡片不要被屏幕边缘裁掉：中心至少留出半宽 + 余量；
+    // 纵向按"抓住的位置"对齐，整条大课浮层不会因为居中而跳位
     const half = (st.width || 64) / 2 + 6;
+    const height = st.height || 64;
+    const offset = st.grabOffsetY || height / 2;
+    const minY = 8 + offset;
+    const maxY = window.innerHeight - 8 - (height - offset);
     setGhost({
       x: Math.min(Math.max(e.clientX, half), Math.max(half, window.innerWidth - half)),
-      y: Math.min(Math.max(e.clientY, 24), Math.max(24, window.innerHeight - 24)),
+      y: Math.min(Math.max(e.clientY, minY), Math.max(minY, maxY)),
       title: st.item.title,
       room: st.item.room,
       color: st.item.color,
       id: String(st.item.event?.id ?? ''),
       width: st.width || 64,
+      height,
+      grabOffsetY: offset,
+      ids: st.run.map((r) => String(r.item.event?.id ?? '')).filter(Boolean),
     });
     const cell = cellUnder(e.clientX, e.clientY);
     setHoverCell(cell ? `${cell.day}-${cell.section}` : null);
@@ -221,6 +270,10 @@ const TimetableGrid: React.FC<Props> = ({
     const item = st.item;
     const moved = st.moved;
     const longPressed = st.longPressed;
+    // 大课整条 + 抓住的那一格（作为整体拖动的锚点），要在清空 ref 之前取出来
+    const run = st.run.length > 0 ? st.run : (item ? [{ day: st.day, section: st.section, item }] : []);
+    const grabDay = st.day;
+    const grabSection = st.section;
     drag.current = {
       item: null,
       startX: 0,
@@ -231,6 +284,11 @@ const TimetableGrid: React.FC<Props> = ({
       longPressed: false,
       timer: null,
       width: 0,
+      day: 0,
+      section: -1,
+      run: [],
+      height: 0,
+      grabOffsetY: 0,
     };
     setGhost(null);
     setHoverCell(null);
@@ -238,11 +296,41 @@ const TimetableGrid: React.FC<Props> = ({
     if (!commit || !moved || !item) return;
     const cell = cellUnder(x, y);
     if (!cell) return;
-    // 起点换成目标节次的开始时间，时长照旧（连堂课拖过去仍然连堂）
+    // 目标格的开始时间
     const [sh, sm] = GRID_SECTIONS[cell.section][0].split(':').map(Number);
-    const start = weekStart.add(cell.day, 'day').hour(sh).minute(sm).second(0).millisecond(0);
+    const dropStart = weekStart.add(cell.day, 'day').hour(sh).minute(sm).second(0).millisecond(0);
+
+    // 一上午/一下午/一晚上的那种大课：只要视觉上连成一条（跨多节的事件、或同课名同教室
+    // 且间隔很小的连堂），就抓住哪一节、整体按同一时间差平移——不会只拖走半截，
+    // 也不会因为抓的是尾巴而让整条课往下跳一节
+    if (run.length > 1 && grabSection >= 0) {
+      const [gsh, gsm] = GRID_SECTIONS[grabSection][0].split(':').map(Number);
+      const grabStart = weekStart.add(grabDay, 'day').hour(gsh).minute(gsm).second(0).millisecond(0);
+      const delta = dropStart.diff(grabStart, 'minute');
+      // 同一条事件跨多节时会出现多段：按事件 id 去重，只移动一次；
+      // 没有 id 的（极少）按引用标识去重，避免误合并成一条
+      const seen = new Set<string>();
+      const unique: GridItem[] = [];
+      for (const r of run) {
+        const id = r.item.event?.id;
+        const key = id != null ? `id:${id}` : `ref:${String(r.item.event?.start ?? '')}|${r.item.title}|${r.day}-${r.section}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        unique.push(r.item);
+      }
+      const moves = unique.map((it) => ({
+        event: it.event,
+        start: dayjs(it.event.start).add(delta, 'minute').toDate(),
+        end: dayjs(it.event.end).add(delta, 'minute').toDate(),
+      }));
+      if (onMoveEvents) onMoveEvents(moves);
+      else for (const m of moves) onMoveEvent(m.event, m.start, m.end);
+      return;
+    }
+
+    // 单块（普通课/待办）：落在哪一节就以哪一节的开始为起点，保持原来的手感
     const minutes = Math.max(1, dayjs(item.event.end).diff(dayjs(item.event.start), 'minute'));
-    onMoveEvent(item.event, start.toDate(), start.add(minutes, 'minute').toDate());
+    onMoveEvent(item.event, dropStart.toDate(), dropStart.add(minutes, 'minute').toDate());
   };
 
   /**
@@ -414,6 +502,35 @@ const TimetableGrid: React.FC<Props> = ({
     return gap >= -5 && gap <= CONTINUE_GAP_MIN;
   };
 
+  /**
+   * 一门"大课"（一上午/一下午/一晚上）在视觉上连成一条：既可能是一条跨多节的事件，
+   * 也可能是教务拆成两条、但课名+教室相同且间隔很小的连堂。这里从抓住的那一格出发，
+   * 上下把相连的格子都串起来，整条一起拖动。
+   */
+  const runFor = (
+    day: number,
+    section: number,
+    item: GridItem,
+  ): Array<{ day: number; section: number; item: GridItem }> => {
+    const run: Array<{ day: number; section: number; item: GridItem }> = [{ day, section, item }];
+    if (section < 0) return run;
+    let cur = item;
+    for (let s = section + 1; s < GRID_SECTIONS.length; s++) {
+      const next = entriesFor(day, s).map((e) => e.item).find((n) => continuesFrom(cur, n));
+      if (!next) break;
+      run.push({ day, section: s, item: next });
+      cur = next;
+    }
+    cur = item;
+    for (let s = section - 1; s >= 0; s--) {
+      const prev = entriesFor(day, s).map((e) => e.item).find((p) => continuesFrom(p, cur));
+      if (!prev) break;
+      run.unshift({ day, section: s, item: prev });
+      cur = prev;
+    }
+    return run;
+  };
+
   const border = `1px solid var(--itdc-border, ${isDark ? '#303030' : '#ececec'})`;
   const cellBg = `var(--itdc-cell-bg, ${isDark ? '#1b1b1b' : '#fff'})`;
   const headBg = `var(--itdc-head-bg, ${isDark ? '#232323' : '#fafafa'})`;
@@ -427,7 +544,15 @@ const TimetableGrid: React.FC<Props> = ({
   const renderBlock = (
     item: GridItem,
     key: string,
-    continuation?: { up: boolean; down: boolean; spillRatio?: number; joinDown?: boolean },
+    continuation?: {
+      up: boolean;
+      down: boolean;
+      spillRatio?: number;
+      joinDown?: boolean;
+      day?: number;
+      section?: number;
+      run?: Array<{ day: number; section: number; item: GridItem }>;
+    },
   ) => {
     // 续格 / 尾巴：不写文字（课名教室已在开始的那一格显示），只留同色的一块
     const plain = !!(continuation?.up || continuation?.spillRatio != null);
@@ -445,7 +570,12 @@ const TimetableGrid: React.FC<Props> = ({
     <button
       key={key}
       type="button"
-      onPointerDown={onBlockPointerDown(item)}
+      onPointerDown={onBlockPointerDown(
+        item,
+        continuation?.day ?? 0,
+        continuation?.section ?? -1,
+        continuation?.run ?? [{ day: continuation?.day ?? 0, section: continuation?.section ?? -1, item }],
+      )}
       onPointerMove={onBlockPointerMove}
       onPointerUp={(e) => endDrag(e.clientX, e.clientY, true)}
       onPointerCancel={(e) => endDrag(e.clientX, e.clientY, false)}
@@ -476,7 +606,7 @@ const TimetableGrid: React.FC<Props> = ({
         // 白字才加阴影兜一点抗锯齿边缘；黑字加阴影会发糊
         textShadow: textColor === '#fff' ? '0 1px 2px rgba(0,0,0,.28)' : 'none',
         // 被拎起来的那张卡：原位淡下去，让"卡片跟着手指走"更直观
-        opacity: ghost && ghost.id === String(item.event?.id ?? '') ? 0.35 : 1,
+        opacity: ghost && ghost.ids.includes(String(item.event?.id ?? '')) ? 0.35 : 1,
         transition: 'opacity .15s ease',
         padding: '3px 2px',
         textAlign: 'left',
@@ -564,10 +694,11 @@ const TimetableGrid: React.FC<Props> = ({
             position: 'fixed',
             left: ghost.x,
             top: ghost.y,
-            // 和课表里的课块同款：同色、同圆角、课名 + 教室；拎起来稍微放大并加投影
-            transform: 'translate(-50%, -50%) scale(1.04)',
-            // 宽度保持被拎卡片的原始窄条；名字写不完就往下变长，不横向拉宽
+            // 和课表里的课块同款：同色、同圆角、课名 + 教室；整条大课一次拎起来
+            transform: `translate(-50%, -${ghost.grabOffsetY}px)`,
+            // 宽度保持被拎卡片的原始窄条；高度 = 视觉上连起来的整条高度
             width: ghost.width,
+            height: ghost.height,
             padding: '4px 3px',
             borderRadius: 'var(--itdc-r-sm)',
             background: ghost.color,
@@ -680,7 +811,16 @@ const TimetableGrid: React.FC<Props> = ({
                     // 尾巴（本节才结束的溢出部分）按真实时长占一小截，且不写文字
                     const spillRatio = entry?.spill ? entry.overlap / entry.sectionMinutes : undefined;
                     // 连堂时把上块向下延伸、并去掉两格之间的分隔线，贴成一整块
-                    return renderBlock(item, `${item.title}-${idx}`, { up, down, spillRatio, joinDown: down });
+                    return renderBlock(item, `${item.title}-${idx}`, {
+                      up,
+                      down,
+                      spillRatio,
+                      joinDown: down,
+                      day: dayIdx,
+                      section,
+                      // 整条大课（跨多节 / 连堂），拖动时一起走
+                      run: runFor(dayIdx, section, item),
+                    });
                   })}
                 </div>
               );
@@ -699,7 +839,13 @@ const TimetableGrid: React.FC<Props> = ({
               const items = extraCells.get(String(dayIdx)) ?? [];
               return (
                 <div key={`extra-${dayIdx}`} style={{ borderBottom: border, borderLeft: border, minHeight: fillHeight ? 0 : TOUCH_TARGET + 8, padding: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {items.map((item, idx) => renderBlock(item, `extra-${item.title}-${idx}`))}
+                  {items.map((item, idx) => renderBlock(item, `extra-${item.title}-${idx}`, {
+                    up: false,
+                    down: false,
+                    day: dayIdx,
+                    section: -1,
+                    run: [{ day: dayIdx, section: -1, item }],
+                  }))}
                 </div>
               );
             })}

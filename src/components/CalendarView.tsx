@@ -699,6 +699,81 @@ const CalendarView: React.FC = () => {
     });
   };
 
+  /** 大课整体移动后的撤销：把整条里每一段都写回原时间 */
+  const showMovedManyWithUndo = (
+    entries: Array<{ event: any; isTodo: boolean; ids: number[]; prevStart: string; prevEnd: string }>,
+  ) => {
+    const undo = async () => {
+      try {
+        for (const en of entries) {
+          if (en.isTodo) {
+            await todoApi.update(en.event.extendedProps.id, {
+              scheduled_start: new Date(en.prevStart).toISOString(),
+              scheduled_end: new Date(en.prevEnd).toISOString(),
+            });
+          } else {
+            for (const id of en.ids) {
+              await calendarApi.updateEvent(id, {
+                start_time: new Date(en.prevStart).toISOString(),
+                end_time: new Date(en.prevEnd).toISOString(),
+              });
+            }
+          }
+        }
+        message.info(t.calendar.undone);
+        loadData();
+      } catch {
+        message.error(t.calendar.eventMoveFailed);
+      }
+    };
+    message.success({
+      content: (
+        <span>
+          {t.calendar.eventMoved}
+          <Button type="link" size="small" style={{ padding: '0 4px' }} onClick={() => void undo()}>
+            {t.calendar.undo}
+          </Button>
+        </span>
+      ),
+      duration: 6,
+    });
+  };
+
+  /**
+   * 一上午/一下午/一晚上的大课整体拖动：一次移动整条里的每一段，
+   * 撤销也一次性还原所有段——不然撤销之后只有半截回到原位。
+   */
+  const handleGridMoveMany = async (moves: Array<{ event: any; start: Date; end: Date }>) => {
+    if (!moves.length) return;
+    try {
+      const undoEntries: Array<{ event: any; isTodo: boolean; ids: number[]; prevStart: string; prevEnd: string }> = [];
+      for (const m of moves) {
+        const isTodo = m.event.extendedProps?.type === 'todo';
+        const ids = isTodo ? [] : duplicateIdsOf(m.event);
+        const useIds = ids.length > 0 ? ids : [Number(m.event.id)];
+        if (isTodo) {
+          await todoApi.update(m.event.extendedProps.id, {
+            scheduled_start: m.start.toISOString(),
+            scheduled_end: m.end.toISOString(),
+          });
+        } else {
+          await moveInstances(useIds, m.start.toISOString(), m.end.toISOString());
+        }
+        undoEntries.push({
+          event: m.event,
+          isTodo,
+          ids: useIds,
+          prevStart: String(m.event.start ?? m.event.startStr ?? ''),
+          prevEnd: String(m.event.end ?? m.event.endStr ?? ''),
+        });
+      }
+      showMovedManyWithUndo(undoEntries);
+      loadData();
+    } catch {
+      message.error(t.calendar.eventMoveFailed);
+    }
+  };
+
   const handleAddTodoToEvent = async () => {
     const title = addTodoTitle.trim();
     if (!addTodoTarget || !title) return;
@@ -1079,6 +1154,7 @@ const CalendarView: React.FC = () => {
                       fillHeight={isMobile}
                       onSelectEvent={(ev) => setDetailEvent(ev)}
                       onMoveEvent={handleGridMove}
+                      onMoveEvents={handleGridMoveMany}
                       onDeleteEvent={(ev) => confirmDeleteEvent(String(ev.id), ev.title)}
                       onDragStateChange={(dragging) => { draggingRef.current = dragging; }}
                     />
