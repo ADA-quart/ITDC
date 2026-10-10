@@ -91,6 +91,8 @@ const TimetableGrid: React.FC<Props> = ({
     moved: boolean;
     longPressed: boolean;
     timer: number | null;
+    /** 被拖卡片的实际宽度：浮层要保持同样的窄长比例，不能拉宽 */
+    width: number;
   }>({
     item: null,
     startX: 0,
@@ -100,6 +102,7 @@ const TimetableGrid: React.FC<Props> = ({
     moved: false,
     longPressed: false,
     timer: null,
+    width: 0,
   });
   // 拖过或长按过之后紧跟着的 click 要吞掉，否则会弹出详情
   const suppressClick = useRef(false);
@@ -111,6 +114,7 @@ const TimetableGrid: React.FC<Props> = ({
     room: string;
     color: string;
     id: string;
+    width: number;
   } | null>(null);
   const [hoverCell, setHoverCell] = useState<string | null>(null);
 
@@ -152,6 +156,7 @@ const TimetableGrid: React.FC<Props> = ({
       moved: false,
       longPressed: false,
       timer: null,
+      width: 0,
     };
     // 先按住一小会儿才进入"可拖动"状态：直接横滑是翻页手势，不该把课拖走
     if (e.pointerType !== 'mouse') {
@@ -190,10 +195,12 @@ const TimetableGrid: React.FC<Props> = ({
       clearLongPress();
       onDragStateChange?.(true);
       try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* 某些 WebView 不支持 */ }
+      // 记住被拎起卡片的实际宽度：浮层保持课块那种窄长条，不横向拉宽
+      st.width = e.currentTarget.getBoundingClientRect().width;
     }
     if (!st.moved) return;
-    // 拎起来的卡片不要被屏幕边缘裁掉：卡片宽 72px，中心至少留出半宽 + 余量
-    const half = 48;
+    // 拎起来的卡片不要被屏幕边缘裁掉：中心至少留出半宽 + 余量
+    const half = (st.width || 64) / 2 + 6;
     setGhost({
       x: Math.min(Math.max(e.clientX, half), Math.max(half, window.innerWidth - half)),
       y: Math.min(Math.max(e.clientY, 24), Math.max(24, window.innerHeight - 24)),
@@ -201,6 +208,7 @@ const TimetableGrid: React.FC<Props> = ({
       room: st.item.room,
       color: st.item.color,
       id: String(st.item.event?.id ?? ''),
+      width: st.width || 64,
     });
     const cell = cellUnder(e.clientX, e.clientY);
     setHoverCell(cell ? `${cell.day}-${cell.section}` : null);
@@ -222,6 +230,7 @@ const TimetableGrid: React.FC<Props> = ({
       moved: false,
       longPressed: false,
       timer: null,
+      width: 0,
     };
     setGhost(null);
     setHoverCell(null);
@@ -557,14 +566,15 @@ const TimetableGrid: React.FC<Props> = ({
             top: ghost.y,
             // 和课表里的课块同款：同色、同圆角、课名 + 教室；拎起来稍微放大并加投影
             transform: 'translate(-50%, -50%) scale(1.04)',
-            width: 72,
-            padding: '4px 5px',
+            // 宽度保持被拎卡片的原始窄条；名字写不完就往下变长，不横向拉宽
+            width: ghost.width,
+            padding: '4px 3px',
             borderRadius: 'var(--itdc-r-sm)',
             background: ghost.color,
             color: readableTextColor(ghost.color),
             boxShadow: '0 8px 20px rgba(0,0,0,.28)',
             opacity: 0.95,
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: 600,
             lineHeight: 1.22,
             pointerEvents: 'none',
@@ -575,17 +585,11 @@ const TimetableGrid: React.FC<Props> = ({
             overflow: 'hidden',
           }}
         >
-          <span style={{
-            display: '-webkit-box',
-            WebkitLineClamp: 3,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            wordBreak: 'break-word',
-          }}>
+          <span style={{ wordBreak: 'break-word' }}>
             {ghost.title}
           </span>
           {ghost.room && (
-            <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <span style={{ fontSize: 11, fontWeight: 400, opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {ghost.room}
             </span>
           )}
