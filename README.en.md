@@ -72,6 +72,7 @@ By default **all data stays on the device**. The network is used only for three 
 
 - **“Can be done in class”** — such todos may be placed inside a class period and are merged into that course block.
 - **Split segments** — a three-hour task becomes several scheduled pieces, each checkable on its own.
+- **Two independent reminder types** — class reminders fire **N minutes before** each imported class (course, time, room, teacher; can be silent); todo reminders fire before the **scheduled start time / deadline**, with the lead time typed in freely (0 = on time). Separate channels, one does not affect the other.
 
 ### Timetable: import + week grid
 
@@ -91,6 +92,8 @@ The “image” button on the todo page turns a screenshot into todos through a 
 
 The OCR models (4.7 MB detector + 10.9 MB recogniser) are not bundled: download them in *Settings → General → Offline OCR extension* and delete them any time.
 
+The pure-algorithm path (works with no LLM at all) also handles **chat logs**: group-chat and group-announcement screenshots are parsed as *message blocks* (sender names, timestamps and announcement controls act as separators, so a message split across OCR lines is reassembled). Small talk and questions are skipped; a year-less date in an announcement is anchored to the **announcement's post date** (a “Oct 8” posted on 09/26 means that year's 10-08), and already-due items are skipped instead of rolling to next year.
+
 ### Home-screen widget
 
 - Today / tomorrow columns plus a scrollable todo list; todos can be ticked straight from the home screen.
@@ -108,6 +111,7 @@ The OCR models (4.7 MB detector + 10.9 MB recogniser) are not bundled: download 
 
 - **Background image**: aspect-preserving crop with a draggable focal point, 0.5–3× zoom (below 1× the surroundings are filled with a blurred, enlarged copy of the same image, so no blank edges).
 - **Glassmorphism**: opacity and blur for calendar cards, timetable cells and the bottom navigation; at full transparency text colours adapt to the image's brightness.
+- **Two layers, tuned separately**: the appearance page groups the sliders into *Crop & framing / Wallpaper layer / Panel layer* — **background image opacity** only affects the wallpaper, **panel opacity** covers the calendar, cards and bottom nav. Number inputs (lead times etc.) use the same material as their own field, so nothing looks half solid and half see-through.
 - **Accent colour**: eight presets + colour picker, set separately for the app and the widget.
 - **Layout tokens**: 44 px control height (Apple HIG 44 pt), one radius scale (6 / 12·8 / 12 / 14), fully tappable bottom navigation.
 
