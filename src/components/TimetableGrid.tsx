@@ -5,7 +5,8 @@
  * 课程块显示课名 + 教室，颜色沿用课程配色。数据直接复用日历事件，
  * 所以点击课程走的还是同一套详情弹窗。
  */
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import dayjs, { type Dayjs } from 'dayjs';
 import { TIMETABLE } from '../../shared/cdut-parser';
 import { assignCourseColors, readableTextColor } from '../../shared/course-colors';
@@ -183,7 +184,13 @@ const TimetableGrid: React.FC<Props> = ({
       try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* 某些 WebView 不支持 */ }
     }
     if (!st.moved) return;
-    setGhost({ x: e.clientX, y: e.clientY, title: st.item.title });
+    // 浮起来的课名不要被屏幕边缘裁掉：按最大宽度 160px 的一半 + 余量留边
+    const half = 88;
+    setGhost({
+      x: Math.min(Math.max(e.clientX, half), Math.max(half, window.innerWidth - half)),
+      y: Math.min(Math.max(e.clientY, 24), Math.max(24, window.innerHeight - 24)),
+      title: st.item.title,
+    });
     const cell = cellUnder(e.clientX, e.clientY);
     setHoverCell(cell ? `${cell.day}-${cell.section}` : null);
   };
@@ -217,6 +224,31 @@ const TimetableGrid: React.FC<Props> = ({
     const minutes = Math.max(1, dayjs(item.event.end).diff(dayjs(item.event.start), 'minute'));
     onMoveEvent(item.event, start.toDate(), start.add(minutes, 'minute').toDate());
   };
+
+  /**
+   * 拖动兜底收尾：WebView 里 setPointerCapture 可能失败，手指抬起、被系统打断或
+   * 切到后台时按钮上的 pointerup 不一定送达——不兜底的话，浮起的课名和蓝色落点框
+   * 会一直留在课表上。这里在 window 层收尾：
+   *   - pointerup → 按落点正常提交（按钮已处理过时是空操作）
+   *   - pointercancel / 失焦 / 切后台 → 直接清掉，不提交
+   */
+  const endDragRef = useRef(endDrag);
+  endDragRef.current = endDrag;
+  useEffect(() => {
+    const onUp = (e: PointerEvent) => { endDragRef.current(e.clientX, e.clientY, true); };
+    const onCancel = (e: PointerEvent) => { endDragRef.current(e.clientX, e.clientY, false); };
+    const onAbort = () => { endDragRef.current(-1, -1, false); };
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
+    window.addEventListener('blur', onAbort);
+    document.addEventListener('visibilitychange', onAbort);
+    return () => {
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
+      window.removeEventListener('blur', onAbort);
+      document.removeEventListener('visibilitychange', onAbort);
+    };
+  }, []);
 
   // 把事件按「星期 + 大节」放进格子：与哪几节有时间重叠，就画在哪几行。
   // 连上三节的晚课（19:10-21:35）因此会同时出现在第 6、7 行，和真实课表一致，
@@ -503,7 +535,7 @@ const TimetableGrid: React.FC<Props> = ({
       className="itdc-timetable-grid"
       style={{ overflowX: 'auto', height: fillHeight ? '100%' : undefined, display: fillHeight ? 'flex' : undefined, flexDirection: 'column' }}
     >
-      {ghost && (
+      {ghost && createPortal(
         <div
           style={{
             position: 'fixed',
@@ -524,7 +556,8 @@ const TimetableGrid: React.FC<Props> = ({
           }}
         >
           {ghost.title}
-        </div>
+        </div>,
+        document.body,
       )}
       {/* 列宽要保证 7 天都塞得下：窄屏上以前是 52+7×46 直接把周六周日顶出屏幕，
           现在节次列收到 44，日期列允许压缩到 34，手机上一屏能看全周一到周日 */}
