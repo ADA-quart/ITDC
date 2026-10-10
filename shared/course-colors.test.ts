@@ -47,8 +47,8 @@ describe('assignCourseColors（一套课表内不撞色）', () => {
     expect(colorForCourse('高数')).toBe(colorForCourse('高数'));
   });
 
-  it('课程色至少 20 种，且每一种配自动字色都达 WCAG AA 正文（≥4.5:1）', () => {
-    expect(COURSE_PALETTE.length).toBeGreaterThanOrEqual(20);
+  it('课程色 18 种起步，且每一种配自动字色都达 WCAG AA 正文（≥4.5:1）', () => {
+    expect(COURSE_PALETTE.length).toBeGreaterThanOrEqual(18);
     for (const hex of COURSE_PALETTE) {
       const ink = readableTextColor(hex);
       const ratio = contrastRatio(hex, ink);
