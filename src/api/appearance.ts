@@ -277,6 +277,7 @@ export async function pushWidgetAppearance(settings: AppearanceSettings): Promis
     panelOpacity: settings.widgetPanelOpacity,
     scheme: settings.widgetScheme,
     hasImage: !!wanted,
+    glass: settings.liquidGlass,
     focusX: settings.bgFocusX,
     focusY: settings.bgFocusY,
     zoom: settings.bgZoom,

@@ -16,6 +16,8 @@ export interface ItdcWidgetPluginInterface {
     panelOpacity: number;
     scheme: 'auto' | 'light' | 'dark';
     hasImage: boolean;
+    /** 液态玻璃：面板加一层顶部高光 + 内描边（小组件做不了真模糊，只能做玻璃质感） */
+    glass?: boolean;
     /** 小组件固定边框内的焦点（0-100）与缩放（0.5-3 倍，<1 为缩小 + 模糊打底） */
     focusX: number;
     focusY: number;

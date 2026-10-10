@@ -102,6 +102,7 @@ public class ITDCWidgetPlugin extends Plugin {
                     call.getInt("panelOpacity", 90),
                     call.getString("scheme"),
                     Boolean.TRUE.equals(call.getBoolean("hasImage", false)),
+                    Boolean.TRUE.equals(call.getBoolean("glass", false)),
                     call.getInt("focusX", 50),
                     call.getInt("focusY", 50),
                     call.getFloat("zoom", 1f),

@@ -44,6 +44,7 @@ final class WidgetAppearance {
     private static final String KEY_OPACITY = "ap_panel_opacity";
     private static final String KEY_SCHEME = "ap_scheme";
     private static final String KEY_HAS_IMAGE = "ap_has_image";
+    private static final String KEY_GLASS = "ap_glass";
     private static final String KEY_FOCUS_X = "ap_focus_x";
     private static final String KEY_FOCUS_Y = "ap_focus_y";
     private static final String KEY_ZOOM = "ap_zoom";
@@ -106,7 +107,7 @@ final class WidgetAppearance {
 
     /** App 下发外观：colors 立即生效；image 只在换图时传，缺省表示沿用已存的文件 */
     static void apply(Context context, String accent, String panelColor, int panelOpacity,
-                      String scheme, boolean hasImage, int focusX, int focusY, float zoom,
+                      String scheme, boolean hasImage, boolean glass, int focusX, int focusY, float zoom,
                       String imageDataUrl) throws Exception {
         SharedPreferences.Editor editor = prefs(context).edit();
         if (!TextUtils.isEmpty(accent)) {
@@ -116,6 +117,7 @@ final class WidgetAppearance {
         editor.putInt(KEY_OPACITY, Math.max(0, Math.min(100, panelOpacity)));
         editor.putString(KEY_SCHEME, normalizeScheme(scheme));
         editor.putBoolean(KEY_HAS_IMAGE, hasImage && imageFile(context).exists());
+        editor.putBoolean(KEY_GLASS, glass);
         editor.putInt(KEY_FOCUS_X, Math.max(0, Math.min(100, focusX)));
         editor.putInt(KEY_FOCUS_Y, Math.max(0, Math.min(100, focusY)));
         editor.putFloat(KEY_ZOOM, clampZoom(zoom));
@@ -405,6 +407,11 @@ final class WidgetAppearance {
         return prefs(context).getBoolean(KEY_HAS_IMAGE, false) && imageFile(context).exists();
     }
 
+    /** 液态玻璃：小组件做不了真模糊，用顶部高光 + 内描边模拟玻璃质感 */
+    static boolean glass(Context context) {
+        return prefs(context).getBoolean(KEY_GLASS, false);
+    }
+
     /** 图片层透明度（0-255），由「面板不透明度」控制 */
     static int imageAlpha(Context context) {
         int opacity = prefs(context).getInt(KEY_OPACITY, DEFAULT_OPACITY);
@@ -573,6 +580,26 @@ final class WidgetAppearance {
             } else {
                 // 无图或解码失败：退回纯色面板，至少不会变成透明条
                 canvas.drawColor(withAlpha(panelColor(context), alpha), PorterDuff.Mode.SRC);
+            }
+            if (glass(context)) {
+                // 玻璃质感：顶部白色渐变sheen + 内描边（RemoteViews 没有背景模糊能力）
+                float inset = Math.max(1f, context.getResources().getDisplayMetrics().density);
+                Paint sheen = new Paint(Paint.ANTI_ALIAS_FLAG);
+                sheen.setShader(new android.graphics.LinearGradient(
+                        0f, 0f, 0f, Math.max(1f, height * 0.55f),
+                        isNight(context) ? 0x2EFFFFFF : 0x59FFFFFF,
+                        0x00FFFFFF,
+                        android.graphics.Shader.TileMode.CLAMP));
+                canvas.drawRect(0f, 0f, width, height, sheen);
+                Paint rim = new Paint(Paint.ANTI_ALIAS_FLAG);
+                rim.setStyle(Paint.Style.STROKE);
+                rim.setStrokeWidth(inset);
+                rim.setColor(isNight(context) ? 0x33FFFFFF : 0x66FFFFFF);
+                Path rimPath = new Path();
+                rimPath.addRoundRect(
+                        new RectF(inset / 2f, inset / 2f, width - inset / 2f, height - inset / 2f),
+                        radius, radius, Path.Direction.CW);
+                canvas.drawPath(rimPath, rim);
             }
             return bitmap;
         } catch (Exception e) {
