@@ -329,10 +329,11 @@ const App: React.FC = () => {
     </div>
   ) : null;
 
-  // 原生 APK 由 MainActivity 统一处理系统栏 insets（WebView 不解析 env()），
-  // 这里只给浏览器/PWA 场景保留 CSS 安全区，避免两处叠加造成双重留白。
+  // 原生 APK：MainActivity 把系统栏高度注入成 --itdc-inset-*（WebView 里 env() 恒为 0，
+  // 而原生若直接给根视图加 padding，状态栏/手势条区域就会露出窗口底色、背景图铺不到顶）。
+  // 浏览器/PWA 没有这组变量，回退到 env(safe-area-inset-*)。
   const inset = (side: 'top' | 'bottom') =>
-    Capacitor.isNativePlatform() ? '0px' : `env(safe-area-inset-${side}, 0px)`;
+    `var(--itdc-inset-${side}, env(safe-area-inset-${side}, 0px))`;
 
   if (isMobile) {
     return (

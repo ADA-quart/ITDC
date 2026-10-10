@@ -220,6 +220,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         : (isDark ? '#1f1f1f' : '#fff')
     );
     root.style.setProperty('--itdc-nav-blur', navBlur);
+    // 输入框类控件的实底色（与 antd colorBgContainer 同值）：背景图模式下
+    // "分钟"这类 addon 默认是半透明填充，会透出壁纸，用它改成不透明白/黑
+    root.style.setProperty('--itdc-field-bg', isDark ? '#141414' : '#ffffff');
     // 图片主导（低透明度）时次级文字加深/加亮：灰字压半透背景最容易糊
     const imageDominant = glass && appearance.uiOpacity < 50;
     root.style.setProperty(

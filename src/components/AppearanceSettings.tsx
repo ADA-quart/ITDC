@@ -87,8 +87,12 @@ const AppearanceSettings: React.FC = () => {
     };
   }, []);
   // 宽度取上限、高度反推：手机上就是一块竖向的屏幕形状
-  const previewWidth = Math.min(isMobile ? 230 : 190, Math.round(320 * viewAspect));
-  const previewHeight = Math.max(90, Math.round(previewWidth / Math.max(0.2, viewAspect)));
+  // 手机上再给高度封顶（240px）：预览要跟滑条同屏才能边拖边看，
+  // 太高会把整列滑条挤到屏幕外，调参数时看不见预览。
+  const rawPreviewWidth = Math.min(isMobile ? 230 : 190, Math.round(320 * viewAspect));
+  const rawPreviewHeight = Math.max(90, Math.round(rawPreviewWidth / Math.max(0.2, viewAspect)));
+  const previewHeight = isMobile ? Math.min(240, rawPreviewHeight) : rawPreviewHeight;
+  const previewWidth = isMobile ? Math.round(previewHeight * viewAspect) : rawPreviewWidth;
   const clampFocus = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
   // 取成局部常量，闭包（.map 等）里也能拿到非空类型
   const bgImage = appearance.bgImage;
@@ -244,11 +248,15 @@ const AppearanceSettings: React.FC = () => {
                   }}
                 />
               </div>
-              <div style={{ fontSize: 11, color: secondaryTextColor(isDark) }}>
-                {t.settings.previewScreenRatio}
-              </div>
+              {!isMobile && (
+                <div style={{ fontSize: 11, color: secondaryTextColor(isDark) }}>
+                  {t.settings.previewScreenRatio}
+                </div>
+              )}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
+              {/* ① 裁切与取景：先把画面取好，再看后面两层观感 */}
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{t.settings.cropGroup}</div>
               <SliderLabel label={t.settings.imageZoom} value={`${appearance.bgZoom.toFixed(2)}×`} dim={secondaryTextColor(isDark)} />
               <Slider
                 min={MIN_BG_ZOOM}
@@ -257,9 +265,6 @@ const AppearanceSettings: React.FC = () => {
                 value={appearance.bgZoom}
                 onChange={(value) => updateAppearance({ bgZoom: value })}
               />
-              <div style={{ ...hintStyle, marginTop: 0 }}>{t.settings.imageZoomHint}</div>
-              <div style={{ fontSize: 13, marginTop: 8 }}>{t.settings.focusPoint}</div>
-              <div style={{ ...hintStyle, marginTop: 0 }}>{t.settings.focusHint}</div>
               <SliderLabel label={t.settings.focusHorizontal} value={`${appearance.bgFocusX}%`} dim={secondaryTextColor(isDark)} />
               <Slider
                 min={0}
@@ -274,6 +279,11 @@ const AppearanceSettings: React.FC = () => {
                 value={appearance.bgFocusY}
                 onChange={(value) => updateAppearance({ bgFocusY: value })}
               />
+              <div style={{ ...hintStyle, marginTop: 6 }}>{t.settings.imageZoomHint}</div>
+              <div style={{ ...hintStyle, marginTop: 0 }}>{t.settings.focusHint}</div>
+
+              {/* ② 壁纸层：只影响背景图自己 */}
+              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 16 }}>{t.settings.wallpaperGroup}</div>
               <SliderLabel label={t.settings.backgroundOpacity} value={`${appearance.bgOpacity}%`} dim={secondaryTextColor(isDark)} />
               <Slider
                 min={10}
@@ -281,7 +291,6 @@ const AppearanceSettings: React.FC = () => {
                 value={appearance.bgOpacity}
                 onChange={(value) => updateAppearance({ bgOpacity: value })}
               />
-              <div style={{ ...hintStyle, marginTop: 0 }}>{t.settings.backgroundOpacityHint}</div>
               <SliderLabel label={t.settings.backgroundBlur} value={`${appearance.bgBlur}px`} dim={secondaryTextColor(isDark)} />
               <Slider
                 min={0}
@@ -289,7 +298,10 @@ const AppearanceSettings: React.FC = () => {
                 value={appearance.bgBlur}
                 onChange={(value) => updateAppearance({ bgBlur: value })}
               />
-              {/* 图片层（上面几个）和界面层分开放：紧挨着才好对照调 */}
+              <div style={{ ...hintStyle, marginTop: 6 }}>{t.settings.backgroundOpacityHint}</div>
+
+              {/* ③ 面板层：日历 / 卡片 / 导航这层的实心程度 */}
+              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 16 }}>{t.settings.panelGroup}</div>
               <SliderLabel label={t.settings.uiOpacity} value={`${appearance.uiOpacity}%`} dim={secondaryTextColor(isDark)} />
               <Slider
                 min={0}
@@ -304,7 +316,7 @@ const AppearanceSettings: React.FC = () => {
                 value={appearance.uiBlur}
                 onChange={(value) => updateAppearance({ uiBlur: value })}
               />
-              <div style={{ ...hintStyle, marginTop: 0 }}>{t.settings.uiOpacityHint}</div>
+              <div style={{ ...hintStyle, marginTop: 6 }}>{t.settings.uiOpacityHint}</div>
             </div>
           </div>
         )}
