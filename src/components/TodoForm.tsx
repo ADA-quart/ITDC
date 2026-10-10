@@ -107,7 +107,7 @@ const TodoForm: React.FC<Props> = ({ visible, todo, onClose, onSaved }) => {
         </Form.Item>
 
         <Form.Item name="deadline" label={t.todo.deadline}>
-          <DatePicker showTime format="YYYY-MM-DD HH:mm" style={{ width: '100%' }} placeholder={t.todo.selectDeadline} />
+          <DatePicker showTime inputReadOnly format="YYYY-MM-DD HH:mm" style={{ width: '100%' }} placeholder={t.todo.selectDeadline} />
         </Form.Item>
 
         <Form.Item

@@ -212,6 +212,7 @@ const TodoSplitModal: React.FC<Props> = ({ todo, onClose, onSaved }) => {
             <span style={{ fontWeight: 'bold', minWidth: 24 }}>#{idx + 1}</span>
             <DatePicker
               showTime
+              inputReadOnly
               format="YYYY-MM-DD HH:mm"
               value={seg.start}
               onChange={v => v && updateSegment(idx, 'start', v)}
@@ -220,6 +221,7 @@ const TodoSplitModal: React.FC<Props> = ({ todo, onClose, onSaved }) => {
             <span>~</span>
             <DatePicker
               showTime
+              inputReadOnly
               format="YYYY-MM-DD HH:mm"
               value={seg.end}
               onChange={v => v && updateSegment(idx, 'end', v)}

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, Form, Input, Select, Button, Table, Tag, message, Space, Popconfirm, Tabs, Spin, Alert, AutoComplete, Tooltip, Switch } from 'antd';
+import { Modal, Form, Input, InputNumber, Select, Button, Table, Tag, message, Space, Popconfirm, Tabs, Spin, Alert, AutoComplete, Tooltip, Switch } from 'antd';
 import { SyncOutlined, LinkOutlined, FileProtectOutlined } from '@ant-design/icons';
 import { settingsApi, api, setApiBase, getApiBase, isSyncEnabled, calendarApi } from '../api/client';
 import { Capacitor } from '@capacitor/core';
@@ -21,9 +21,13 @@ import {
   requestClassReminderPermission,
   getClassReminderSilent,
   setClassReminderSilent,
+  getTodoReminderLeadMin,
+  setTodoReminderLeadMin,
+  syncAllReminders,
 } from '../api/reminders';
+import { todoApi } from '../api/client';
 import {
-  CLASS_LEAD_OPTIONS,
+  DEFAULT_CLASS_LEAD_MIN,
   getClassReminderEnabled,
   getClassReminderLeadMin,
   setClassReminderEnabled,
@@ -39,6 +43,9 @@ interface Props {
   /** 打开时要定位到的标签页，由「去设置」这类入口指定 */
   initialTab?: string;
 }
+
+/** 提前量输入的取值范围（分钟） */
+const clampLead = (n: number, min: number) => Math.min(120, Math.max(min, Math.round(n)));
 
 const PROVIDER_OPTIONS_ZH = [
   { value: 'openai', label: 'OpenAI' },
@@ -102,8 +109,12 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
   const [schoolId, setSchoolId] = useState<string>('');
   const [autoSyncSchool, setAutoSyncSchool] = useState(getAutoSyncEnabled());
   const [classReminderOn, setClassReminderOn] = useState(getClassReminderEnabled());
-  const [classLeadMin, setClassLeadMin] = useState(getClassReminderLeadMin());
+  const [classLeadMin, setClassLeadMin] = useState<number | null>(getClassReminderLeadMin());
   const [classReminderSilent, setClassReminderSilentState] = useState(getClassReminderSilent());
+  const [todoLeadMin, setTodoLeadMin] = useState<number | null>(getTodoReminderLeadMin());
+  // 数字输入框的防抖保存句柄：输入停顿或失焦时提交
+  const classLeadTimer = useRef<number | null>(null);
+  const todoLeadTimer = useRef<number | null>(null);
   // 表单是否已按「当前启用的配置」对齐过：只做一次，避免打断用户正在输入的内容
   const formSeeded = useRef(false);
 
@@ -482,6 +493,16 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
     }
   };
 
+  // 改完提前量立刻按最新待办重排（否则要等到下次打开待办页才生效）
+  const resyncTodoReminders = async () => {
+    try {
+      const todos = await todoApi.getAll();
+      await syncAllReminders(Array.isArray(todos) ? todos : []);
+    } catch (err) {
+      console.warn('待办提醒重排失败:', err);
+    }
+  };
+
   const tabItems = [
     {
       key: 'llm',
@@ -707,20 +728,41 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
                     message.success(t.settings.classReminderSaved);
                   }}
                 />
-                <Select
+                <InputNumber
                   value={classLeadMin}
                   disabled={!classReminderOn}
-                  style={{ width: 150 }}
-                  onChange={async (v) => {
-                    setClassReminderLeadMin(v);
-                    setClassLeadMin(v);
+                  min={1}
+                  max={120}
+                  step={5}
+                  addonAfter={t.settings.classReminderMinutes}
+                  style={{ width: 160 }}
+                  onChange={(v) => {
+                    const num = typeof v === 'number' ? v : null;
+                    setClassLeadMin(num);
+                    if (classLeadTimer.current) window.clearTimeout(classLeadTimer.current);
+                    if (typeof num === 'number') {
+                      classLeadTimer.current = window.setTimeout(() => {
+                        setClassReminderLeadMin(clampLead(num, 1));
+                        void resyncClassReminders();
+                        message.success(t.settings.classReminderSaved);
+                      }, 700);
+                    }
+                  }}
+                  // 手机输入法上的回车（完成）= 保存：直接 blur，走与失焦同一条提交路径
+                  onPressEnter={(e) => (e.target as HTMLInputElement).blur()}
+                  onBlur={async () => {
+                    // 输入框清空是中间态：失焦时回落到默认值，避免每敲一位就重排+弹提示
+                    if (classLeadTimer.current) {
+                      window.clearTimeout(classLeadTimer.current);
+                      classLeadTimer.current = null;
+                    }
+                    const min = clampLead(classLeadMin ?? DEFAULT_CLASS_LEAD_MIN, 1);
+                    setClassLeadMin(min);
+                    if (min === getClassReminderLeadMin()) return;
+                    setClassReminderLeadMin(min);
                     await resyncClassReminders();
                     message.success(t.settings.classReminderSaved);
                   }}
-                  options={CLASS_LEAD_OPTIONS.map((m) => ({
-                    value: m,
-                    label: `${t.settings.classReminderLead} ${m} ${t.settings.classReminderMinutes}`,
-                  }))}
                 />
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                   <Switch
@@ -737,6 +779,48 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
                 </span>
               </Space>
               <p style={{ ...hintTextStyle(isDark), marginTop: 8 }}>{t.settings.classReminderSilentHint}</p>
+            </div>
+          )}
+          {isAndroid() && (
+            <div>
+              <h4 style={sectionTitleStyle}>{t.settings.todoReminder}</h4>
+              <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 12 }}>
+                {t.settings.todoReminderHint}
+              </p>
+              <InputNumber
+                value={todoLeadMin}
+                min={0}
+                max={120}
+                step={5}
+                addonAfter={t.settings.classReminderMinutes}
+                style={{ width: 160 }}
+                onChange={(v) => {
+                  const num = typeof v === 'number' ? v : null;
+                  setTodoLeadMin(num);
+                  if (todoLeadTimer.current) window.clearTimeout(todoLeadTimer.current);
+                  if (typeof num === 'number') {
+                    todoLeadTimer.current = window.setTimeout(() => {
+                      setTodoReminderLeadMin(clampLead(num, 0));
+                      void resyncTodoReminders();
+                      message.success(t.settings.todoReminderSaved);
+                    }, 700);
+                  }
+                }}
+                // 手机输入法上的回车（完成）= 保存：直接 blur，走与失焦同一条提交路径
+                onPressEnter={(e) => (e.target as HTMLInputElement).blur()}
+                onBlur={async () => {
+                  if (todoLeadTimer.current) {
+                    window.clearTimeout(todoLeadTimer.current);
+                    todoLeadTimer.current = null;
+                  }
+                  const min = clampLead(todoLeadMin ?? 0, 0);
+                  setTodoLeadMin(min);
+                  if (min === getTodoReminderLeadMin()) return;
+                  setTodoReminderLeadMin(min);
+                  await resyncTodoReminders();
+                  message.success(t.settings.todoReminderSaved);
+                }}
+              />
             </div>
           )}
           <OcrExtension />

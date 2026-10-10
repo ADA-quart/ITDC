@@ -15,6 +15,9 @@ const CLASS_CHANNEL_ID = 'class-reminders';
 // 由设置里的开关决定排程时走哪个
 const CLASS_CHANNEL_SILENT_ID = 'class-reminders-silent';
 const CLASS_SILENT_KEY = 'itdc_class_reminder_silent';
+// 待办提醒提前量（分钟）：0 = 到点提醒（历史行为）
+const TODO_LEAD_KEY = 'itdc_todo_reminder_lead_min';
+export const TODO_LEAD_OPTIONS = [0, 5, 10, 15, 30, 60];
 // 本地通知最多提前 90 天，超出则不排程（Android 对过远的定时通知行为不一致）
 const MAX_AHEAD_MS = 90 * 24 * 3600_000;
 
@@ -47,20 +50,35 @@ export function setClassReminderSilent(on: boolean): void {
   try { localStorage.setItem(CLASS_SILENT_KEY, String(on)); } catch {}
 }
 
+/** 待办提醒提前多少分钟（0 = 到点提醒）。 */
+export function getTodoReminderLeadMin(): number {
+  try {
+    const n = parseInt(localStorage.getItem(TODO_LEAD_KEY) ?? '', 10);
+    if (Number.isFinite(n) && n >= 0 && n <= 120) return n;
+  } catch { /* 读取失败按到点提醒 */ }
+  return 0;
+}
+
+export function setTodoReminderLeadMin(min: number): void {
+  try { localStorage.setItem(TODO_LEAD_KEY, String(min)); } catch {}
+}
+
 function classChannelId(): string {
   return getClassReminderSilent() ? CLASS_CHANNEL_SILENT_ID : CLASS_CHANNEL_ID;
 }
 
-// 提醒时间：优先已排程开始时间，其次截止时间；必须在未来且不超过 MAX_AHEAD_MS
-export function reminderTimeFor(todo: Todo): Date | null {
+// 提醒时间：优先已排程开始时间，其次截止时间；提前 leadMin 分钟触发，
+// 结果必须在未来且不超过 MAX_AHEAD_MS（提前量把它推到过去时就不打扰了）
+export function reminderTimeFor(todo: Todo, leadMin = 0): Date | null {
   const candidates: string[] = [];
   if (todo.scheduled_start) candidates.push(todo.scheduled_start);
   if (todo.deadline) candidates.push(todo.deadline);
   for (const s of candidates) {
     const d = new Date(s);
     if (!isNaN(d.getTime())) {
-      const delta = d.getTime() - Date.now();
-      if (delta > 60_000 && delta < MAX_AHEAD_MS) return d;
+      const at = d.getTime() - leadMin * 60_000;
+      const delta = at - Date.now();
+      if (delta > 60_000 && delta < MAX_AHEAD_MS) return new Date(at);
     }
   }
   return null;
@@ -71,7 +89,7 @@ export function reminderTimeFor(todo: Todo): Date | null {
 export async function scheduleTodoReminder(todo: Todo): Promise<void> {
   try {
     if (!isAndroid() || !getReminderEnabled()) return;
-    const time = reminderTimeFor(todo);
+    const time = reminderTimeFor(todo, getTodoReminderLeadMin());
     if (!time) return;
     await LocalNotifications.schedule({
       notifications: [
@@ -107,7 +125,7 @@ export async function syncAllReminders(todos: Todo[]): Promise<void> {
     // 避免把上课提醒一起取消（两套排程互相独立）
     await cancelPendingWhere((id) => id < CLASS_NOTIFICATION_ID_BASE);
     for (const todo of todos) {
-      if (getReminderEnabled() && reminderTimeFor(todo)) {
+      if (getReminderEnabled() && reminderTimeFor(todo, getTodoReminderLeadMin())) {
         await scheduleTodoReminder(todo);
       }
     }

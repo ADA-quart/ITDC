@@ -1397,8 +1397,8 @@ const CalendarView: React.FC = () => {
           <Form.Item name="calendar_id" label={t.calendar.calendar} rules={[{ required: true, message: t.calendar.selectCalendarPrompt }]}>
             <Select placeholder={t.calendar.selectCalendar}>{calendars.map(c => (<Select.Option key={c.id} value={c.id}><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: c.color, marginRight: 8 }} />{c.name}</Select.Option>))}</Select>
           </Form.Item>
-          <Form.Item name="start_time" label={t.calendar.startTime} rules={[{ required: true, message: t.calendar.selectStartTime }]}><DatePicker showTime format="YYYY-MM-DD HH:mm" style={{ width: "100%" }} /></Form.Item>
-          <Form.Item name="end_time" label={t.calendar.endTime} rules={[{ required: true, message: t.calendar.selectEndTime }]}><DatePicker showTime format="YYYY-MM-DD HH:mm" style={{ width: "100%" }} /></Form.Item>
+          <Form.Item name="start_time" label={t.calendar.startTime} rules={[{ required: true, message: t.calendar.selectStartTime }]}><DatePicker showTime inputReadOnly format="YYYY-MM-DD HH:mm" style={{ width: "100%" }} /></Form.Item>
+          <Form.Item name="end_time" label={t.calendar.endTime} rules={[{ required: true, message: t.calendar.selectEndTime }]}><DatePicker showTime inputReadOnly format="YYYY-MM-DD HH:mm" style={{ width: "100%" }} /></Form.Item>
           <Form.Item name="description" label={t.calendar.description}><Input.TextArea rows={2} /></Form.Item>
           <Form.Item name="location" label={t.calendar.location}><Input placeholder={t.calendar.eventLocation} /></Form.Item>
         </Form>

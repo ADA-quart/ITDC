@@ -183,6 +183,7 @@ const SchoolImportModal: React.FC<Props> = ({ open, onClose, onImported }) => {
             placeholder={t.schoolImport.weekStartDate}
             value={weekStart}
             onChange={(d) => setWeekStart(d)}
+            inputReadOnly
           />
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>{t.schoolImport.weekStartHint}</Typography.Text>
         </Space>
