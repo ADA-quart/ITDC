@@ -18,6 +18,7 @@ import { getActiveLocalConfig } from '../api/llm-config-local';
 import { resolveModel } from '../api/llm-local';
 import { getVisionSupport, getVisionOverride, rememberVisionSupport, isVisionUnsupportedError } from '../api/vision-support';
 import { isLocalOcrAvailable, recognizeTextLocally } from '../api/local-ocr';
+import { pickTaskLines } from '../../shared/offline-todo-parser';
 
 const STATUS_KEYS: Record<string, string> = {
   pending: 'pending',
@@ -145,22 +146,19 @@ const TodoList: React.FC = () => {
   };
 
   /**
-   * 纯算法兜底：规则解析没识别出结构时，按「每行一条」建待办。
+   * 纯算法兜底：规则解析没识别出结构时，按「像任务的行」建待办。
    *
-   * 截图里最常见的就是一行一件事（作业清单、通知列表），这种不需要大模型也不需要
-   * 日期识别——直接把行变成待办就是"纯算法"该做的事，比只弹一个"存原文"有用得多。
+   * 只保留带任务关键词/日期的行（pickTaskLines），像"总分20/进入作业/评分标准"
+   * 这类属性行直接丢——OCR 糊掉时宁可一条都不建、弹出识别原文让用户自己看，
+   * 也不要造出一串没有任何有效信息的垃圾待办。
    */
   const createTodosFromLines = async (text: string): Promise<number> => {
-    const lines = text
-      .split('\n')
-      .map((s) => s.trim())
-      .filter((s) => s.length >= 2 && s.length <= 200)
-      .slice(0, 20);
+    const lines = pickTaskLines(text).filter((s) => s.length >= 2 && s.length <= 200);
     if (lines.length === 0) return 0;
     for (const line of lines) {
       await todoApi.create({
         title: line.length > 40 ? `${line.slice(0, 40)}…` : line,
-        description: text,
+        description: null,
         estimated_minutes: 30,
       });
     }
