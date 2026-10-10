@@ -1,7 +1,7 @@
 // 教务课表 → 日历事件的构建逻辑。
 // 从 SchoolImportModal 抽出：手动导入与「更新课表 / 每天自动同步」共用同一条转换。
 import { expandWeeks, resolveSectionsTime, type CdutCourse } from './cdut-parser';
-import { colorForCourse } from './course-colors';
+import { assignCourseColors } from './course-colors';
 
 export interface BuiltSchoolEvent {
   title: string;
@@ -15,6 +15,8 @@ export interface BuiltSchoolEvent {
 
 /** 聚合课程并展开周次为具体日期事件列表 */
 export function buildEvents(courses: CdutCourse[], weekStartDate: Date, schoolId: string): BuiltSchoolEvent[] {
+  // 整套课表一起算色：同门课跨周稳定，不同课程尽量不撞色
+  const courseColors = assignCourseColors(courses.map((c) => c.name));
   interface AggKey { name: string; teacher: string; location: string; sectionIndex: number; dayOfWeek: number; sections: string; }
   const aggMap = new Map<string, { key: AggKey; weeks: Set<number> }>();
   for (const c of courses) {
@@ -54,7 +56,7 @@ export function buildEvents(courses: CdutCourse[], weekStartDate: Date, schoolId
         end_time: end.toISOString(),
         location: key.location || null,
         // 每门课一个固定颜色，像待办那样一眼区分（同门课永远同色）
-        color: colorForCourse(key.name),
+        color: courseColors.get(key.name) ?? '#1677ff',
         source: schoolId,
       });
     }

@@ -8,6 +8,7 @@
 import React, { useRef, useState } from 'react';
 import dayjs, { type Dayjs } from 'dayjs';
 import { TIMETABLE } from '../../shared/cdut-parser';
+import { assignCourseColors } from '../../shared/course-colors';
 import { useI18n } from '../i18n';
 import { secondaryTextColor, TOUCH_TARGET } from './ui';
 
@@ -235,6 +236,13 @@ const TimetableGrid: React.FC<Props> = ({
   }
   const cells = new Map<string, CellEntry[]>();
   const extraCells = new Map<string, GridItem[]>();
+  // 整套课表（不只这一周）一起算色：同一门课跨周稳定，不同课尽量不撞色。
+  // 用渲染时现算而不是只认事件里存的颜色，存量数据（早先哈希撞色的）也能自动纠正。
+  const courseColors = assignCourseColors(
+    events
+      .filter((e) => e?.extendedProps?.type !== 'todo')
+      .map((e) => String(e?.title ?? '')),
+  );
   for (const ev of events) {
     if (!ev?.start) continue;
     const start = dayjs(ev.start);
@@ -244,13 +252,15 @@ const TimetableGrid: React.FC<Props> = ({
     if (day < 0 || day > 6) continue;
     const startMinutes = start.hour() * 60 + start.minute();
     const endMinutes = startMinutes + Math.max(1, dayjs(ev.end).diff(start, 'minute'));
+    const isTodo = ev.extendedProps?.type === 'todo';
     const item: GridItem = {
       event: ev,
       title: String(ev.title ?? '').replace(/^\[待办\]\s*/, ''),
       room: String(ev.extendedProps?.location ?? '').split(' - ').pop() ?? '',
-      color: ev.backgroundColor || '#1890ff',
+      // 课程用整套课表算出来的不撞色配色；待办仍用它自己的颜色
+      color: (isTodo ? null : courseColors.get(String(ev.title ?? ''))) ?? ev.backgroundColor ?? '#1890ff',
       mergedCount: ((ev.extendedProps?.mergedTodos as unknown[]) ?? []).length,
-      isTodo: ev.extendedProps?.type === 'todo',
+      isTodo,
     };
     let placed = false;
     for (let i = 0; i < GRID_SECTIONS.length; i++) {

@@ -5,7 +5,7 @@ import * as offline from './offline';
 import { generateScheduleLocally, validateScheduleLocally } from './local-scheduler';
 import { parseIcsFile, buildIcs } from './local-ical';
 import { exportFile } from './export-file';
-import { colorForCourse } from '../../shared/course-colors';
+import { assignCourseColors } from '../../shared/course-colors';
 import type { ModelListResult } from './llm-models';
 import { generateLLMScheduleLocally } from './local-llm-scheduler';
 import { parseNaturalLanguageTodosLocally, parseNaturalLanguageTodosFromImageLocally } from './local-nl-todo';
@@ -535,6 +535,8 @@ export const calendarApi = {
     };
 
     const importedEvents: CalendarEvent[] = [];
+    // 整份导入一起算色：不同课程尽量不撞色（同一份文件每次结果一致）
+    const courseColors = assignCourseColors(parsed.map((p) => p.title ?? ''));
     let idCursor = nextIdFrom(events);
     for (const ev of parsed) {
       importedEvents.push({
@@ -547,7 +549,7 @@ export const calendarApi = {
         rrule: ev.rrule,
         location: ev.location,
         // 导入的课表按课程名固定配色，和教务导入保持一致的观感
-        color: ev.title ? colorForCourse(ev.title) : null,
+        color: ev.title ? (courseColors.get(ev.title) ?? null) : null,
         source: 'ical',
         uid: ev.uid,
         created_at: new Date().toISOString(),

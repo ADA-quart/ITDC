@@ -49,15 +49,32 @@ export interface AppearanceSettings {
 }
 
 /** 预设主题色：与小组件默认色一致，避免两处各写一份 */
-export const ACCENT_PRESETS = [
-  '#4C9AFF',
-  '#1677FF',
-  '#722ED1',
-  '#EB2F96',
-  '#F5222D',
-  '#FA8C16',
-  '#52C41A',
-  '#13C2C2',
+/**
+ * 主题色预设：常用品牌色 + 几个大家认识的角色色（带名字，鼠标悬停/读屏可见）。
+ *
+ * 角色色的取值来源：
+ *   - 洛天依蓝 #66CCFF：官方/维基百科、萌娘百科「天依蓝」条目一致的应援色；
+ *   - 初音未来绿 #39C5BB：官方苍绿色（VCPedia / 萌娘百科 / 番组百科 rgb(57,197,187)）；
+ *   - 永雏塔菲粉 #FD779E：官方设定只写「粉发」、无公开色号，取社区共识里的
+ *     品牌粉主色调（主题插件标注为品牌粉；萌百标语色 #F95378 偏艳，背景色
+ *     #fcd2d2/#ffd7e4 太淡，都不适合当强调色）；
+ *   - 奶龙黄 #FFD700：官方只有「体色（奶）黄色」的描述、没公开色号，取社区/教程里
+ *     最常用的标志性金黄（Turtle 画奶龙、数字绘画都用它）。纯金底 + 白字对比度偏低，
+ *     在意可读性的话选别的预设即可。
+ */
+export const ACCENT_PRESETS: { hex: string; name: string }[] = [
+  { hex: '#4C9AFF', name: '天蓝' },
+  { hex: '#1677FF', name: '拂晓蓝' },
+  { hex: '#722ED1', name: '酱紫' },
+  { hex: '#EB2F96', name: '洋红' },
+  { hex: '#F5222D', name: '薄暮红' },
+  { hex: '#FA8C16', name: '日暮橙' },
+  { hex: '#52C41A', name: '极光绿' },
+  { hex: '#13C2C2', name: '明青' },
+  { hex: '#66CCFF', name: '洛天依蓝' },
+  { hex: '#39C5BB', name: '初音未来绿' },
+  { hex: '#FD779E', name: '永雏塔菲粉' },
+  { hex: '#FFD700', name: '奶龙黄' },
 ];
 
 export const DEFAULT_APPEARANCE: AppearanceSettings = {

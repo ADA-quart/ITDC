@@ -122,13 +122,14 @@ const AppearanceSettings: React.FC = () => {
 
   const accentSwatches = (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-      {ACCENT_PRESETS.map((color) => {
+      {ACCENT_PRESETS.map(({ hex: color, name }) => {
         const active = appearance.accent.toUpperCase() === color.toUpperCase();
         return (
           <button
             key={color}
             type="button"
-            aria-label={color}
+            aria-label={`${name} ${color}`}
+            title={`${name} ${color}`}
             onClick={() => updateAppearance({ accent: color })}
             style={{
               width: 28,
