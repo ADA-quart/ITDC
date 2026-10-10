@@ -3,6 +3,17 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 变更
+
+- **液态玻璃改成"真·液态"**：之前只是"磨砂 + 高光边"，现在按 WWDC25 的三件套补齐——① **折射**：SVG `feTurbulence` + `feDisplacementMap` 接进 `backdrop-filter`（Chromium / Android WebView 支持，已实测 `blur(20px) saturate(1.8) brightness(1.04) url(#itdc-lg-refract)` 生效），玻璃背后的内容会被轻微扭曲，像厚玻璃而不是单纯磨砂；② **镜面高光**：高光位置随设备姿态（陀螺仪）或指针移动扫过表面；③ 磨砂更透亮。底部导航在液态玻璃下改成**悬浮圆角胶囊**（浮在内容上、去掉通栏边框、加投影），对齐 iOS 26 的玻璃 tab bar
+
+### 修复
+
+- **课程块圆角太小**：从 6px 提到 10px（新增 `--itdc-r-course`），窄列里也有"卡片"感；拖拽浮层同步
+- **白屏诊断层会永久盖住 App**：内联诊断脚本 3 秒没挂载就铺一层红屏且从不撤除，冷启动慢的机型会"能用的 App 被红屏挡住"。现在阈值放宽到 4 秒，且 `#root` 一有内容就自动撤屏
+
 ## [2.4.3] - 2026-10-11
 
 ### 新增

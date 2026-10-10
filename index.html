@@ -6,23 +6,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>智能待办课表——日日新</title>
     <script>
-// 白屏诊断层0（内联，不依赖打包JS）：3秒后 #root 无内容 = JS bundle 没加载/没执行，显示具体原因
+// 白屏诊断层0（内联，不依赖打包JS）：4秒后 #root 仍无内容 = JS bundle 没加载/没执行，显示具体原因
+// 注意：JS bundle 只是慢（冷启动、低端机）时不能一直盖着红屏——
+// 一旦 #root 有了内容就自动撤掉诊断层，避免"能用的 App 被诊断层挡住"。
 (function () {
   var errs = [];
   window.addEventListener('error', function (e) {
     if (errs.length < 30) errs.push((e.message || 'Error') + ' @ ' + (e.filename || 'unknown') + ':' + (e.lineno || '?'));
   }, true);
-  setTimeout(function () {
+  var shown = null;
+  function dismiss() {
+    if (shown && shown.parentNode) shown.parentNode.removeChild(shown);
+    shown = null;
+  }
+  function check() {
     var root = document.getElementById('root');
-    if (!root || !root.childNodes.length) {
+    if (root && root.childNodes.length) { dismiss(); return; }
+    if (shown) return;
       var url = window.location.href;
       var text = '页面白屏诊断（内联脚本）\nURL: ' + url + '\n\nJS bundle 未执行或渲染失败。已捕获错误:\n' + (errs.length ? errs.join('\n') : '(无)');
       var el = document.createElement('div');
       el.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:#b91c1c;color:#fff;padding:16px;font-family:monospace;font-size:13px;white-space:pre-wrap;word-break:break-all';
       el.textContent = text;
       document.body.appendChild(el);
+    shown = el;
+  }
+  setTimeout(check, 4000);
+  // 挂载晚于阈值时自动撤屏，并停止轮询
+  var poll = setInterval(function () {
+    var root = document.getElementById('root');
+    if (root && root.childNodes.length) {
+      dismiss();
+      clearInterval(poll);
     }
-  }, 3000);
+  }, 400);
 })();
 </script>
   </head>

@@ -15,6 +15,7 @@ import {
   PieChartOutlined,
 } from '@ant-design/icons';
 import CalendarView from './components/CalendarView';
+import GlassFilters from './components/GlassFilters';
 import TodoList from './components/TodoList';
 import SchedulePanel from './components/SchedulePanel';
 import ReviewPage from './components/ReviewPage';
@@ -253,6 +254,8 @@ const App: React.FC = () => {
 
   // 背景图铺在最底层（z-index:-1），页面容器改成透明才能真正透出来
   const hasBgImage = !!appearance.bgImage;
+  // 液态玻璃下底部导航改成"悬浮胶囊"：浮在内容上方、圆角、投影（对齐 iOS 26 的玻璃 tab bar）
+  const glassNav = appearance.liquidGlass;
   const pageBg = hasBgImage ? 'transparent' : (isDark ? '#141414' : '#f5f5f5');
 
   // contain 模式图片会留边，给 body 一个主题底色，避免露出突兀的白/黑
@@ -343,6 +346,7 @@ const App: React.FC = () => {
     return (
       <ConfigProvider locale={antdLocale} theme={themeConfig}>
         {backgroundLayer}
+        <GlassFilters />
         {/* tabular-nums：时间/日期/计数在一列里对齐 */}
         <Layout style={{ minHeight: '100vh', background: 'transparent', ...tabularNums }}>
           <Content
@@ -352,7 +356,9 @@ const App: React.FC = () => {
               overflow: 'auto',
               // Android 15+ 强制 edge-to-edge：为状态栏与手势导航条留出空间
               paddingTop: `calc(12px + ${inset('top')})`,
-              paddingBottom: `calc(64px + ${inset('bottom')})`,
+              paddingBottom: glassNav
+                ? `calc(80px + ${inset('bottom')})`
+                : `calc(64px + ${inset('bottom')})`,
             }}
           >
             {renderContent()}
@@ -360,17 +366,25 @@ const App: React.FC = () => {
           </Content>
           <div style={{
             position: 'fixed',
-            bottom: 0,
-            left: 0,
-            right: 0,
+            bottom: glassNav ? `calc(10px + ${inset('bottom')})` : 0,
+            left: glassNav ? 10 : 0,
+            right: glassNav ? 10 : 0,
         background: `var(--itdc-nav-bg, ${isDark ? '#1f1f1f' : '#fff'})`,
+        backgroundImage: 'var(--itdc-nav-sheen, none)',
         backdropFilter: 'var(--itdc-nav-blur, none)',
-            borderTop: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
+            border: glassNav
+              ? `1px solid ${isDark ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.55)'}`
+              : undefined,
+            borderTop: glassNav ? undefined : `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
+            borderRadius: glassNav ? 26 : 0,
+            boxShadow: glassNav
+              ? (isDark ? '0 14px 40px rgba(0,0,0,.5)' : '0 14px 40px rgba(15,23,42,.18)')
+              : undefined,
             display: 'flex',
             justifyContent: 'space-around',
             alignItems: 'center',
-            height: `calc(56px + ${inset('bottom')})`,
-            paddingBottom: inset('bottom'),
+            height: glassNav ? 58 : `calc(56px + ${inset('bottom')})`,
+            paddingBottom: glassNav ? 0 : inset('bottom'),
             zIndex: 100,
             paddingLeft: 8,
             paddingRight: 8,

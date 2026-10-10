@@ -598,7 +598,7 @@ const TimetableGrid: React.FC<Props> = ({
         minHeight: continuation?.spillRatio != null ? 10 : (fillHeight ? 0 : 38),
         // 待办用虚线边框区分（和日历视图一致）
         border: item.isTodo ? '1px dashed rgba(255,255,255,.85)' : 'none',
-        borderRadius: 'var(--itdc-r-sm)',
+        borderRadius: 'var(--itdc-r-course, 10px)',
         borderTopLeftRadius: continuation?.up ? 0 : undefined,
         borderTopRightRadius: continuation?.up ? 0 : undefined,
         borderBottomLeftRadius: continuation?.down ? 0 : undefined,
@@ -646,7 +646,7 @@ const TimetableGrid: React.FC<Props> = ({
           <span style={{
             flexShrink: 0,
             padding: '0 3px',
-            borderRadius: 'var(--itdc-r-sm)',
+            borderRadius: 'var(--itdc-r-course, 10px)',
             background: 'rgba(255,255,255,.92)',
             color: '#333',
             // 角标是唯一允许低于 11 的层级，10px 是下限

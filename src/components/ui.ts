@@ -68,6 +68,8 @@ export function cardStyle(
   return {
     // 有自定义背景图时由 ThemeContext 写入玻璃化变量，让图片透出来
     background: `var(--itdc-card-bg, ${isDark ? '#1f1f1f' : '#fff'})`,
+    // 液态玻璃：跟随设备倾斜/指针的镜面高光层（非玻璃模式为 none）
+    backgroundImage: 'var(--itdc-card-sheen, none)',
     backdropFilter: 'var(--itdc-card-blur, none)',
     borderRadius: CARD_RADIUS,
     padding: opts.padding ?? (isMobile ? 16 : 24),

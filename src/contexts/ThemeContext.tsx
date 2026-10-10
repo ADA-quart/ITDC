@@ -9,6 +9,7 @@ import {
   saveBackgroundImage,
   type AppearanceSettings,
 } from '../api/appearance';
+import { GLASS_FILTER_ID } from '../components/GlassFilters';
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -189,9 +190,18 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // 底部导航即使把日历调到全透明也要保持可读，否则列表文字会从下面透上来重影
     const navAlpha = Math.min(1, Math.max(0.92, ui + 0.12));
     const blurPx = Math.max(appearance.uiBlur, liquid ? 20 : 0);
-    const blur = glass && blurPx > 0 ? `blur(${blurPx}px)${liquid ? ' saturate(180%)' : ''}` : 'none';
+    // 液态玻璃的"折射"：把 SVG 位移滤镜接进 backdrop-filter（Chromium 支持；
+    // 不支持 url() 滤镜时退回纯磨砂，不会整块失效）。CSS.supports 探测一次即可。
+    const canRefract = liquid
+      && typeof CSS !== 'undefined'
+      && typeof CSS.supports === 'function'
+      && CSS.supports('backdrop-filter', `url(#${GLASS_FILTER_ID})`);
+    const refract = canRefract ? ` url(#${GLASS_FILTER_ID})` : '';
+    const blur = glass && blurPx > 0
+      ? `blur(${blurPx}px)${liquid ? ' saturate(180%) brightness(1.04)' : ''}${refract}`
+      : 'none';
     const navBlur = glass
-      ? `blur(${Math.max(appearance.uiBlur, liquid ? 20 : 8)}px)${liquid ? ' saturate(180%)' : ''}`
+      ? `blur(${Math.max(appearance.uiBlur, liquid ? 20 : 8)}px)${liquid ? ' saturate(180%) brightness(1.04)' : ''}${refract}`
       : 'none';
     document.body.classList.toggle('itdc-has-bg-image', glass);
     document.body.classList.toggle('itdc-liquid-glass', liquid);
@@ -201,6 +211,24 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       liquid
         ? `inset 0 1px 0 rgba(255,255,255,${isDark ? 0.16 : 0.55}), 0 12px 32px rgba(15,23,42,0.18)`
         : (isDark ? 'none' : '0 1px 2px rgba(0,0,0,0.03), 0 2px 8px rgba(0,0,0,0.05)'),
+    );
+    // 镜面高光层：位置由 --itdc-spec-x/y 决定，倾斜手机或移动指针时光会扫过表面
+    root.style.setProperty(
+      '--itdc-card-sheen',
+      liquid
+        ? `radial-gradient(140% 110% at var(--itdc-spec-x, 26%) var(--itdc-spec-y, 0%), `
+          + `rgba(255,255,255,${isDark ? 0.22 : 0.55}) 0%, `
+          + `rgba(255,255,255,${isDark ? 0.06 : 0.16}) 34%, `
+          + 'rgba(255,255,255,0) 68%)'
+        : 'none',
+    );
+    root.style.setProperty(
+      '--itdc-nav-sheen',
+      liquid
+        ? `radial-gradient(160% 120% at var(--itdc-spec-x, 50%) var(--itdc-spec-y, 0%), `
+          + `rgba(255,255,255,${isDark ? 0.18 : 0.5}) 0%, `
+          + 'rgba(255,255,255,0) 60%)'
+        : 'none',
     );
     root.style.setProperty(
       '--itdc-card-bg',
@@ -244,6 +272,41 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       imageDominant ? (isDark ? '#d9d9d9' : '#333333') : (isDark ? '#a6a6a6' : '#666666')
     );
   }, [appearance.bgImage, appearance.uiOpacity, appearance.uiBlur, appearance.liquidGlass, isDark]);
+
+  // 镜面高光跟随设备运动：苹果的 Liquid Glass 高光会响应设备姿态与触摸。
+  // 手机上用 deviceorientation（gamma/beta）映射高光位置；桌面/模拟器没有陀螺仪时退回指针位置。
+  useEffect(() => {
+    if (!appearance.liquidGlass) return;
+    const root = document.documentElement;
+    let x = 26;
+    let y = 0;
+    let raf = 0;
+    const apply = () => {
+      raf = 0;
+      root.style.setProperty('--itdc-spec-x', `${x.toFixed(1)}%`);
+      root.style.setProperty('--itdc-spec-y', `${y.toFixed(1)}%`);
+    };
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(apply); };
+    const onOrient = (e: DeviceOrientationEvent) => {
+      if (e.gamma == null || e.beta == null) return;
+      // gamma：左右倾斜 -90..90 → 0..100%；beta：前后 -180..180（握持时约 40-60）
+      x = Math.max(0, Math.min(100, 50 + e.gamma * 0.9));
+      y = Math.max(0, Math.min(100, 50 + (e.beta - 45) * 1.2));
+      schedule();
+    };
+    const onPointer = (e: PointerEvent) => {
+      x = Math.max(0, Math.min(100, (e.clientX / Math.max(1, window.innerWidth)) * 100));
+      y = Math.max(0, Math.min(100, (e.clientY / Math.max(1, window.innerHeight)) * 100));
+      schedule();
+    };
+    window.addEventListener('deviceorientation', onOrient);
+    window.addEventListener('pointermove', onPointer);
+    return () => {
+      window.removeEventListener('deviceorientation', onOrient);
+      window.removeEventListener('pointermove', onPointer);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [appearance.liquidGlass]);
 
   // 外观变化推给桌面小组件。150ms 防抖：拖动不透明度滑块时不必每帧重建一次桌面视图。
   useEffect(() => {
