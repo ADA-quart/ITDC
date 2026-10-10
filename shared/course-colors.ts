@@ -3,46 +3,43 @@
  *
  * 同一门课每次导入都得到同一个颜色；不同课程尽量落在不同颜色上。
  *
- * 选色的三条依据（查过文献与规范，不是拍脑袋）：
- *   1. 白字可读性（WCAG 2.2 SC 1.4.3）：正文对比度要 ≥4.5:1；白字要达标，
- *      底色相对亮度必须 ≤0.183。下面是高饱和中深档（Tailwind 700/800 一档），
- *      白字对比度实测全部 ≥5:1：旧的浅亮档里 #ffc53d 只有 1.6:1、#52c41a 只有
- *      2.3:1，白字糊成一片，越看越"没精神"，问题就出在明度上。
- *   2. 愉悦色相（Valdez & Mehrabian, 1994）：蓝、蓝绿、绿、紫、紫红是实验里
- *      最让人愉悦的色相，黄、绿黄最不愉悦；Palmer & Schloss（PNAS, 2010）的
- *      生态效价理论同样显示偏好集中在蓝色系、谷底在暗黄/棕。所以色板以
- *      蓝→青→绿→紫→玫红为主，红/橙只留少量用来拉开区分度，黄与绿黄整体不用。
- *   3. 饱和度（Wilms & Oberfeld, 2018）：饱和度对愉悦/唤醒的影响比色相还大。
- *      明度被白字锁死后，就把色相和饱和度拉满——高饱和也顺带解决了"脏色"。
+ * 走「明亮底色 + 石墨灰字」这一档（antd 2/3 级浅色，红→橙→黄→绿→青→蓝→紫齐全）：
+ *   - 底色亮、字色灰：白字压彩底要够深才达标（相对亮度 ≤0.183），观感会重；
+ *     亮底配灰字则相反——浅色只管活泼，字有灰度不刺眼，比白字/纯黑都耐看；
+ *   - 12 个色相 × 深浅两档共 24 色，每个色配 #3f3f46 石墨灰的对比度实测
+ *     5.4–10.1:1，全部满足 WCAG 2.2 正文 ≥4.5:1（白字压这些浅底只有 1.5:1 左右）；
+ *   - 全是浅色档，避开会让浅色发脏的深金/橄榄/棕；色相排序见 COURSE_PALETTE_BY_HUE。
  */
 export const COURSE_PALETTE = [
-  // 第一轮 14 色：冷暖交替排，冲突顺延时也能落到差别大的色相上
-  '#1d4ed8', // 蓝
-  '#b91c1c', // 红
-  '#047857', // 翡翠绿
-  '#6d28d9', // 紫罗兰
-  '#0369a1', // 天蓝
-  '#c2410c', // 橙
-  '#0f766e', // 青绿
-  '#a21caf', // 品红
-  '#15803d', // 绿
-  '#be185d', // 粉
-  '#4338ca', // 靛蓝
-  '#0e7490', // 青
-  '#7e22ce', // 紫
-  '#be123c', // 玫红
-  // 第二轮 10 色：同色相深一档，课程超过 14 门时接着用
-  '#1e40af',
-  '#991b1b',
-  '#065f46',
-  '#5b21b6',
-  '#075985',
-  '#9a3412',
-  '#115e59',
-  '#86198f',
-  '#166534',
-  '#9d174d',
+  // 冷暖交替排：冲突顺延时也能落到差别大的色相上
+  '#ffccc7', // 红 2
+  '#bae0ff', // 蓝 2
+  '#ffe58f', // 金 3
+  '#d3adf7', // 紫 3
+  '#b7eb8f', // 绿 3
+  '#ffd6e7', // 品红 2
+  '#91caff', // 蓝 3
+  '#ffd591', // 橙 3
+  '#87e8de', // 青 3
+  '#d6e4ff', // 极客蓝 2
+  '#ffbb96', // 火山 3
+  '#eaff8f', // 青柠 3
+  '#ffadd2', // 品红 3
+  '#adc6ff', // 极客蓝 3
+  '#fffb8f', // 黄 3
+  '#b5f5ec', // 青 2
+  '#ffa39e', // 红 3
+  '#d9f7be', // 绿 2
+  '#ffe7ba', // 橙 2
+  '#efdbff', // 紫 2
+  '#f4ffb8', // 青柠 2
+  '#ffd8bf', // 火山 2
+  '#ffffb8', // 黄 2
+  '#fff1b8', // 金 2
 ];
+
+/** 明亮课程色上的默认字色：石墨灰（不用纯黑，和浅彩底更搭） */
+export const COURSE_INK = '#3f3f46';
 
 /** sRGB 相对亮度（WCAG 2.2 的定义），用来算对比度 */
 export function relativeLuminance(hex: string): number {
@@ -58,22 +55,29 @@ export function relativeLuminance(hex: string): number {
     + 0.0722 * channel(n & 255);
 }
 
+/** 任意两色的 WCAG 对比度 */
+export function contrastRatio(a: string, b: string): number {
+  const la = relativeLuminance(a);
+  const lb = relativeLuminance(b);
+  const [hi, lo] = la >= lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
 /** 白字压在这个底色上的对比度（白字相对亮度 = 1） */
 export function contrastWithWhite(hex: string): number {
   return 1.05 / (relativeLuminance(hex) + 0.05);
 }
 
 /**
- * 底色上该用白字还是黑字。
- *
- * 任意底色与白/黑之一的对比度必然 ≥4.5:1（WCAG 正文底线），取更高的一档即可：
- * 自动配色清一色白字（全部 ≥5:1），用户自选的浅色（取色器里可能调到浅黄）自动切黑字。
+ * 底色上该用什么字色：
+ *   - 明亮底 → 石墨灰（首选；浅彩底 + 灰字比白字/纯黑都耐看）；
+ *   - 灰字不够 → 白字（用户自选到深色时）；
+ *   - 都不够 → 纯黑兜底（中间明度的自选色，白/黑必有一侧 ≥4.5:1）。
  */
-export function readableTextColor(hex: string): '#fff' | '#000' {
-  const luminance = relativeLuminance(hex);
-  const white = 1.05 / (luminance + 0.05);
-  const black = (luminance + 0.05) / 0.05;
-  return white >= black ? '#fff' : '#000';
+export function readableTextColor(hex: string): string {
+  if (contrastRatio(hex, COURSE_INK) >= 4.5) return COURSE_INK;
+  if (contrastWithWhite(hex) >= 4.5) return '#fff';
+  return '#000';
 }
 
 function hashOf(name: string): number {
