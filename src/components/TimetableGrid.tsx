@@ -320,6 +320,36 @@ const TimetableGrid: React.FC<Props> = ({
     list.sort((a, b) => startOf(a) - startOf(b));
   }
 
+  /**
+   * 某一格最终会渲染哪些条目。
+   * 规则：这一格自己就有课（不是从上一节延续来的）时，不画别人的尾巴——
+   * 一节里塞两条会把先开始的那条挤成几像素，尾巴也自有它开始的那一格在显示。
+   */
+  const entriesFor = (dayIdx: number, section: number): CellEntry[] => {
+    const list = cells.get(`${dayIdx}-${section}`) ?? [];
+    const hasOwnCourse = list.some((e) => !e.spill);
+    return hasOwnCourse ? list.filter((e) => !e.spill) : list;
+  };
+
+  /**
+   * 上下两格算不算"连堂"。
+   *   1) 同一条事件跨格（14:30–18:00 落在两节里）——id 相同；
+   *   2) 课名 + 教室相同、且间隔很小（课间只有几分钟，导出的课表常把它拆成
+   *      两条独立事件，例如 14:30–16:05 与 16:10–17:45）。
+   * 同一天里上下午分开上的同一门课（间隔几小时）不算，会各自成块。
+   */
+  const CONTINUE_GAP_MIN = 30;
+  const continuesFrom = (above: GridItem, below: GridItem): boolean => {
+    if (above.event?.id != null && above.event.id === below.event?.id) return true;
+    if (above.title !== below.title) return false;
+    if ((above.room || '') !== (below.room || '')) return false;
+    const aEnd = dayjs(above.event?.end);
+    const bStart = dayjs(below.event?.start);
+    if (!aEnd.isValid() || !bStart.isValid()) return false;
+    const gap = bStart.diff(aEnd, 'minute');
+    return gap >= -5 && gap <= CONTINUE_GAP_MIN;
+  };
+
   const border = `1px solid var(--itdc-border, ${isDark ? '#303030' : '#ececec'})`;
   const cellBg = `var(--itdc-cell-bg, ${isDark ? '#1b1b1b' : '#fff'})`;
   const headBg = `var(--itdc-head-bg, ${isDark ? '#232323' : '#fafafa'})`;
@@ -333,7 +363,7 @@ const TimetableGrid: React.FC<Props> = ({
   const renderBlock = (
     item: GridItem,
     key: string,
-    continuation?: { up: boolean; down: boolean; spillRatio?: number },
+    continuation?: { up: boolean; down: boolean; spillRatio?: number; joinDown?: boolean },
   ) => {
     // 续格 / 尾巴：不写文字（课名教室已在开始的那一格显示），只留同色的一块
     const plain = !!(continuation?.up || continuation?.spillRatio != null);
@@ -361,6 +391,9 @@ const TimetableGrid: React.FC<Props> = ({
       style={{
         flex: spillHeight ? '0 1 auto' : 1,
         height: spillHeight,
+        // 连堂：把上半块向下延伸，盖掉两格之间的 padding 与（已去掉的）分隔线，
+        // 上下两块就贴成一整块，中间不再留一条缝
+        marginBottom: continuation?.joinDown ? -4 : undefined,
         minHeight: continuation?.spillRatio != null ? 10 : (fillHeight ? 0 : 38),
         // 待办用虚线边框区分（和日历视图一致）
         border: item.isTodo ? '1px dashed rgba(255,255,255,.85)' : 'none',
@@ -515,11 +548,7 @@ const TimetableGrid: React.FC<Props> = ({
               <div style={{ opacity: 0.7 }}>{end}</div>
             </div>
             {Array.from({ length: 7 }, (_, dayIdx) => {
-              const entries = cells.get(`${dayIdx}-${section}`) ?? [];
-              // 这一格自己就有课（不是从上一节延续下来的）时，不再画别人的尾巴：
-              // 一节里塞两条会把先开始的那条挤成几像素，尾巴也自有它开始的那一格在显示
-              const hasOwnCourse = entries.some((e) => !e.spill);
-              const visibleEntries = hasOwnCourse ? entries.filter((e) => !e.spill) : entries;
+              const visibleEntries = entriesFor(dayIdx, section);
               const items = visibleEntries.map((e) => e.item);
               // 课程优先：同格既有课又有待办时，待办不再平分格高（会把课挤掉一半），
               // 只折成角标；整格只有待办时才照旧平铺
@@ -533,7 +562,10 @@ const TimetableGrid: React.FC<Props> = ({
                   key={dayIdx}
                   data-cell={`${dayIdx}-${section}`}
                   style={{
-                    borderBottom: border,
+                    // 下一格是本节的续块时，两格之间的横线去掉（块本身会连过去）
+                    borderBottom: visibleEntries.some((e) => (entriesFor(dayIdx, section + 1)).some((n) => continuesFrom(e.item, n.item)))
+                      ? 'none'
+                      : border,
                     borderLeft: border,
                     minHeight: fillHeight ? 0 : TOUCH_TARGET + 8,
                     padding: 2,
@@ -546,14 +578,15 @@ const TimetableGrid: React.FC<Props> = ({
                 >
                   {shown.map((item, idx) => {
                     const entry = visibleEntries.find((e) => e.item.event.id === item.event.id);
-                    // 同一门课落在相邻格时，下面的格子只当"续块"渲染
-                    const prevRow = section > 0 ? (cells.get(`${dayIdx}-${section - 1}`) ?? []) : [];
-                    const nextRow = cells.get(`${dayIdx}-${section + 1}`) ?? [];
-                    const up = prevRow.some((p) => p.item.event.id === item.event.id);
-                    const down = nextRow.some((n) => n.item.event.id === item.event.id);
+                    // 同一门课（或同一条事件）落在相邻格时，下面的格子只当"续块"渲染
+                    const prevRow = section > 0 ? entriesFor(dayIdx, section - 1) : [];
+                    const nextRow = entriesFor(dayIdx, section + 1);
+                    const up = prevRow.some((p) => continuesFrom(p.item, item));
+                    const down = nextRow.some((n) => continuesFrom(item, n.item));
                     // 尾巴（本节才结束的溢出部分）按真实时长占一小截，且不写文字
                     const spillRatio = entry?.spill ? entry.overlap / entry.sectionMinutes : undefined;
-                    return renderBlock(item, `${item.title}-${idx}`, { up, down, spillRatio });
+                    // 连堂时把上块向下延伸、并去掉两格之间的分隔线，贴成一整块
+                    return renderBlock(item, `${item.title}-${idx}`, { up, down, spillRatio, joinDown: down });
                   })}
                 </div>
               );
