@@ -442,9 +442,11 @@ const TimetableGrid: React.FC<Props> = ({
         <span style={{
           flex: '1 1 auto',
           minWidth: 0,
-          fontSize: 11,
+          // 中文点名等主信息：12px 起步（Material body small；简体中文手机阅读研究里
+          // 10pt 明显偏小，12pt 是可读下限，14pt 更舒服——窄列折中取 12）
+          fontSize: 12,
           fontWeight: 600,
-          lineHeight: 1.18,
+          lineHeight: 1.22,
           wordBreak: 'break-word',
           display: '-webkit-box',
           WebkitLineClamp: 3,
@@ -460,8 +462,9 @@ const TimetableGrid: React.FC<Props> = ({
             borderRadius: 'var(--itdc-r-sm)',
             background: 'rgba(255,255,255,.92)',
             color: '#333',
-            fontSize: 9,
-            lineHeight: '13px',
+            // 角标是唯一允许低于 11 的层级，10px 是下限
+            fontSize: 10,
+            lineHeight: '14px',
           }}>
             {item.mergedCount}
           </span>
@@ -473,8 +476,8 @@ const TimetableGrid: React.FC<Props> = ({
             borderRadius: 'var(--itdc-r-sm)',
             background: 'rgba(0,0,0,.45)',
             color: '#fff',
-            fontSize: 9,
-            lineHeight: '13px',
+            fontSize: 10,
+            lineHeight: '14px',
           }}>
             {t.calendar.todoTag} {item.overlapTodoCount}
           </span>
@@ -482,11 +485,12 @@ const TimetableGrid: React.FC<Props> = ({
       </span>
       <span style={{ display: 'flex', alignItems: 'center', gap: 3, minWidth: 0 }}>
         {item.room && (
-          <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: 10, lineHeight: 1.15, opacity: 0.92, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          // 次要信息 11px（Apple HIG 最小字号 11pt / Material label small 11sp）
+          <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: 11, lineHeight: 1.2, opacity: 0.92, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {item.room}
           </span>
         )}
-        {item.isTodo && <span style={{ fontSize: 9.5, opacity: 0.92 }}>{t.calendar.todoTag}</span>}
+        {item.isTodo && <span style={{ fontSize: 10.5, opacity: 0.92 }}>{t.calendar.todoTag}</span>}
       </span>
       </>
       )}
@@ -562,7 +566,7 @@ const TimetableGrid: React.FC<Props> = ({
           const tight = SECTION_MINUTES[section] < 60;
           return (
           <React.Fragment key={section}>
-            <div style={{ borderBottom: border, padding: tight ? '1px 4px' : '6px 4px', fontSize: tight ? 10 : 11, color: secondaryTextColor(isDark), lineHeight: tight ? 1.15 : 1.3, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+            <div style={{ borderBottom: border, padding: tight ? '1px 4px' : '6px 4px', fontSize: 11, color: secondaryTextColor(isDark), lineHeight: tight ? 1.2 : 1.35, whiteSpace: 'nowrap', overflow: 'hidden' }}>
               <div style={{ fontWeight: 600, color: isDark ? '#ddd' : '#333' }}>{section + 1}</div>
               <div>{start}</div>
               <div style={{ opacity: 0.7 }}>{end}</div>

@@ -1132,8 +1132,8 @@ const CalendarView: React.FC = () => {
                     borderRadius: 6,
                     background: 'rgba(255,255,255,.92)',
                     color: '#333',
-                    fontSize: 9,
-                    lineHeight: '12px',
+                    fontSize: 10,
+                    lineHeight: '13px',
                   }}>
                     {mergedCount}
                   </span>

@@ -22,8 +22,18 @@ export const FONT_STACK =
   '"Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", system-ui, sans-serif';
 
 /**
- * 字号体系，对齐 Material 3 的 type scale（正文 14/22，大字 16/24，标签 11-12）。
- * 中文比拉丁字母需要更大的字号与行距，所以行高都往 1.5-1.6 靠。
+ * 字号体系，对齐 Material 3 的 type scale（正文 14/22，大字 16/24，标签 11-12），
+ * 下限同时参考 Apple HIG（iOS 默认 17pt、最小 11pt）。
+ *
+ * 中文专项研究：
+ * - 简体中文在 5.9 寸手机上做阅读理解，10/12/14pt × 1.25/1.5/2 倍行距共 9 组条件，
+ *   10pt 明显偏小，12pt 是可读下限（Interacting with Computers, 2021）；
+ * - 繁体中文研究同样取 10/12/14pt 三档，字号对可读性的影响显著（Applied Ergonomics, 2018）；
+ * - 手机中文行距研究建议 1.5~2 倍字高（MDPI, 2018）；
+ * - 国内移动端规范普遍要求正文 ≥12px、辅助说明 12px、极小角标 10px 封顶（腾讯 H5 规范等）。
+ *
+ * 落地规则：主信息 ≥12、次要信息 ≥11、只有角标允许 10；长段落行高 1.5 左右，
+ * 密集表格（课表格子）按占位折中，但不会低于 1.2。
  */
 export const TYPE = {
   /** 11/16 标签（最小可读字号，Apple HIG 下限 11pt） */
