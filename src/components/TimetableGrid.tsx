@@ -221,7 +221,19 @@ const TimetableGrid: React.FC<Props> = ({
   // 而不是被塞进一格后看起来"九点半下课却只显示到 20:45"。
   // 完全不与任何节次重叠的（18:00-19:10 的空档、午休等）放进「课外」兜底行，
   // 不能按"开始时间 ≥ 某节开始"归到上一节，否则 18:00 的待办会和 16:25 的课叠在同一格。
-  const cells = new Map<string, GridItem[]>();
+  /**
+   * 每格记一条 entry：除了课程本身，还带上它跟这一节的重叠时长。
+   *   spill = 这节课不是在本节开始，而是从上一节延续下来的「尾巴」
+   *           （例如 19:10–21:35 的课蹭到 20:55 那节的 40 分钟）。
+   * 尾巴按重叠比例画一小截纯色块，不再因为"不满半格"被整段丢掉。
+   */
+  interface CellEntry {
+    item: GridItem;
+    overlap: number;
+    sectionMinutes: number;
+    spill: boolean;
+  }
+  const cells = new Map<string, CellEntry[]>();
   const extraCells = new Map<string, GridItem[]>();
   for (const ev of events) {
     if (!ev?.start) continue;
@@ -253,9 +265,42 @@ const TimetableGrid: React.FC<Props> = ({
       // 95 分钟的课拖到中午（60 分钟的节）后结束在 14:35，与下午第一节只擦过
       // 5 分钟——以前会在这里再画一个满格块，看起来像凭空多出一节课。
       const needed = Math.min(sectionEnd - sectionStart, endMinutes - startMinutes) / 2;
-      if (overlap < needed) continue;
+      // 但「上一节就开始了、这一节才结束」的尾巴是另一回事：那是同一门课连着，
+      // 丢掉会让 21:35 下课的课只显示到 20:45。尾巴按下上文的 spill 渲染成
+      // 一小截纯色块（无文字、高度按比例），所以这里放行。
+      const startsInSection = startMinutes >= sectionStart && startMinutes < sectionEnd;
+      if (startsInSection && overlap < needed) continue;
       const key = `${day}-${i}`;
-      cells.set(key, [...(cells.get(key) ?? []), item]);
+      const list = cells.get(key) ?? [];
+      // 同一门课重复导入会在同一天留下多条（标题相同、时间段互相包含，
+      // 例如 14:30–16:05 与 14:30–18:00），叠在一格里就是两块一样的课。
+      // 只保留时间更长的那条：新条目被已有条目包住就跳过，反过来就替掉旧的。
+      // 注意 ev.start 是 dayjs/Date 对象而不是 ISO 字符串，必须用 dayjs 解析
+      const minuteOf = (v: unknown) => {
+        const d = dayjs(v as dayjs.ConfigType);
+        return d.isValid() ? d.hour() * 60 + d.minute() : NaN;
+      };
+      const sameCourse = list.filter((e) => e.item.title === item.title);
+      const covered = sameCourse.some((e) => {
+        const s = minuteOf(e.item.event?.start);
+        const t = minuteOf(e.item.event?.end);
+        return Number.isFinite(s) && Number.isFinite(t) && s <= startMinutes && t >= endMinutes;
+      });
+      if (!covered) {
+        const rest = list.filter((e) => {
+          if (e.item.title !== item.title) return true;
+          const s = minuteOf(e.item.event?.start);
+          const t = minuteOf(e.item.event?.end);
+          return !(Number.isFinite(s) && Number.isFinite(t) && startMinutes <= s && endMinutes >= t);
+        });
+        rest.push({
+          item,
+          overlap,
+          sectionMinutes: sectionEnd - sectionStart,
+          spill: !startsInSection,
+        });
+        cells.set(key, rest);
+      }
       placed = true;
     }
     if (!placed) {
@@ -264,15 +309,40 @@ const TimetableGrid: React.FC<Props> = ({
     }
   }
   // 同格内按开始时间排序，避免渲染顺序随机
-  for (const list of [...cells.values(), ...extraCells.values()]) {
-    list.sort((a, b) => String(a.event.start).localeCompare(String(b.event.start)));
+  const startOf = (x: GridItem) => {
+    const d = dayjs(x.event?.start);
+    return d.isValid() ? d.valueOf() : 0;
+  };
+  for (const list of cells.values()) {
+    list.sort((a, b) => startOf(a.item) - startOf(b.item));
+  }
+  for (const list of extraCells.values()) {
+    list.sort((a, b) => startOf(a) - startOf(b));
   }
 
   const border = `1px solid var(--itdc-border, ${isDark ? '#303030' : '#ececec'})`;
   const cellBg = `var(--itdc-cell-bg, ${isDark ? '#1b1b1b' : '#fff'})`;
   const headBg = `var(--itdc-head-bg, ${isDark ? '#232323' : '#fafafa'})`;
 
-  const renderBlock = (item: GridItem, key: string) => (
+  /**
+   * 课程块。continuation 表示这是同一门课在上一格之后的续格：
+   * 同一门课颜色相同、上下连着，续格只留一块颜色，不再重复课名/教室——
+   * 既避免文字被截成"地震勘探原理与方法 E1B…"，整门课看起来也更像一整块。
+   * 接缝两侧的圆角同时拉平（上面那格去下半圆角、下面那格去上半圆角）。
+   */
+  const renderBlock = (
+    item: GridItem,
+    key: string,
+    continuation?: { up: boolean; down: boolean; spillRatio?: number },
+  ) => {
+    // 续格 / 尾巴：不写文字（课名教室已在开始的那一格显示），只留同色的一块
+    const plain = !!(continuation?.up || continuation?.spillRatio != null);
+    // 尾巴按真实时长占一小截：用 height 百分比而不是 flex-basis，
+    // 这样同一格里还有别的课时候，对方仍能拿到剩下的空间（不会被挤成几像素）
+    const spillHeight = continuation?.spillRatio != null
+      ? `${Math.max(10, Math.round(continuation.spillRatio * 100))}%`
+      : undefined;
+    return (
     <button
       key={key}
       type="button"
@@ -289,11 +359,16 @@ const TimetableGrid: React.FC<Props> = ({
         onSelectEvent(item.event);
       }}
       style={{
-        flex: 1,
-        minHeight: fillHeight ? 0 : 38,
+        flex: spillHeight ? '0 1 auto' : 1,
+        height: spillHeight,
+        minHeight: continuation?.spillRatio != null ? 10 : (fillHeight ? 0 : 38),
         // 待办用虚线边框区分（和日历视图一致）
         border: item.isTodo ? '1px dashed rgba(255,255,255,.85)' : 'none',
         borderRadius: 'var(--itdc-r-sm)',
+        borderTopLeftRadius: continuation?.up ? 0 : undefined,
+        borderTopRightRadius: continuation?.up ? 0 : undefined,
+        borderBottomLeftRadius: continuation?.down ? 0 : undefined,
+        borderBottomRightRadius: continuation?.down ? 0 : undefined,
         background: item.color,
         color: '#fff',
         padding: '3px 2px',
@@ -306,6 +381,9 @@ const TimetableGrid: React.FC<Props> = ({
         touchAction: 'none',
       }}
     >
+      {/* 续格：纯色块，不重复文字（角标也不画，保持干净） */}
+      {!plain && (
+      <>
       <span style={{ display: 'flex', alignItems: 'flex-start', gap: 2, minWidth: 0 }}>
         {/* 课名最多三行：窄列下长课名会换到六七行，把整张表撑得很长 */}
         <span style={{
@@ -357,8 +435,11 @@ const TimetableGrid: React.FC<Props> = ({
         )}
         {item.isTodo && <span style={{ fontSize: 9.5, opacity: 0.92 }}>{t.calendar.todoTag}</span>}
       </span>
+      </>
+      )}
     </button>
-  );
+    );
+  };
 
   return (
     <div
@@ -434,7 +515,12 @@ const TimetableGrid: React.FC<Props> = ({
               <div style={{ opacity: 0.7 }}>{end}</div>
             </div>
             {Array.from({ length: 7 }, (_, dayIdx) => {
-              const items = cells.get(`${dayIdx}-${section}`) ?? [];
+              const entries = cells.get(`${dayIdx}-${section}`) ?? [];
+              // 这一格自己就有课（不是从上一节延续下来的）时，不再画别人的尾巴：
+              // 一节里塞两条会把先开始的那条挤成几像素，尾巴也自有它开始的那一格在显示
+              const hasOwnCourse = entries.some((e) => !e.spill);
+              const visibleEntries = hasOwnCourse ? entries.filter((e) => !e.spill) : entries;
+              const items = visibleEntries.map((e) => e.item);
               // 课程优先：同格既有课又有待办时，待办不再平分格高（会把课挤掉一半），
               // 只折成角标；整格只有待办时才照旧平铺
               const courses = items.filter((i) => !i.isTodo);
@@ -458,7 +544,17 @@ const TimetableGrid: React.FC<Props> = ({
                     outlineOffset: -2,
                   }}
                 >
-                  {shown.map((item, idx) => renderBlock(item, `${item.title}-${idx}`))}
+                  {shown.map((item, idx) => {
+                    const entry = visibleEntries.find((e) => e.item.event.id === item.event.id);
+                    // 同一门课落在相邻格时，下面的格子只当"续块"渲染
+                    const prevRow = section > 0 ? (cells.get(`${dayIdx}-${section - 1}`) ?? []) : [];
+                    const nextRow = cells.get(`${dayIdx}-${section + 1}`) ?? [];
+                    const up = prevRow.some((p) => p.item.event.id === item.event.id);
+                    const down = nextRow.some((n) => n.item.event.id === item.event.id);
+                    // 尾巴（本节才结束的溢出部分）按真实时长占一小截，且不写文字
+                    const spillRatio = entry?.spill ? entry.overlap / entry.sectionMinutes : undefined;
+                    return renderBlock(item, `${item.title}-${idx}`, { up, down, spillRatio });
+                  })}
                 </div>
               );
             })}
