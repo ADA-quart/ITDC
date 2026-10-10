@@ -367,6 +367,9 @@ const TimetableGrid: React.FC<Props> = ({
   ) => {
     // 续格 / 尾巴：不写文字（课名教室已在开始的那一格显示），只留同色的一块
     const plain = !!(continuation?.up || continuation?.spillRatio != null);
+    // 连堂合并后块会变高：课名和教室要挨在一起排在上方，
+    // 否则 space-between 会把教室顶到最底、中间空一大片，很难看
+    const joined = !!(continuation?.up || continuation?.down);
     // 尾巴按真实时长占一小截：用 height 百分比而不是 flex-basis，
     // 这样同一格里还有别的课时候，对方仍能拿到剩下的空间（不会被挤成几像素）
     const spillHeight = continuation?.spillRatio != null
@@ -409,7 +412,8 @@ const TimetableGrid: React.FC<Props> = ({
         cursor: 'pointer',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between',
+        justifyContent: joined ? 'flex-start' : 'space-between',
+        gap: joined ? 2 : undefined,
         overflow: 'hidden',
         touchAction: 'none',
       }}
