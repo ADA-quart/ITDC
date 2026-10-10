@@ -8,7 +8,7 @@
 import React, { useRef, useState } from 'react';
 import dayjs, { type Dayjs } from 'dayjs';
 import { TIMETABLE } from '../../shared/cdut-parser';
-import { assignCourseColors } from '../../shared/course-colors';
+import { assignCourseColors, readableTextColor } from '../../shared/course-colors';
 import { getCourseColorOverrides } from '../api/course-color-overrides';
 import { useI18n } from '../i18n';
 import { secondaryTextColor, TOUCH_TARGET } from './ui';
@@ -387,6 +387,8 @@ const TimetableGrid: React.FC<Props> = ({
     const spillHeight = continuation?.spillRatio != null
       ? `${Math.max(10, Math.round(continuation.spillRatio * 100))}%`
       : undefined;
+    // 自动配色都托得住白字；用户自选的浅色自动切黑字（对比度取白/黑里更高的一档）
+    const textColor = readableTextColor(item.color);
     return (
     <button
       key={key}
@@ -418,7 +420,9 @@ const TimetableGrid: React.FC<Props> = ({
         borderBottomLeftRadius: continuation?.down ? 0 : undefined,
         borderBottomRightRadius: continuation?.down ? 0 : undefined,
         background: item.color,
-        color: '#fff',
+        color: textColor,
+        // 白字才加阴影兜一点抗锯齿边缘；黑字加阴影会发糊
+        textShadow: textColor === '#fff' ? '0 1px 2px rgba(0,0,0,.28)' : 'none',
         padding: '3px 2px',
         textAlign: 'left',
         cursor: 'pointer',

@@ -32,7 +32,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { findMergeTarget } from '../utils/calendar-merge';
 import { dedupeEvents, dedupeEventKey } from '../../shared/event-dedupe';
-import { COURSE_PALETTE } from '../../shared/course-colors';
+import { COURSE_PALETTE_BY_HUE, assignCourseColors, readableTextColor } from '../../shared/course-colors';
 import {
   COURSE_COLORS_CHANGED,
   getCourseColorOverrides,
@@ -126,6 +126,8 @@ const CalendarView: React.FC = () => {
   const timetableModeRef = useRef(false);
   timetableModeRef.current = timetableMode;
   const [detailEvent, setDetailEvent] = useState<any | null>(null);
+  /** 当前生效的课程配色（自动分配 + 用户自定义），详情弹窗要读它显示"当前颜色" */
+  const courseColorsRef = useRef<Map<string, string>>(new Map());
   // 「在这节课里加个待办」：直接给这段时间排一条待办，省得先排期再拖进来
   const [addTodoTarget, setAddTodoTarget] = useState<any | null>(null);
   const [addTodoTitle, setAddTodoTitle] = useState('');
@@ -197,10 +199,17 @@ const CalendarView: React.FC = () => {
     const todoList: Todo[] = Array.isArray(rawTodos) ? rawTodos : [];
     // 事件颜色优先级：事件自己的颜色（课程配色）→ 服务器回传的日历色 → 本地日历色
     const colorByCalendarId = new Map(calendarsRef.current.map((c) => [c.id, c.color]));
-    const fcEvents = dedupeEvents(eventList.filter((e: CalendarEvent) => !hidden.has(e.calendar_id)))
+    const visibleEvents = dedupeEvents(eventList.filter((e: CalendarEvent) => !hidden.has(e.calendar_id)));
+    const colorOverrides = getCourseColorOverrides();
+    // 与课表网格同一套算法：同门课同色、不撞色；用户自定义优先
+    courseColorsRef.current = assignCourseColors(
+      visibleEvents.map((e: CalendarEvent) => String(e.title ?? '')),
+      colorOverrides,
+    );
+    const fcEvents = visibleEvents
       .map((e: CalendarEvent) => {
         // 用户给这门课定过颜色就用它，其次事件自带色，再退日历色
-        const custom = e.title ? getCourseColorOverrides()[String(e.title)] : undefined;
+        const custom = e.title ? colorOverrides[String(e.title)] : undefined;
         const color = custom || e.color || e.calendar_color || colorByCalendarId.get(e.calendar_id) || '#1890ff';
         return {
           id: String(e.id),
@@ -210,6 +219,8 @@ const CalendarView: React.FC = () => {
           rrule: e.rrule || undefined,
           backgroundColor: color,
           borderColor: color,
+          // 自定义浅色时自动用黑字；自动配色都是白字
+          textColor: readableTextColor(color),
           extendedProps: { ...e },
         };
       });
@@ -224,6 +235,8 @@ const CalendarView: React.FC = () => {
           end: todo.scheduled_end as string,
           backgroundColor: color,
           borderColor: color,
+          // 待办色板本来偏亮，交给对比度决定黑/白字
+          textColor: readableTextColor(color),
           extendedProps: { type: 'todo', ...todo },
         };
       });
@@ -1328,12 +1341,14 @@ const CalendarView: React.FC = () => {
               {!isTodo && !!detailEvent.title && (() => {
                 const courseName = String(detailEvent.title);
                 const custom = getCourseColorOverrides()[courseName];
-                const current = custom || (p.color as string) || '#1677ff';
+                // 显示"当前真正生效的颜色"：自定义 → 自动分配 → 事件自带 → 兜底
+                const current = custom || courseColorsRef.current.get(courseName) || (p.color as string) || '#1677ff';
                 return (
                   <div style={{ display: 'flex', gap: 12, marginBottom: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ color: secondaryTextColor(isDark), minWidth: 48 }}>{t.calendar.detailColor}</span>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                      {COURSE_PALETTE.slice(0, 12).map((hex) => (
+                      {/* 按色相排（红→橙→黄→绿→青→蓝→紫）便于横向对比 */}
+                      {COURSE_PALETTE_BY_HUE.map((hex) => (
                         <button
                           key={hex}
                           type="button"

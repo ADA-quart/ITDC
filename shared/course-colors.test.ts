@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { assignCourseColors, COURSE_PALETTE, colorForCourse } from './course-colors';
+import {
+  assignCourseColors,
+  COURSE_PALETTE,
+  colorForCourse,
+  contrastWithWhite,
+  readableTextColor,
+} from './course-colors';
 
 describe('assignCourseColors（一套课表内不撞色）', () => {
   // 实测撞过色的两组：电法/法治 都是橙色，工程勘察/地震勘探 都是蓝色
@@ -40,4 +46,16 @@ describe('assignCourseColors（一套课表内不撞色）', () => {
     expect(colorForCourse('高数')).toBe(colorForCourse('高数'));
   });
 
+  it('课程色至少 20 种，且每一种都托得住白字（WCAG AA 正文 ≥4.5:1）', () => {
+    expect(COURSE_PALETTE.length).toBeGreaterThanOrEqual(20);
+    for (const hex of COURSE_PALETTE) {
+      const ratio = contrastWithWhite(hex);
+      expect(ratio, `${hex} 的白字对比度只有 ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('自定义浅色自动切黑字，深色保持白字', () => {
+    expect(readableTextColor('#ffc53d')).toBe('#000');
+    expect(readableTextColor('#1d4ed8')).toBe('#fff');
+  });
 });
