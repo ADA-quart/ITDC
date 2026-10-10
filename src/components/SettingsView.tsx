@@ -36,7 +36,8 @@ import {
 import AppearanceSettings from './AppearanceSettings';
 import OcrExtension from './OcrExtension';
 import LicenseModal from './LicenseModal';
-import { cardStyle, hintTextStyle, sectionTitleStyle } from './ui';
+import { cardStyle, hintTextStyle } from './ui';
+import { SectionTitle } from './PageBlocks';
 import { resetVisionSupport } from '../api/vision-support';
 
 interface Props {
@@ -526,7 +527,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
             }
           />
           <div style={{ marginBottom: 24 }}>
-            <h4 style={sectionTitleStyle}>{t.settings.addConfig}</h4>
+            <SectionTitle>{t.settings.addConfig}</SectionTitle>
             <Form form={form} layout="vertical" initialValues={{ provider: 'openai' }}>
               <Form.Item name="provider" label={t.settings.provider} rules={[{ required: true }]}>
                 <Select
@@ -601,7 +602,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
           </div>
 
           <div>
-            <h4 style={sectionTitleStyle}>{t.settings.llmConfig}</h4>
+            <SectionTitle>{t.settings.llmConfig}</SectionTitle>
             <Table
               columns={columns}
               dataSource={configs}
@@ -639,7 +640,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
           </Space>
           {!promptTemplate && defaultTemplate && (
             <div style={{ marginTop: 16 }}>
-              <h4 style={sectionTitleStyle}>{t.settings.defaultTemplate}</h4>
+              <SectionTitle>{t.settings.defaultTemplate}</SectionTitle>
               <pre style={{
                 fontSize: 11,
                 maxHeight: 200,
@@ -668,7 +669,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
       children: (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div>
-            <h4 style={sectionTitleStyle}>{t.settings.language}</h4>
+            <SectionTitle>{t.settings.language}</SectionTitle>
             <Select
               value={locale}
               onChange={setLocale}
@@ -680,7 +681,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
             />
           </div>
           <div>
-            <h4 style={sectionTitleStyle}>{t.settings.school}</h4>
+            <SectionTitle>{t.settings.school}</SectionTitle>
             <Select
               value={schoolId || undefined}
               onChange={async (v) => {
@@ -710,7 +711,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
           </div>
           {isAndroid() && (
             <div>
-              <h4 style={sectionTitleStyle}>{t.settings.classReminder}</h4>
+              <SectionTitle>{t.settings.classReminder}</SectionTitle>
               <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 12 }}>
                 {t.settings.classReminderHint}
               </p>
@@ -783,7 +784,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
           )}
           {isAndroid() && (
             <div>
-              <h4 style={sectionTitleStyle}>{t.settings.todoReminder}</h4>
+              <SectionTitle>{t.settings.todoReminder}</SectionTitle>
               <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 12 }}>
                 {t.settings.todoReminderHint}
               </p>
@@ -825,7 +826,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
           )}
           <OcrExtension />
           <div>
-            <h4 style={sectionTitleStyle}>{t.settings.dataMode}</h4>
+            <SectionTitle>{t.settings.dataMode}</SectionTitle>
             <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 12 }}>
               {t.settings.dataModeHint}
             </p>
@@ -879,7 +880,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
           </div>
           {Capacitor.isNativePlatform() && (
             <div>
-              <h4 style={sectionTitleStyle}>{t.settings.widgetSection}</h4>
+              <SectionTitle>{t.settings.widgetSection}</SectionTitle>
               <p style={{ fontSize: 12, color: isDark ? '#999' : '#666', marginBottom: 8 }}>
                 {t.settings.widgetLocalHint}
               </p>
@@ -903,7 +904,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
             </div>
           )}
           <div>
-            <h4 style={sectionTitleStyle}>{locale === 'zh' ? '调试日志' : 'Debug Log'}</h4>
+            <SectionTitle>{locale === 'zh' ? '调试日志' : 'Debug Log'}</SectionTitle>
             <Space style={{ marginBottom: 8 }}>
               <Button onClick={async () => {
                 try {
@@ -928,7 +929,7 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
             />
           </div>
           <div>
-            <h4 style={sectionTitleStyle}>{t.settings.about}</h4>
+            <SectionTitle>{t.settings.about}</SectionTitle>
             <Space wrap size={8} style={{ marginBottom: 8 }} align='center'>
               {/* 版本号以前用默认 Tag（22px 高）和 40px 的按钮混排，一行看着高低不齐；
                   这里让它和按钮等高、同圆角，整行才是齐的 */}

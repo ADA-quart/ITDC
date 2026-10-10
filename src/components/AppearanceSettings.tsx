@@ -6,7 +6,8 @@ import { useTheme } from '../contexts/ThemeContext';
 import type { CourseTextTone } from '../../shared/course-colors';
 import { useI18n } from '../i18n';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { secondaryTextColor, sectionTitleStyle } from './ui';
+import { secondaryTextColor } from './ui';
+import { SectionTitle } from './PageBlocks';
 import {
   ACCENT_PRESETS,
   MAX_BG_ZOOM,
@@ -168,7 +169,7 @@ const AppearanceSettings: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
       {/* ---------- 明暗模式（从通用设置挪到外观） ---------- */}
       <div>
-        <h4 style={sectionTitleStyle}>{t.settings.theme}</h4>
+        <SectionTitle>{t.settings.theme}</SectionTitle>
         <Segmented
           value={mode}
           onChange={(value) => setMode(value as 'light' | 'dark' | 'system')}
@@ -182,7 +183,7 @@ const AppearanceSettings: React.FC = () => {
 
       {/* ---------- 液态玻璃 ---------- */}
       <div>
-        <h4 style={sectionTitleStyle}>{t.settings.liquidGlass}</h4>
+        <SectionTitle>{t.settings.liquidGlass}</SectionTitle>
         <Switch
           checked={appearance.liquidGlass}
           onChange={(checked) => updateAppearance({ liquidGlass: checked })}
@@ -192,7 +193,7 @@ const AppearanceSettings: React.FC = () => {
 
       {/* ---------- 课块字色档位 ---------- */}
       <div>
-        <h4 style={sectionTitleStyle}>{t.settings.courseTextTone}</h4>
+        <SectionTitle>{t.settings.courseTextTone}</SectionTitle>
         <Segmented
           value={appearance.courseTextTone}
           onChange={(value) => updateAppearance({ courseTextTone: value as CourseTextTone })}
@@ -207,18 +208,18 @@ const AppearanceSettings: React.FC = () => {
 
       {/* ---------- 应用主题色 ---------- */}
       <div>
-        <h4 style={sectionTitleStyle}>
+        <SectionTitle>
           <BgColorsOutlined /> {t.settings.accentColor}
-        </h4>
+        </SectionTitle>
         <p style={hintStyle}>{t.settings.accentHint}</p>
         {accentSwatches}
       </div>
 
       {/* ---------- 背景图 ---------- */}
       <div>
-        <h4 style={sectionTitleStyle}>
+        <SectionTitle>
           <PictureOutlined /> {t.settings.backgroundImage}
-        </h4>
+        </SectionTitle>
         <p style={hintStyle}>{t.settings.backgroundImageHint}</p>
 
         <Space wrap align='center' style={{ marginBottom: 12 }}>
@@ -376,7 +377,7 @@ const AppearanceSettings: React.FC = () => {
 
       {/* ---------- 小组件外观 ---------- */}
       <div>
-        <h4 style={sectionTitleStyle}>{t.settings.widgetStyle}</h4>
+        <SectionTitle>{t.settings.widgetStyle}</SectionTitle>
         <p style={hintStyle}>
           {Capacitor.isNativePlatform() ? t.settings.widgetNativeHint : t.settings.widgetWebHint}
         </p>
@@ -538,7 +539,7 @@ const AppearanceSettings: React.FC = () => {
 
       {/* ---------- 恢复全部外观 ---------- */}
       <div>
-        <h4 style={sectionTitleStyle}>{t.settings.appearanceReset}</h4>
+        <SectionTitle>{t.settings.appearanceReset}</SectionTitle>
         <p style={hintStyle}>{t.settings.appearanceResetHint}</p>
         <Popconfirm
           title={t.settings.appearanceResetConfirm}

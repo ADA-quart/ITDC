@@ -11,6 +11,7 @@ import TodoForm from './TodoForm';
 import TodoSplitModal from './TodoSplitModal';
 import { useI18n } from '../i18n';
 import { cardStyle } from './ui';
+import { PageHeader } from './PageBlocks';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { Capacitor } from '@capacitor/core';
@@ -401,6 +402,7 @@ const TodoList: React.FC = () => {
 
   return (
     <div style={cardStyle(isDark, isMobile)}>
+      <PageHeader title={t.nav.todos} />
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', gap: 8, marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {filterButtons.map(btn => (

@@ -78,7 +78,10 @@ export function cardStyle(
   };
 }
 
-/** 区块标题：统一 15px/600，替代浏览器默认 h4（16px 粗体 + 大边距，手机上显得又重又空） */
+/**
+ * 区块标题（旧样式）：统一 15px/600，替代浏览器默认 h4。
+ * 新页面请用 `PageBlocks.tsx` 的 <SectionTitle/>：同字阶，另带"主题色小色条"的排版签名。
+ */
 export const sectionTitleStyle: CSSProperties = {
   ...TYPE.section,
   margin: '0 0 8px',

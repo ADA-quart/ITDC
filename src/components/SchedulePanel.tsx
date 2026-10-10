@@ -10,6 +10,7 @@ import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { cardStyle } from './ui';
+import { PageHeader } from './PageBlocks';
 
 const SchedulePanel: React.FC = () => {
   const { t } = useI18n();
@@ -115,7 +116,8 @@ const SchedulePanel: React.FC = () => {
 
   return (
     <div style={cardStyle(isDark, isMobile)}>
-      <Card title={t.schedule.title} size="small" style={{ marginBottom: 16 }}>
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <PageHeader title={t.schedule.title} />
         <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: 12, marginBottom: 16 }}>
           <span>{t.schedule.mode}</span>
           <Radio.Group value={mode} onChange={(e) => setMode(e.target.value)}>

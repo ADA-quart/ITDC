@@ -7,7 +7,8 @@ import { PRIORITY_COLORS } from '../types';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { cardStyle, secondaryTextColor, sectionTitleStyle, TOUCH_TARGET, TYPE } from './ui';
+import { cardStyle, secondaryTextColor, TOUCH_TARGET, TYPE } from './ui';
+import { SectionTitle } from './PageBlocks';
 import { getDeadlineCountdown } from '../utils/priority';
 
 function dayKey(d: Date): string {
@@ -104,7 +105,7 @@ const DailyReview: React.FC = () => {
 
       {/* 四象限：每个方框显示还剩多少待办，点进去看具体是哪些 */}
       <div style={{ marginBottom: 20 }}>
-        <h4 style={sectionTitleStyle}>{t.review.quadrants}</h4>
+        <SectionTitle>{t.review.quadrants}</SectionTitle>
         <div style={{ ...TYPE.caption, color: secondaryTextColor(isDark), marginBottom: 10 }}>
           {t.review.quadrantHint}
         </div>

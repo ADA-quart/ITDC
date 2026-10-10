@@ -3,6 +3,7 @@ import { Segmented } from 'antd';
 import DailyReview from './DailyReview';
 import WeeklyReview from './WeeklyReview';
 import { useI18n } from '../i18n';
+import { PageHeader } from './PageBlocks';
 
 /** 「回顾」页：今天 / 本周 两个视图 */
 const ReviewPage: React.FC = () => {
@@ -11,6 +12,7 @@ const ReviewPage: React.FC = () => {
 
   return (
     <div>
+      <PageHeader title={t.nav.review} />
       <Segmented
         value={view}
         onChange={(v) => setView(v as 'day' | 'week')}

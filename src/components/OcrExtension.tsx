@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Button, Popconfirm, Progress, Space, message } from 'antd';
 import { CloudDownloadOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useI18n } from '../i18n';
-import { sectionTitleStyle, secondaryTextColor } from './ui';
+import { secondaryTextColor } from './ui';
+import { SectionTitle } from './PageBlocks';
 import { useTheme } from '../contexts/ThemeContext';
 import {
   OCR_TOTAL_BYTES,
@@ -69,7 +70,7 @@ const OcrExtension: React.FC = () => {
 
   return (
     <div>
-      <h4 style={sectionTitleStyle}>{t.ocr.title}</h4>
+      <SectionTitle>{t.ocr.title}</SectionTitle>
       <p style={hintStyle}>{t.ocr.hint.replace('{size}', formatBytes(OCR_TOTAL_BYTES))}</p>
       <Space direction='vertical' style={{ width: '100%' }} size={8}>
         <div style={{ fontSize: 13 }}>
