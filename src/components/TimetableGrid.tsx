@@ -8,7 +8,8 @@
 import React, { useRef, useState } from 'react';
 import dayjs, { type Dayjs } from 'dayjs';
 import { TIMETABLE } from '../../shared/cdut-parser';
-import { assignCourseColors, textColorFor } from '../../shared/course-colors';
+import { assignCourseColors } from '../../shared/course-colors';
+import { getCourseColorOverrides } from '../api/course-color-overrides';
 import { useI18n } from '../i18n';
 import { secondaryTextColor, TOUCH_TARGET } from './ui';
 
@@ -242,6 +243,7 @@ const TimetableGrid: React.FC<Props> = ({
     events
       .filter((e) => e?.extendedProps?.type !== 'todo')
       .map((e) => String(e?.title ?? '')),
+    getCourseColorOverrides(),
   );
   for (const ev of events) {
     if (!ev?.start) continue;
@@ -416,8 +418,7 @@ const TimetableGrid: React.FC<Props> = ({
         borderBottomLeftRadius: continuation?.down ? 0 : undefined,
         borderBottomRightRadius: continuation?.down ? 0 : undefined,
         background: item.color,
-        // 亮色课块自动配深色字（#69c0ff/#ffd666 这类底色压白字会看不见）
-        color: textColorFor(item.color),
+        color: '#fff',
         padding: '3px 2px',
         textAlign: 'left',
         cursor: 'pointer',

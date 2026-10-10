@@ -29,6 +29,8 @@ const zh = {
     detailCalendar: '日历',
     detailNotes: '备注',
     detailDuration: '时长',
+    detailColor: '颜色',
+    detailColorAuto: '恢复自动配色',
     durationChanged: '时长已更新',
     detailStatus: '状态',
     detailEstimate: '预计',

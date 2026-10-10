@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assignCourseColors, COURSE_PALETTE, colorForCourse, textColorFor } from './course-colors';
+import { assignCourseColors, COURSE_PALETTE, colorForCourse } from './course-colors';
 
 describe('assignCourseColors（一套课表内不撞色）', () => {
   // 实测撞过色的两组：电法/法治 都是橙色，工程勘察/地震勘探 都是蓝色
@@ -40,13 +40,4 @@ describe('assignCourseColors（一套课表内不撞色）', () => {
     expect(colorForCourse('高数')).toBe(colorForCourse('高数'));
   });
 
-  it('亮底配深字、深底配白字（亮色课块也能看清字）', () => {
-    expect(textColorFor('#ffd666')).not.toBe('#ffffff'); // 浅金
-    expect(textColorFor('#69c0ff')).not.toBe('#ffffff'); // 浅蓝
-    expect(textColorFor('#ffadd2')).not.toBe('#ffffff'); // 浅粉
-    expect(textColorFor('#bae637')).not.toBe('#ffffff'); // 黄绿
-    expect(textColorFor('#2f54eb')).toBe('#ffffff');      // 深蓝
-    expect(textColorFor('#722ed1')).toBe('#ffffff');      // 深紫
-    expect(textColorFor('不是颜色')).toBe('#ffffff');      // 兜底
-  });
 });

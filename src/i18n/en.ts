@@ -31,6 +31,8 @@ const en: LocaleMessages = {
     detailCalendar: 'Calendar',
     detailNotes: 'Notes',
     detailDuration: 'Duration',
+    detailColor: 'Colour',
+    detailColorAuto: 'Reset to automatic',
     durationChanged: 'Duration updated',
     detailStatus: 'Status',
     detailEstimate: 'Estimate',

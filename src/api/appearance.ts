@@ -64,18 +64,19 @@ export interface AppearanceSettings {
  */
 export const ACCENT_PRESETS: { hex: string; name: string }[] = [
   // 11 个：和控制项同宽排成一行（多了会折行）；原来还有个 #4C9AFF「天蓝」
-  // 和「拂晓蓝」几乎一样，删掉腾位置
+  // 和「拂晓蓝」几乎一样，删掉腾位置。
+  // 顺序按色相排：红 → 橙 → 黄 → 绿 → 青 → 蓝 → 紫（洋红是紫红，放在收尾）
+  { hex: '#FD779E', name: '永雏塔菲粉' },
+  { hex: '#F5222D', name: '薄暮红' },
+  { hex: '#FA8C16', name: '日暮橙' },
+  { hex: '#FFD700', name: '奶龙黄' },
+  { hex: '#52C41A', name: '极光绿' },
+  { hex: '#39C5BB', name: '初音未来绿' },
+  { hex: '#13C2C2', name: '明青' },
+  { hex: '#66CCFF', name: '洛天依蓝' },
   { hex: '#1677FF', name: '拂晓蓝' },
   { hex: '#722ED1', name: '酱紫' },
   { hex: '#EB2F96', name: '洋红' },
-  { hex: '#F5222D', name: '薄暮红' },
-  { hex: '#FA8C16', name: '日暮橙' },
-  { hex: '#52C41A', name: '极光绿' },
-  { hex: '#13C2C2', name: '明青' },
-  { hex: '#66CCFF', name: '洛天依蓝' },
-  { hex: '#39C5BB', name: '初音未来绿' },
-  { hex: '#FD779E', name: '永雏塔菲粉' },
-  { hex: '#FFD700', name: '奶龙黄' },
 ];
 
 export const DEFAULT_APPEARANCE: AppearanceSettings = {

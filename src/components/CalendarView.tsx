@@ -32,7 +32,12 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { findMergeTarget } from '../utils/calendar-merge';
 import { dedupeEvents, dedupeEventKey } from '../../shared/event-dedupe';
-import { textColorFor } from '../../shared/course-colors';
+import { COURSE_PALETTE } from '../../shared/course-colors';
+import {
+  COURSE_COLORS_CHANGED,
+  getCourseColorOverrides,
+  setCourseColorOverride,
+} from '../api/course-color-overrides';
 import { cardStyle, hintTextStyle, secondaryTextColor, withAlpha, TOUCH_TARGET, TYPE } from './ui';
 
 const CAL_VIEW_KEY = 'itdc_calendar_view';
@@ -194,7 +199,9 @@ const CalendarView: React.FC = () => {
     const colorByCalendarId = new Map(calendarsRef.current.map((c) => [c.id, c.color]));
     const fcEvents = dedupeEvents(eventList.filter((e: CalendarEvent) => !hidden.has(e.calendar_id)))
       .map((e: CalendarEvent) => {
-        const color = e.color || e.calendar_color || colorByCalendarId.get(e.calendar_id) || '#1890ff';
+        // 用户给这门课定过颜色就用它，其次事件自带色，再退日历色
+        const custom = e.title ? getCourseColorOverrides()[String(e.title)] : undefined;
+        const color = custom || e.color || e.calendar_color || colorByCalendarId.get(e.calendar_id) || '#1890ff';
         return {
           id: String(e.id),
           title: e.title,
@@ -203,7 +210,6 @@ const CalendarView: React.FC = () => {
           rrule: e.rrule || undefined,
           backgroundColor: color,
           borderColor: color,
-          textColor: textColorFor(color),
           extendedProps: { ...e },
         };
       });
@@ -218,7 +224,6 @@ const CalendarView: React.FC = () => {
           end: todo.scheduled_end as string,
           backgroundColor: color,
           borderColor: color,
-          textColor: textColorFor(color),
           extendedProps: { type: 'todo', ...todo },
         };
       });
@@ -323,6 +328,13 @@ const CalendarView: React.FC = () => {
     const handler = () => loadData();
     window.addEventListener('todo-data-changed', handler);
     return () => window.removeEventListener('todo-data-changed', handler);
+  }, [loadData]);
+
+  // 改了某门课的颜色：日历视图与课表网格都要跟着换色
+  useEffect(() => {
+    const handler = () => loadData();
+    window.addEventListener(COURSE_COLORS_CHANGED, handler);
+    return () => window.removeEventListener(COURSE_COLORS_CHANGED, handler);
   }, [loadData]);
 
   /**
@@ -1313,6 +1325,56 @@ const CalendarView: React.FC = () => {
               ))}
               {/* 时长可以直接改：起点不动，结束时间往后推。
                   以前只能在日历里拖边缘改，课表格子视图没有边缘可拖 */}
+              {!isTodo && !!detailEvent.title && (() => {
+                const courseName = String(detailEvent.title);
+                const custom = getCourseColorOverrides()[courseName];
+                const current = custom || (p.color as string) || '#1677ff';
+                return (
+                  <div style={{ display: 'flex', gap: 12, marginBottom: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ color: secondaryTextColor(isDark), minWidth: 48 }}>{t.calendar.detailColor}</span>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                      {COURSE_PALETTE.slice(0, 12).map((hex) => (
+                        <button
+                          key={hex}
+                          type="button"
+                          title={hex}
+                          aria-label={hex}
+                          onClick={() => {
+                            setCourseColorOverride(courseName, hex);
+                            setDetailEvent((prev: any) => ({ ...prev, extendedProps: { ...(prev?.extendedProps || {}), color: hex } }));
+                          }}
+                          style={{
+                            width: 24, height: 24, borderRadius: '50%', background: hex, cursor: 'pointer',
+                            border: current.toUpperCase() === hex.toUpperCase() ? `2px solid ${isDark ? '#fff' : '#333'}` : '2px solid transparent',
+                          }}
+                        />
+                      ))}
+                      <ColorPicker
+                        size="small"
+                        value={current}
+                        disabledAlpha
+                        onChangeComplete={(c) => {
+                          const hex = c.toHexString().toUpperCase();
+                          setCourseColorOverride(courseName, hex);
+                          setDetailEvent((prev: any) => ({ ...prev, extendedProps: { ...(prev?.extendedProps || {}), color: hex } }));
+                        }}
+                      />
+                      {custom && (
+                        <Button
+                          size="small"
+                          type="link"
+                          onClick={() => {
+                            setCourseColorOverride(courseName, null);
+                            setDetailEvent((prev: any) => ({ ...prev, extendedProps: { ...(prev?.extendedProps || {}), color: undefined } }));
+                          }}
+                        >
+                          {t.calendar.detailColorAuto}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
               {(() => {
                 const startIso = isTodo ? p.scheduled_start : detailEvent.start;
                 const endIso = isTodo ? p.scheduled_end : detailEvent.end;
