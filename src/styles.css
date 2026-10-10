@@ -131,6 +131,19 @@ body.itdc-native [contenteditable='true'] {
 }
 
 /*
+ * 日 / 周视图（FullCalendar）：
+ * - 去掉刻钟的虚线，只留整点线——课表页本来就是整点刻度，虚线纯属视觉噪音；
+ * - 小时线的颜色跟随玻璃主题的边框色，深色模式下不会突兀。
+ */
+.fc .fc-timegrid-slot-minor {
+  border-top-style: none;
+}
+
+.fc .fc-timegrid-slot {
+  border-top-color: var(--itdc-border, #ececec);
+}
+
+/*
  * WebView 的默认点击高亮是「不跟随圆角的方角色块」，四象限那种大圆角卡片被
  * 按住时会露出一块蓝底方框，和卡片形状对不上。这里统一关掉浏览器自带高亮，
  * 改用 .itdc-tap 的按压反馈——反馈就是元素自身渲染，圆角天然一致。

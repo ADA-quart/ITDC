@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -97,6 +97,8 @@ const CalendarView: React.FC = () => {
   const { isDark, appearance } = useTheme();
   const isMobile = useIsMobile();
   const [events, setEvents] = useState<any[]>([]);
+  /** 有没有全天事件：没有就把「全天」那一行收起来（日视图白白占一行，纯噪音） */
+  const hasAllDay = useMemo(() => (events as any[]).some((e) => e?.allDay), [events]);
   const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [hiddenCalendars, setHiddenCalendars] = useState<Set<number>>(loadHiddenCalendars);
   const [modalOpen, setModalOpen] = useState(false);
@@ -1163,6 +1165,8 @@ const CalendarView: React.FC = () => {
           style={{
             // 今日底色调淡并跟随主题色（默认是 rgba(255,220,40,.15) 的整列黄底）
             ['--fc-today-bg-color' as any]: withAlpha(appearance.accent, 0.10),
+            // 「现在」那根线也用主题色（默认是红色）
+            ['--fc-now-indicator-color' as any]: appearance.accent,
           } as React.CSSProperties}
         >
           {timetableMode && (
@@ -1286,6 +1290,30 @@ const CalendarView: React.FC = () => {
                   </div>
                 );
               }
+              // 手机端日视图：一块整课，课名 + 时间 + 教室两行排开（不再挤成「时间 - 标题」一行）
+              if (isMobile && arg.view.type === 'timeGridDay') {
+                const room = shortRoom((arg.event.extendedProps as any)?.location);
+                const startText = arg.event.start ? dayjs(arg.event.start).format('HH:mm') : '';
+                const endText = arg.event.end ? dayjs(arg.event.end).format('HH:mm') : '';
+                return (
+                  <div style={{ height: '100%', maxHeight: '100%', overflow: 'hidden', padding: '4px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+                      <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {arg.event.title}
+                      </span>
+                      {badge}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, opacity: 0.92, minWidth: 0 }}>
+                      <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {startText}{endText ? ` – ${endText}` : ''}
+                      </span>
+                      {room && (
+                        <span style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{room}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
               // 其它视图：保持「时间 + 标题」的默认观感，另外挂上融合进来的待办数量。
               // 这里必须自己渲染（不能返回 true 走默认），否则角标在数据刷新后会被重绘吃掉。
               return (
@@ -1299,14 +1327,35 @@ const CalendarView: React.FC = () => {
               );
             }}
             dayHeaderContent={(arg) => {
-              // 周视图顶部：写成「11.1」而不是「11月1日周六」，窄列里放得下
-              if (arg.view.type !== 'timeGridWeek') return true;
               const d = dayjs(arg.date);
               const weekday = '日一二三四五六'[d.day()];
+              // 周视图顶部：写成「11.1」而不是「11月1日周六」，窄列里放得下
+              if (arg.view.type === 'timeGridWeek') {
+                return (
+                  <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
+                    <span style={{ fontWeight: 600 }}>{d.format('M.D')}</span>
+                    <span style={{ fontSize: 11, opacity: 0.75 }}>周{weekday}</span>
+                  </span>
+                );
+              }
+              // 日视图：FullCalendar 默认会把日期、周几、星期全名写三遍；这里收成一行
+              if (arg.view.type === 'timeGridDay' && isMobile) {
+                return (
+                  <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, padding: '2px 0' }}>
+                    <span style={{ fontSize: 15, fontWeight: 600 }}>{d.format('M月D日')}</span>
+                    <span style={{ fontSize: 12, opacity: 0.75 }}>周{weekday}</span>
+                  </span>
+                );
+              }
+              return true;
+            }}
+            // 时间刻度写成 08:00，和课表页同一套写法（默认的「8时」太口语）
+            slotLabelContent={(arg) => {
+              const hh = String(arg.date.getHours()).padStart(2, '0');
+              const mm = String(arg.date.getMinutes()).padStart(2, '0');
               return (
-                <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
-                  <span style={{ fontWeight: 600 }}>{d.format('M.D')}</span>
-                  <span style={{ fontSize: 11, opacity: 0.75 }}>周{weekday}</span>
+                <span style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums', color: secondaryTextColor(isDark) }}>
+                  {hh}:{mm}
                 </span>
               );
             }}
@@ -1322,6 +1371,8 @@ const CalendarView: React.FC = () => {
               eventElsRef.current.set(String(info.event.id), info.el as HTMLElement);
               // 事件块本身也裁切，兜住任何溢出的内容（窄列里长课名 + 角标）
               (info.el as HTMLElement).style.overflow = 'hidden';
+              // 圆角和全 App 的卡片节奏对齐（默认圆角很小，日视图里像一条生硬的色带）
+              (info.el as HTMLElement).style.borderRadius = '10px';
               // 待办用虚线的次要样式，和课程/日程区分开（拖进课程时段也不会抢视线）
               if (info.event.extendedProps?.type === 'todo') {
                 const el = info.el as HTMLElement;
@@ -1381,7 +1432,7 @@ const CalendarView: React.FC = () => {
             // 手机上让日历铺满一整屏：高度按视口算（扣掉顶部新建按钮、日期行与底部导航），
             // 日历列表与导入/导出顺延到下一屏，往上滑即可看到
             height={isMobile ? 'calc(100dvh - 200px)' : 'auto'}
-            allDaySlot={true}
+            allDaySlot={hasAllDay}
             // 待办拖进课程时段时并排显示，而不是盖住课程（课程优先，待办不占课的位置）
             slotEventOverlap={false}
             slotMinTime="07:00:00"

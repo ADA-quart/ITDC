@@ -187,8 +187,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const ui = appearance.uiOpacity / 100;
     const cellAlpha = Math.max(0, ui * 0.7);
     const headAlpha = Math.min(1, ui * 0.85);
-    // 底部导航即使把日历调到全透明也要保持可读，否则列表文字会从下面透上来重影
-    const navAlpha = Math.min(1, Math.max(0.92, ui + 0.12));
+    // 普通通栏底栏保持高不透明（否则列表文字从下面透上来重影）；
+    // 液态玻璃的底栏是悬浮胶囊，透明度跟着面板走（默认 62%），模糊 + 折射才透得出来
+    const navAlpha = liquid
+      ? Math.min(0.8, Math.max(0.45, ui))
+      : Math.min(1, Math.max(0.92, ui + 0.12));
     const blurPx = Math.max(appearance.uiBlur, liquid ? 20 : 0);
     // 液态玻璃的"折射"：把 SVG 位移滤镜接进 backdrop-filter（Chromium 支持；
     // 不支持 url() 滤镜时退回纯磨砂，不会整块失效）。CSS.supports 探测一次即可。
