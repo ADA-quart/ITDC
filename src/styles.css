@@ -177,6 +177,20 @@ body.itdc-native [contenteditable='true'] {
   }
 }
 
+/*
+ * 玻璃 / 背景图模式下的分段控件（日历「日 / 周」、设置里的几组 Segmented）：
+ * antd 的轨道是半透明灰、选中胶囊带一层很浅的投影——压在彩色玻璃上时
+ * 投影会透过轨道显形，看上去像"两块错位的胶囊叠在一起"。
+ * 轨道改用跟卡片一致的面板色，投影收掉，选中态只靠底色区分。
+ */
+body.itdc-has-bg-image .ant-segmented {
+  background: var(--itdc-card-bg, rgba(127, 127, 127, 0.12));
+}
+
+body.itdc-has-bg-image .ant-segmented .ant-segmented-item-selected {
+  box-shadow: none;
+}
+
 .itdc-tap {
   transition: filter 0.12s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
