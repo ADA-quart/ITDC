@@ -311,44 +311,86 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // 镜面高光跟随设备运动：苹果的 Liquid Glass 高光会响应设备姿态与触摸。
   // 手机上用 deviceorientation（gamma/beta）映射高光位置；桌面/模拟器没有陀螺仪时退回指针位置。
+  // 关键：两个输入源不能同时写同一个位置——按住手指时的微小抖动会让高光在
+  // "手指坐标"和"设备姿态"两个位置之间反复横跳（这就是长按透明区域连闪的原因）。
+  // 规则：手指按住期间由手指独占；陀螺仪可用时鼠标不抢；切换来源时用缓动过渡，不瞬移。
   useEffect(() => {
     if (!appearance.liquidGlass) return;
     const root = document.documentElement;
-    let x = 26;
-    let y = 0;
+    // tx/ty = 目标位置（输入源给的值），cx/cy = 实际渲染的位置（向目标缓动）
+    let tx = 26;
+    let ty = 0;
+    let cx = tx;
+    let cy = ty;
     let raf = 0;
-    // 上一次真正写入的高光位置：静止时陀螺仪有噪声，变化不足 0.6% 就不重绘，
-    // 否则握持手机的微小抖动会让玻璃 60fps 无谓重刷（也会闪）。
-    let appliedX = x;
-    let appliedY = y;
+    // 上一次真正写入 CSS 的位置：变化不足 0.4% 不重绘（静止时省掉无谓刷新）
+    let appliedX = cx;
+    let appliedY = cy;
+    /** 是否收到过陀螺仪数据（收到后鼠标让位，陀螺仪优先） */
+    let gyroSeen = false;
+    /** 手指是否按在屏幕上：按住期间高光归手指独占（长按被系统接管时 pointercancel
+     *  会先到但手指没抬，所以只认 touchend / touchcancel / pointerup） */
+    let touchHeld = false;
     const apply = () => {
       raf = 0;
-      if (Math.abs(x - appliedX) < 0.6 && Math.abs(y - appliedY) < 0.6) return;
-      appliedX = x;
-      appliedY = y;
-      root.style.setProperty('--itdc-spec-x', `${x.toFixed(1)}%`);
-      root.style.setProperty('--itdc-spec-y', `${y.toFixed(1)}%`);
-      // 通知主题层：高光在动 → 暂时去掉折射，避免逐帧重算滤镜闪屏
-      window.dispatchEvent(new CustomEvent('itdc-glass-motion'));
+      const k = 0.22; // 每帧向目标逼近 22%：跟手但不会瞬移
+      cx += (tx - cx) * k;
+      cy += (ty - cy) * k;
+      const settled = Math.abs(tx - cx) < 0.25 && Math.abs(ty - cy) < 0.25;
+      if (settled) { cx = tx; cy = ty; }
+      if (Math.abs(cx - appliedX) >= 0.4 || Math.abs(cy - appliedY) >= 0.4 || settled) {
+        appliedX = cx;
+        appliedY = cy;
+        root.style.setProperty('--itdc-spec-x', `${cx.toFixed(1)}%`);
+        root.style.setProperty('--itdc-spec-y', `${cy.toFixed(1)}%`);
+        // 通知主题层：高光在动 → 暂时去掉折射，避免逐帧重算滤镜闪屏
+        window.dispatchEvent(new CustomEvent('itdc-glass-motion'));
+      }
+      if (!settled) schedule();
     };
     const schedule = () => { if (!raf) raf = requestAnimationFrame(apply); };
+    const setTarget = (nx: number, ny: number, threshold: number) => {
+      if (Math.abs(nx - tx) < threshold && Math.abs(ny - ty) < threshold) return;
+      tx = nx;
+      ty = ny;
+      schedule();
+    };
     const onOrient = (e: DeviceOrientationEvent) => {
       if (e.gamma == null || e.beta == null) return;
+      gyroSeen = true;
+      if (touchHeld) return; // 手指按住期间让位，避免两个来源打架
       // gamma：左右倾斜 -90..90 → 0..100%；beta：前后 -180..180（握持时约 40-60）
-      x = Math.max(0, Math.min(100, 50 + e.gamma * 0.9));
-      y = Math.max(0, Math.min(100, 50 + (e.beta - 45) * 1.2));
-      schedule();
+      setTarget(
+        Math.max(0, Math.min(100, 50 + e.gamma * 0.9)),
+        Math.max(0, Math.min(100, 50 + (e.beta - 45) * 1.2)),
+        0.6, // 静止噪声（<0.6%）不重绘
+      );
     };
     const onPointer = (e: PointerEvent) => {
-      x = Math.max(0, Math.min(100, (e.clientX / Math.max(1, window.innerWidth)) * 100));
-      y = Math.max(0, Math.min(100, (e.clientY / Math.max(1, window.innerHeight)) * 100));
-      schedule();
+      // 有陀螺仪时鼠标不再抢高光；触摸始终归当前手指
+      if (e.pointerType !== 'touch' && gyroSeen) return;
+      setTarget(
+        Math.max(0, Math.min(100, (e.clientX / Math.max(1, window.innerWidth)) * 100)),
+        Math.max(0, Math.min(100, (e.clientY / Math.max(1, window.innerHeight)) * 100)),
+        0.6,
+      );
     };
+    const onPointerDown = (e: PointerEvent) => { if (e.pointerType === 'touch') touchHeld = true; };
+    const onPointerUp = (e: PointerEvent) => { if (e.pointerType === 'touch') touchHeld = false; };
+    const onTouchEnd = () => { touchHeld = false; };
     window.addEventListener('deviceorientation', onOrient);
     window.addEventListener('pointermove', onPointer);
+    window.addEventListener('pointerdown', onPointerDown, true);
+    window.addEventListener('pointerup', onPointerUp, true);
+    window.addEventListener('touchend', onTouchEnd, true);
+    window.addEventListener('touchcancel', onTouchEnd, true);
     return () => {
       window.removeEventListener('deviceorientation', onOrient);
       window.removeEventListener('pointermove', onPointer);
+      window.removeEventListener('pointerdown', onPointerDown, true);
+      window.removeEventListener('pointerup', onPointerUp, true);
+      window.removeEventListener('touchend', onTouchEnd, true);
+      window.removeEventListener('touchcancel', onTouchEnd, true);
       if (raf) cancelAnimationFrame(raf);
     };
   }, [appearance.liquidGlass]);
