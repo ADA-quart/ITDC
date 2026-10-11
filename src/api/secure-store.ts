@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 本机密钥读写。
 //
 // Android：交给原生 Keystore（AES-GCM，密钥不可导出），密文存应用私有目录。

@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 直接从大模型服务商拉取模型列表。
 //
 // 常规路径是服务端代理：密钥存在服务器、由服务器出网。但有三种情况走不通 ——

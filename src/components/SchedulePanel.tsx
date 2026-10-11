@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 import React, { useState } from 'react';
 import { Button, Card, Radio, Tag, Alert, Spin, Empty, message } from 'antd';
 import { ThunderboltOutlined, RobotOutlined } from '@ant-design/icons';

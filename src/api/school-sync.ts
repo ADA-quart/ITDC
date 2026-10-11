@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 教务课表「更新 / 自动同步」：用记住的账号自动登录，拉取上次的学期与开学周，
 // 覆盖导入同名校历。手动「更新课表」与「每天首次打开自动同步」共用这条链路。
 //

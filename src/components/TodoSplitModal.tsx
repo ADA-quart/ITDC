@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 import React, { useState, useEffect } from 'react';
 import { Modal, InputNumber, DatePicker, Button, Space, message, Radio } from 'antd';
 import { PlusOutlined, MinusCircleOutlined, ThunderboltOutlined } from '@ant-design/icons';

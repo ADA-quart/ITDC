@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 /**
  * 课表视图：照课程表小程序那种「按大节排的格子」来渲染。
  *

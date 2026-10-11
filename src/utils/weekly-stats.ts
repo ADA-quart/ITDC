@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 周报聚合：本周上课 / 完成待办 / 投入时长 / 连续记录周数（streak）。
 // 纯函数、不依赖网络与 UI——便于单测，也让"日回顾"与"周回顾"共用口径。
 import type { Todo, CalendarEvent } from '../types';

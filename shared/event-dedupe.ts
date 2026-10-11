@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 /**
  * 同一门课被多个日历重复导入时（教务 + 多个 iCal 导出），按
  * 「标题 + 起止时间 + 教室」去重，只保留一条展示。

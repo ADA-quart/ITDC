@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 import React, { useEffect, useRef, useState } from 'react';
 import { Button, ColorPicker, Popconfirm, Segmented, Slider, Space, Switch, Upload, message } from 'antd';
 import { BgColorsOutlined, DeleteOutlined, PictureOutlined, UploadOutlined } from '@ant-design/icons';

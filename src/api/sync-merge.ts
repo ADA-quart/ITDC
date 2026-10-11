@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 合并同步：切换服务器时把本机与服务器的数据合到一起，而不是以某一端覆盖另一端。
 //
 // 对应关系参考 Edge 收藏夹同步的行为：

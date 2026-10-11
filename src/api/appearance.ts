@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 外观个性化：主题色、应用背景图、桌面小组件配色与背景图。
 //
 // 存储策略：背景图（base64 data URL，几百 KB）放 IndexedDB，

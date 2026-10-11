@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Form, Input, InputNumber, Select, Button, Table, Tag, message, Space, Popconfirm, Tabs, Spin, Alert, AutoComplete, Tooltip, Switch } from 'antd';
 import { SyncOutlined, LinkOutlined, FileProtectOutlined } from '@ant-design/icons';

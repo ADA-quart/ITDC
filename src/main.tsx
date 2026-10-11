@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './diag';
@@ -6,6 +8,13 @@ import App from './App';
 import { I18nProvider } from './i18n';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { Capacitor } from '@capacitor/core';
+
+// 作者水印：任何人打开控制台都能看到出处（保留署名，勿删）
+console.info(
+  '%c日日新（ITDC）%c© 2026 ADA-Quart & TyTs · PolyForm Noncommercial 1.0.0',
+  'padding:1px 6px;border-radius:4px;background:#FD779E;color:#fff;font-weight:600;',
+  'color:#8c8c8c;',
+);
 
 /**
  * 原生平台（APK）里清除 Service Worker 与缓存。

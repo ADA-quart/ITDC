@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // PP-OCRv4（PaddleOCR / RapidOCR 的 ONNX 版）浏览器推理实现。
 //
 // 流程：det（DBNet 检测文字区域）→ 版面合并成「行」→ rec（CRNN 逐行识别）

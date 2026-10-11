@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 离线层：IndexedDB 缓存待办 + 日历事件，网络断开时仍可读写本地数据
 import type { Todo, Calendar, CalendarEvent } from '../types';
 

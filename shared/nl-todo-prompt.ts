@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 自然语言待办解析的提示词与响应校验。
 //
 // 与服务端（server/services/nl-todo.ts）和 App 本机模式（src/api/local-nl-todo.ts）共用：

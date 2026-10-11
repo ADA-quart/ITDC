@@ -3,6 +3,12 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 新增
+
+- **作者水印与开源协议署名（ADA-Quart & TyTs）**：① 全部第一方源码（`src` / `shared` / `server` / `scripts` / `plugins` / Android 原生，130+ 个文件）与 `index.html` 头部统一加作者水印 `© 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0`；② 应用启动时控制台打印同款署名；③ `LICENSE` 的 Required Notice、应用内「开源许可」弹窗与设置页署名统一为 **ADA-Quart & TyTs**；④ README / README.en / THIRD-PARTY-NOTICES 补充作者与协议说明；自动生成文件的水印写进了生成器（`npm run licenses` 重新生成也不会丢）
+
 ## [2.4.6] - 2026-10-11
 
 ### 变更

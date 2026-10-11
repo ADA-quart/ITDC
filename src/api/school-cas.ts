@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 /**
  * 学校教务课表导入 — 本地直连 CAS 层（Capacitor 原生 HTTP）
  *

@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 给大模型的「当前时间」文本。
 //
 // 为什么不能只给 toISOString()：那串时间带 Z，模型往往把它当参考点，

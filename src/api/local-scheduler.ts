@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 本地排程引擎：算法调度完整跑在客户端，无需服务器。
 // 与 server/services/scheduler.ts 保持同一策略（数值都在 shared/schedule-policy.ts）：
 // 按优先级+截止时间贪心、避开已有安排；工作时段 8:00-22:00，21:00 之后不新开任务，

@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 /**
  * 离线待办解析器：不依赖任何大模型，用规则从文字里提取待办。
  *

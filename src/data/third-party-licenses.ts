@@ -1,6 +1,8 @@
 /**
  * 第三方开源许可数据。
  * 由 `npm run licenses` 自动生成（数据源：license-checker 扫描生产依赖），请勿手动编辑。
+ *
+ * © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0
  */
 
 export interface ThirdPartyLicense {

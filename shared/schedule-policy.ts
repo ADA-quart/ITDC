@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 /**
  * 排程时间策略：客户端算法、服务端算法、LLM 校验与提示词共用同一套口径，
  * 避免"算法避开午饭、LLM 却排到午饭"这类不一致。

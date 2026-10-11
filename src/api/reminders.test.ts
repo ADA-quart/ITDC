@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 import { describe, it, expect, vi } from 'vitest';
 
 // reminders.ts 顶层会 import Capacitor 插件，单测里替换成空壳

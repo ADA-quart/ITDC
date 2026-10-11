@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 import axios from 'axios';
 import { message } from 'antd';
 import type { Calendar, CalendarEvent, Todo, ScheduleResult, LLMConfig } from '../types';

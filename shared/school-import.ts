@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 教务课表 → 日历事件的构建逻辑。
 // 从 SchoolImportModal 抽出：手动导入与「更新课表 / 每天自动同步」共用同一条转换。
 import { expandWeeks, resolveSectionsTime, type CdutCourse } from './cdut-parser';

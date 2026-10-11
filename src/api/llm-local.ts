@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 本机模式直连大模型：不经过服务器，WebView 直接 POST 服务商接口。
 //
 // 之所以可行：DeepSeek / OpenAI 兼容端点与 Ollama 都返回 CORS 响应头

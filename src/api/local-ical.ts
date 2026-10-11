@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 本地 iCal 解析：导入 .ics 不再依赖服务器。
 // 与 server/services/ical-parser.ts 保持一致的字段与过滤规则。
 import ICAL from 'ical.js';

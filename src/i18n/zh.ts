@@ -1,7 +1,9 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 const zh = {
   app: {
     title: '日日新',
-    designBy: 'Designed by ADA-quart',
+    designBy: '由 ADA-Quart & TyTs 设计',
     offline: '未连接服务器，数据保存在本机',
   },
   nav: {

@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 大模型排程的提示词与响应解析。
 //
 // 放在 shared/ 是刻意的：服务端代理（server/services/llm-scheduler.ts）与

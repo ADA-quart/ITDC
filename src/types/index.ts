@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 export interface Calendar {
   id: number;
   /** 跨设备稳定标识（服务端列名 sync_uid）：合并时按它匹配，不用自增 id */

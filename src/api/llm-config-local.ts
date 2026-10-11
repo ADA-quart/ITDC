@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 本机模式的 LLM 配置存储。
 //
 // 配置项（服务商 / 地址 / 模型 / 是否启用）不含密钥，放 IndexedDB；

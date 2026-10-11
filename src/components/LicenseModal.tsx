@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 import React, { useMemo, useState } from 'react';
 import { Button, Input, Modal, Tag } from 'antd';
 import { LinkOutlined } from '@ant-design/icons';
@@ -99,7 +101,7 @@ const LicenseModal: React.FC<Props> = ({ open, onClose, onOpenExternal }) => {
       <p style={{ fontSize: 12, color: muted, margin: '10px 0 0' }}>
         {locale === 'zh' ? `共 ${filtered.length} 个开源包` : `${filtered.length} packages`}
         {' · '}
-        PolyForm Noncommercial 1.0.0 © 2026 ADA-quart
+        PolyForm Noncommercial 1.0.0 © 2026 ADA-Quart & TyTs
       </p>
     </Modal>
   );

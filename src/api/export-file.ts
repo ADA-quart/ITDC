@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 /**
  * 导出文件：原生平台写进缓存目录再弹系统分享面板，浏览器保持普通下载。
  *

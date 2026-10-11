@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 验证小组件的两处新逻辑：
 // 1) 上过的课自动从"今天"栏消失（按结束时间过滤）
 // 2) 待办完成状态：快照基准 + 桌面本地改动的叠加，以及已完成排到末尾

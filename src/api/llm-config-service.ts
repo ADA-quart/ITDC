@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // LLM 配置的统一入口：服务器模式走服务端，本机模式走本机存储 + 直连服务商。
 //
 // 设置页与排程只认这一层，不必到处判断 isSyncEnabled() ——

@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 import React, { useEffect, useState } from 'react';
 import { Button, Popconfirm, Progress, Space, message } from 'antd';
 import { CloudDownloadOutlined, DeleteOutlined } from '@ant-design/icons';

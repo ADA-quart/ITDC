@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 declare module 'sql.js' {
   interface SqlJsStatic {
     Database: new (data?: ArrayLike<number>) => Database;

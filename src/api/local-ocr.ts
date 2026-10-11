@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 本地 OCR（可选扩展）：模型按需下载，下载前不可用。
 //
 // 这是图片待办「降级链」的中间环节：图片直发失败（模型不支持视觉 /

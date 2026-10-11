@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 本地周历 Excel 导出：与 server/routes/calendar.ts 的 export-week 保持同样的两张表结构。
 import XLSX from 'xlsx-js-style';
 import type { Calendar, CalendarEvent, Todo } from '../types';

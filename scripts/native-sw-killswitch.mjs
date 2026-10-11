@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 原生（APK）构建的 Service Worker 清理。
 //
 // 背景：APK 升级后 WebView 会从 Service Worker 缓存加载旧 JS ——

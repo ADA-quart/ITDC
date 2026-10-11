@@ -224,6 +224,7 @@ Issues and PRs are welcome. For bug reports please include version, device and r
 
 ## License
 
+- Authors: [@ADA-quart](https://github.com/ADA-quart) and TyTs; every source file header carries the author watermark.
 - Code: [PolyForm Noncommercial License 1.0.0](LICENSE) — personal, non-commercial use and modification only.
 - Third-party dependencies and models: see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) (OCR models are PaddleOCR / RapidOCR, Apache-2.0).
 - The name comes from the *Book of Rites*; this project is unrelated to SenseTime's “SenseNova” (日日新) model.

@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 /**
  * 生成第三方开源许可清单，一次产出两份文件：
  *   - THIRD-PARTY-NOTICES.md           随仓库分发的完整清单
@@ -163,6 +165,8 @@ function buildMarkdown(items) {
   const lines = [
     '# 第三方开源许可清单（Third-Party Notices）',
     '',
+    '> © 2026 ADA-Quart & TyTs · 日日新（ITDC）· 代码以 PolyForm Noncommercial 1.0.0 发布。',
+    '',
     '本项目（ITDC）的构建与运行依赖下列开源软件包。每个软件包的版权归其各自作者所有，',
     '并按其自身的许可协议授权。本清单由 `npm run licenses` 自动生成，请勿手动修改。',
     '',
@@ -220,6 +224,8 @@ function buildTsModule(items) {
     '/**',
     ' * 第三方开源许可数据。',
     ' * 由 `npm run licenses` 自动生成（数据源：license-checker 扫描生产依赖），请勿手动编辑。',
+    ' *',
+    ' * © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0',
     ' */',
     '',
     'export interface ThirdPartyLicense {',

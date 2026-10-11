@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // kv 与密钥存储都用内存实现顶替，测试只关心本机配置的语义

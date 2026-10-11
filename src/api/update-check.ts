@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 检查更新：查询 GitHub Releases 的最新版本并与当前版本比较。
 //
 // 只做提示，不强制更新，也不会自动下载。用户决定是否前往发布页。

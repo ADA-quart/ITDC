@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 桌面小组件数据桥：把本机安排整理成快照交给原生侧。
 //
 // 为什么需要它：仅本机模式下数据存在 WebView 的 IndexedDB 里，

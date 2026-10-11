@@ -222,6 +222,7 @@ GitHub 接口对匿名请求限流，等一段时间再点，或直接去 Releas
 
 ## 开源许可
 
+- 作者：[@ADA-quart](https://github.com/ADA-quart) 与 TyTs；源码文件头与启动控制台均带作者水印。
 - 本项目代码采用 [PolyForm Noncommercial License 1.0.0](LICENSE)：**允许个人非商业使用与修改，禁止商业用途**。
 - 第三方依赖与模型许可见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)（OCR 模型为 PaddleOCR / RapidOCR，Apache-2.0）。
 - 应用名「日日新」取自《礼记·大学》，与商汤科技及其「日日新」（SenseNova）大模型无任何关联。

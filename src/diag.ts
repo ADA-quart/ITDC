@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 白屏诊断层1（打包进 JS）：捕获运行期未捕获异常 / 未处理 Promise 拒绝，全屏显示错误文本。
 const DIAG_KEY = '__itdc_diag__';
 let logLines: string[] = [];

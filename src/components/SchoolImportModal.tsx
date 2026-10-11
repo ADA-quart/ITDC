@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Input, Select, DatePicker, Button, message, Space, Typography, Checkbox } from 'antd';
 import { LoginOutlined, ImportOutlined } from '@ant-design/icons';

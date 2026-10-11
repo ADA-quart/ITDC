@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 离线 OCR 扩展：模型与运行时按需下载，存 IndexedDB，卸载即清空。
 //
 // 为什么下载而不是打包进 APK：onnxruntime 的 wasm 13.6MB + 两个模型 15.6MB，

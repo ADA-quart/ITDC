@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { List, Tag, Button, Modal, message, Badge, Empty, Spin, ColorPicker, Input } from 'antd';
 import { CheckOutlined, DeleteOutlined, EditOutlined, SplitCellsOutlined, UndoOutlined, PictureOutlined } from '@ant-design/icons';

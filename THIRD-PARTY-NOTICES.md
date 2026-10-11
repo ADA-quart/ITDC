@@ -1,5 +1,7 @@
 # 第三方开源许可清单（Third-Party Notices）
 
+> © 2026 ADA-Quart & TyTs · 日日新（ITDC）· 代码以 PolyForm Noncommercial 1.0.0 发布。
+
 本项目（ITDC）的构建与运行依赖下列开源软件包。每个软件包的版权归其各自作者所有，
 并按其自身的许可协议授权。本清单由 `npm run licenses` 自动生成，请勿手动修改。
 

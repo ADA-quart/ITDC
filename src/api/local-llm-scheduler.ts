@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 本机模式下的大模型排程：App 自己组装提示词、直接调服务商、自己校验结果。
 //
 // 提示词与解析规则来自 shared/llm-prompt.ts，与服务端代理完全同源；

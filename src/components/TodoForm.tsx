@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 import React, { useEffect } from 'react';
 import { Modal, Form, Input, InputNumber, DatePicker, Slider, message, ColorPicker, Checkbox } from 'antd';
 import dayjs from 'dayjs';

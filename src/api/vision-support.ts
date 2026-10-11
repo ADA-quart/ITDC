@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 模型视觉能力判定：按「服务商::模型」记住第一次直发图片的结论。
 //
 // 判定策略（三层）：

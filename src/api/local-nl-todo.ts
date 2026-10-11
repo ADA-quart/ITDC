@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 // 本机模式的自然语言录入：App 直接调大模型把一句话解析成结构化待办。
 //
 // 提示词与字段校验来自 shared/nl-todo-prompt.ts，与服务端同源，

@@ -1,9 +1,11 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 import type { LocaleMessages } from './zh';
 
 const en: LocaleMessages = {
   app: {
     title: 'Day Day New',
-    designBy: 'Designed by ADA-quart',
+    designBy: 'Designed by ADA-Quart & TyTs',
     offline: 'Not connected to a server; data is stored on this device',
   },
   nav: {

@@ -1,3 +1,5 @@
+// © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
+
 import ICAL from 'ical.js';
 // ical.js 在 ESM 环境下可能有不同的导出方式，兼容默认导出和命名空间导出
 const ICALModule = (ICAL as any).default || ICAL;
