@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 最小尺寸放宽到 2×2：平板上 2×2 的格子（≈200dp²）其实比手机 4×2 还宽敞，
+     内容完全放得下；手机上的小方块由 provider 自动切成紧凑布局（只留「今天」一列） -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:minWidth="250dp"
-    android:minHeight="180dp"
+    android:minWidth="110dp"
+    android:minHeight="110dp"
     android:targetCellWidth="4"
     android:targetCellHeight="4"
     android:updatePeriodMillis="7200000"

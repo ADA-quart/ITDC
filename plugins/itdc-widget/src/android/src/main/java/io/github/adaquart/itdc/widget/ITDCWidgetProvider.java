@@ -291,6 +291,8 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             rv.setTextViewText(R.id.widget_date, dateText);
             rv.setTextViewText(R.id.widget_todo_header, context.getString(R.string.widget_todo_header));
             rv.setTextColor(R.id.widget_todo_all_done, WidgetAppearance.accent(context));
+            // 小尺寸自动精简（见方法注释）：手机 2×2 只留「今天」，平板 2×2 仍走完整布局
+            applyCompactIfSmall(context, rv, appWidgetId);
             // 「全部完成」：一键把当前展示的待办全部标记完成
             rv.setOnClickPendingIntent(R.id.widget_todo_all_done,
                     ITDCWidgetActionReceiver.allDonePendingIntent(context));
@@ -359,6 +361,30 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
             awm.updateAppWidget(appWidgetId, rv);
         } catch (Exception e) { Log.e(TAG, "updateHint failed", e); }
+    }
+
+    /**
+     * 小尺寸精简：手机 2×2（约 110×110dp）放不下双列 + 待办，只留「今天」一列；
+     * 平板 2×2 的格子大（≈200dp，比手机 4×2 还宽敞），仍然显示完整内容。
+     */
+    private static void applyCompactIfSmall(Context context, RemoteViews rv, int appWidgetId) {
+        try {
+            AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
+            android.os.Bundle options = awm.getAppWidgetOptions(appWidgetId);
+            int minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250);
+            int minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 180);
+            boolean compact = minWidth < 220 && minHeight < 150;
+            int visibility = compact ? android.view.View.GONE : android.view.View.VISIBLE;
+            rv.setViewVisibility(R.id.widget_tomorrow_label, visibility);
+            rv.setViewVisibility(R.id.widget_tomorrow_list, visibility);
+            rv.setViewVisibility(R.id.widget_divider_vertical, visibility);
+            rv.setViewVisibility(R.id.widget_todo_header, visibility);
+            rv.setViewVisibility(R.id.widget_todo_all_done, visibility);
+            rv.setViewVisibility(R.id.widget_todo_list, visibility);
+            rv.setViewVisibility(R.id.widget_divider_horizontal, visibility);
+        } catch (Exception e) {
+            Log.w(TAG, "applyCompactIfSmall failed", e);
+        }
     }
 
     /**
