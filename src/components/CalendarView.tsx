@@ -993,6 +993,12 @@ const CalendarView: React.FC = () => {
   // 悬浮按钮浮在胶囊底栏上方（两种模式几何一致：胶囊 58 + 悬浮 10 + 12 间距）
   const fabBottom = 'calc(80px + var(--itdc-inset-bottom, env(safe-area-inset-bottom, 0px)))';
 
+  // 从别的页面切回日历时重置页面滚动：日历页按"一屏"设计，
+  // 否则会停在上一页的滚动位置，日期头被滚出屏幕
+  useEffect(() => {
+    if (isMobile) window.scrollTo(0, 0);
+  }, [isMobile]);
+
   // 日历的下沿对齐底栏胶囊的上沿：不再用「100dvh − 200px」这类魔法数，
   // 直接量日历盒子顶部到胶囊顶部之间的可用高度（胶囊高 58 + 悬浮 10 + 安全区 + 6 间隙）
   useEffect(() => {
@@ -1008,7 +1014,11 @@ const CalendarView: React.FC = () => {
       const insetBottom = parseFloat(insetRaw) || 0;
       // 底栏两种模式都是「悬浮胶囊」，几何一致：58 高 + 10 悬浮 + 安全区
       const navTopOffset = 58 + 10 + insetBottom;
-      const available = window.innerHeight - el.getBoundingClientRect().top - navTopOffset - 6;
+      // 用文档坐标（rect.top + scrollY）测：切页回来时页面可能还停在上一页的滚动位置，
+      // 视口坐标会把"已经滚掉的高度"也算成可用高度，日历格子会被撑得特别大
+      // （实测 777 → 1018 = 777 + 241px 滚动量）。文档坐标与滚动位置无关。
+      const elTop = el.getBoundingClientRect().top + window.scrollY;
+      const available = window.innerHeight - elTop - navTopOffset - 6;
       const height = Math.max(320, Math.round(available));
       setCalHeight(height);
       // 07:00–24:00 共 17 个整点行；标题行 = 基础高 + 除不尽的余数，
