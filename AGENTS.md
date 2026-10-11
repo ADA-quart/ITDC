@@ -46,8 +46,13 @@
 - 默认**只提交到本地**，不推远端。用户明确说「推」「发版」时才推送。
 - 用户说「内部测试」时：最多构建本地 debug APK 交付（`android/app/build/outputs/apk/debug/app-debug.apk`），
   不碰远端任何东西。
-- 用户喊「推 / 发版」时，按顺序执行：
+- 用户喊「推」时：**只提交并推 main** —— 不动版本号、不打 tag、不建 Release。
+  （2026-10 用户明确要求「版本号不要叠那么快」：零碎改动要攒批，别一有小修就叠版本。）
+- 只有用户明确说「发版」/「升版本」/「发 x.y.z」时，才按顺序执行：
   1. `[Unreleased]` 改成 `## [x.y.z] - YYYY-MM-DD`
   2. 同步三处版本号（`package.json`、`capacitor.config.json`、`android/app/build.gradle`，`versionCode` +1）
   3. `git push origin HEAD:refs/heads/main` → `git tag vX.Y.Z` → `git push origin vX.Y.Z`
+- **发版攒批**：小修小补不单独立版本；同一天不连发两个版本（用户点名要求除外）。
+- debug 测试包不需要动版本号：debug 构建用时间戳覆盖 `versionCode`，
+  同机覆盖安装本来就与版本号无关。
 - 版本号语义：功能升 minor，修 bug 升 patch，破坏性变更升 major。
