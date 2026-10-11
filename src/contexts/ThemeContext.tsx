@@ -276,18 +276,36 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       window.clearTimeout(releaseTimer);
       releaseTimer = window.setTimeout(releaseFull, 180);
     };
+    // 高光在移动 = 玻璃正在逐帧重绘：跟着降档，否则按住 / 倾斜时每帧重算折射滤镜会闪屏
+    const onGlassMotion = () => {
+      engageLite();
+      scheduleRelease();
+    };
+    // 触摸的长按会被系统手势接管：Chrome 先发 pointercancel，但手指其实还按在屏幕上。
+    // 此时若恢复折射，按着不动期间的高光重绘会逐帧重算滤镜，"长按透明区域连闪好几秒"
+    // 就是这么来的——触摸序列的结束交给 touchend / touchcancel，pointercancel 只对鼠标/笔生效。
+    const onPointerCancel = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
+      scheduleRelease();
+    };
     window.addEventListener('pointerdown', engageLite, true);
     window.addEventListener('pointerup', scheduleRelease, true);
-    window.addEventListener('pointercancel', scheduleRelease, true);
+    window.addEventListener('pointercancel', onPointerCancel, true);
+    window.addEventListener('touchend', scheduleRelease, true);
+    window.addEventListener('touchcancel', scheduleRelease, true);
     window.addEventListener('scroll', engageLite, true);
     window.addEventListener('scroll', scheduleRelease, true);
+    window.addEventListener('itdc-glass-motion', onGlassMotion, true);
     return () => {
       window.clearTimeout(releaseTimer);
       window.removeEventListener('pointerdown', engageLite, true);
       window.removeEventListener('pointerup', scheduleRelease, true);
-      window.removeEventListener('pointercancel', scheduleRelease, true);
+      window.removeEventListener('pointercancel', onPointerCancel, true);
+      window.removeEventListener('touchend', scheduleRelease, true);
+      window.removeEventListener('touchcancel', scheduleRelease, true);
       window.removeEventListener('scroll', engageLite, true);
       window.removeEventListener('scroll', scheduleRelease, true);
+      window.removeEventListener('itdc-glass-motion', onGlassMotion, true);
     };
   }, [appearance.bgImage, appearance.uiOpacity, appearance.uiBlur, appearance.liquidGlass, isDark]);
 
@@ -299,10 +317,19 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     let x = 26;
     let y = 0;
     let raf = 0;
+    // 上一次真正写入的高光位置：静止时陀螺仪有噪声，变化不足 0.6% 就不重绘，
+    // 否则握持手机的微小抖动会让玻璃 60fps 无谓重刷（也会闪）。
+    let appliedX = x;
+    let appliedY = y;
     const apply = () => {
       raf = 0;
+      if (Math.abs(x - appliedX) < 0.6 && Math.abs(y - appliedY) < 0.6) return;
+      appliedX = x;
+      appliedY = y;
       root.style.setProperty('--itdc-spec-x', `${x.toFixed(1)}%`);
       root.style.setProperty('--itdc-spec-y', `${y.toFixed(1)}%`);
+      // 通知主题层：高光在动 → 暂时去掉折射，避免逐帧重算滤镜闪屏
+      window.dispatchEvent(new CustomEvent('itdc-glass-motion'));
     };
     const schedule = () => { if (!raf) raf = requestAnimationFrame(apply); };
     const onOrient = (e: DeviceOrientationEvent) => {
