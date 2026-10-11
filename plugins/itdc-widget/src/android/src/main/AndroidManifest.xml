@@ -17,6 +17,7 @@
     <application>
         <receiver
             android:name=".ITDCWidgetProvider"
+            android:label="@string/app_widget_label"
             android:exported="true"
             android:permission="android.permission.BIND_APPWIDGET">
             <intent-filter>
@@ -26,6 +27,22 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/app_widget_itdc" />
+        </receiver>
+
+        <!-- 「小尺寸」条目：与标准条目共用全部渲染/刷新逻辑，
+             只是 min 尺寸更小（110dp），让平板也能直接加出 2×2。 -->
+        <receiver
+            android:name=".ITDCWidgetSmallProvider"
+            android:label="@string/app_widget_label_small"
+            android:exported="true"
+            android:permission="android.permission.BIND_APPWIDGET">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+                <category android:name="android.appwidget.category.DYNAMIC_PROVIDER"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/app_widget_itdc_small" />
         </receiver>
 
         <!-- 集合型小组件的数据源：为今天/明天/待办三个列表提供条目，没有它列表无法滚动 -->

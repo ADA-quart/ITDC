@@ -11,6 +11,21 @@
 - 圆角磨砂外观，跟随系统**日夜模式**自动切换，也可在 App 里自定义配色与背景图
 - **上过的课自动消失**（按结束时间过滤，无需打开 App）
 
+### 两个条目（标准 / 小尺寸）
+
+启动器在「添加小部件」里显示的默认格数来自 `minWidth/minHeight`（小米不读 `targetCellWidth/Height`），
+而平板的格子比手机大——同一个 `min` 没法两全（给 250×180dp，平板就缩不到 2×2；给 110×110dp，手机默认也变小方块）。
+所以拆成两个 receiver，共用同一套渲染代码，差异只在 `res/xml` 的元数据：
+
+| 条目 | provider 类 | min 尺寸 | 手机上加出来 | 平板加出来 |
+| --- | --- | --- | --- | --- |
+| 标准 | `ITDCWidgetProvider` | 250×180dp | 4×2 | 2×2+（格子大） |
+| 小尺寸 | `ITDCWidgetSmallProvider` | 110×110dp | 2×2 | 2×2 |
+
+两者都随实际尺寸自适应（`applyCompactIfSmall`）：手机的小方块只留「今天」一列。
+枚举实例 / 刷新 / 停闹钟都走 `ITDCWidgetProvider.allWidgetIds()`，两个条目一起算——
+否则删掉小条目会把标准条目的定时刷新链一起停掉。
+
 ## 为什么用集合型小组件
 
 初版把内容渲染成一张**静态位图**塞进 `ImageView`。位图在桌面上**无法滚动** —— 这是硬限制，不是实现问题。
@@ -137,6 +152,22 @@ rv.setInt(R.id.todo_check_fill, "setColorFilter", accent);   // 颜色照样能�
 ```
 
 主布局（非集合）上的位图不受影响 —— 小组件的照片背景就是这么渲染的。
+
+### 8. 小组件在选择器里的名字取 receiver 的 label
+
+Android 16 的 `AppWidgetServiceImpl` 里写死了：
+
+```java
+info.label = activityInfo.loadLabel(pm).toString();
+```
+
+——也就是 `appwidget-provider` XML 里的 `android:label` **不生效**（照样解析，但随后被覆盖）。
+选择器显示的是 **`<receiver>` 元素上的 `android:label`**，没写就退回应用名。
+症状：小组件在「添加小部件」里一直显示 App 名（如 `ITDC Debug`），而不是「日日新 待办课表」。
+
+结论：**两处都写** —— receiver 的 `android:label`（Android 16+ 实际生效）与
+`appwidget-provider` 的 `android:label`（旧系统 / 部分启动器兜底）。
+同理，选择器里的图标取 `activityInfo.getIconResource()`，也是 receiver / 应用级别的。
 
 ## 刷新机制
 

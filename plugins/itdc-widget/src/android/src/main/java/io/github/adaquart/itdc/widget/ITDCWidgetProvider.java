@@ -84,9 +84,12 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         refreshWidget(context, appWidgetId);
     }
 
-    // 删除最后一个小组件时停止定时刷新，避免无谓的后台唤醒
+    // 全部条目都没有实例时才停止定时刷新，避免无谓的后台唤醒。
+    // 两个条目（标准 / 小尺寸）共用同一条闹钟链，这里必须把两个 provider 一起检查：
+    // 只删掉「小尺寸」条目时，标准条目的定时刷新不能被顺手停掉。
     @Override
     public void onDisabled(Context context) {
+        if (allWidgetIds(context).length > 0) return;
         try {
             AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
             Intent it = new Intent(context, ITDCWidgetProvider.class);
@@ -134,11 +137,41 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         }
     };
 
+    /**
+     * 两个小组件条目（标准 / 小尺寸）的 provider 类。
+     *
+     * 差异只在清单里声明的 minWidth/minHeight 与 targetCell —— 启动器用它们算
+     * 「添加小部件」里的默认格数（小米不读 targetCell，只认 min）。渲染逻辑完全共用：
+     * 按每个实例的实际尺寸自适应，手机上的小方块会自动精简成「只留今天」一列。
+     *
+     * 枚举实例、刷新、判断要不要停闹钟时必须两个都算上。
+     */
+    private static final Class<?>[] PROVIDER_CLASSES = {
+            ITDCWidgetProvider.class, ITDCWidgetSmallProvider.class
+    };
+
+    /** 两个条目在桌面上的全部实例 id */
+    static int[] allWidgetIds(Context context) {
+        AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
+        java.util.ArrayList<Integer> ids = new java.util.ArrayList<>();
+        for (Class<?> cls : PROVIDER_CLASSES) {
+            try {
+                int[] part = awm.getAppWidgetIds(new ComponentName(context, cls.getName()));
+                if (part == null) continue;
+                for (int id : part) ids.add(id);
+            } catch (Exception e) {
+                Log.w(TAG, "getAppWidgetIds failed for " + cls.getName(), e);
+            }
+        }
+        int[] out = new int[ids.size()];
+        for (int i = 0; i < out.length; i++) out[i] = ids.get(i);
+        return out;
+    }
+
     private static void refreshAll(Context context) {
         try {
             AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
-            ComponentName comp = new ComponentName(context, ITDCWidgetProvider.class.getName());
-            for (int id : awm.getAppWidgetIds(comp)) {
+            for (int id : allWidgetIds(context)) {
                 // 先让列表数据源重算（已结束的课要消失），再重绘外壳
                 awm.notifyAppWidgetViewDataChanged(id, R.id.widget_today_list);
                 awm.notifyAppWidgetViewDataChanged(id, R.id.widget_tomorrow_list);
@@ -650,9 +683,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
     public static void requestRefresh(Context context) {
         try {
             AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
-            ComponentName comp = new ComponentName(context, ITDCWidgetProvider.class.getName());
-            int[] ids = awm.getAppWidgetIds(comp);
-            for (int id : ids) {
+            for (int id : allWidgetIds(context)) {
                 // 先通知数据源失效，再重绘，否则列表仍显示旧内容
                 awm.notifyAppWidgetViewDataChanged(id, R.id.widget_today_list);
                 awm.notifyAppWidgetViewDataChanged(id, R.id.widget_tomorrow_list);

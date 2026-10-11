@@ -5,7 +5,6 @@ package io.github.adaquart.itdc.widget;
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.content.BroadcastReceiver;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
@@ -101,8 +100,7 @@ public class ITDCWidgetActionReceiver extends BroadcastReceiver {
     private static void notifyTodoList(Context context) {
         try {
             AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
-            ComponentName comp = new ComponentName(context, ITDCWidgetProvider.class.getName());
-            for (int id : awm.getAppWidgetIds(comp)) {
+            for (int id : ITDCWidgetProvider.allWidgetIds(context)) {
                 awm.notifyAppWidgetViewDataChanged(id, R.id.widget_todo_list);
             }
         } catch (Exception e) {

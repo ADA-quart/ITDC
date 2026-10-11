@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 小尺寸条目：手机/平板都会先给一个 2×2（110dp）的格子，之后随桌面随意拉伸。
+     渲染与标准条目完全共用；真拉到很小（手机的小方块）时自动只留「今天」一列。 -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="110dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="7200000"
+    android:initialLayout="@layout/widget_main"
+    android:previewLayout="@layout/widget_main"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:description="@string/app_widget_description_small"
+    android:label="@string/app_widget_label_small">
+</appwidget-provider>

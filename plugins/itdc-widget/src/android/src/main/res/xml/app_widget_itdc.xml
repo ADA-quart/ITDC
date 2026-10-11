@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 最小尺寸放宽到 2×2：平板上 2×2 的格子（≈200dp²）其实比手机 4×2 还宽敞，
-     内容完全放得下；手机上的小方块由 provider 自动切成紧凑布局（只留「今天」一列） -->
+<!-- 标准条目：小米按 minWidth/minHeight 换算「添加小部件」里显示的默认格数
+     （不读 targetCell），250×180dp 在手机上加出来就是 4×2。
+     渲染按实例实际尺寸自适应：真缩到手机 2×2 会自动精简成「只留今天」一列，
+     平板 2×2 的格子更大（≈200dp，比手机 4×2 还宽敞），仍然显示完整内容。
+     想默认就用小方块，用另一个条目 app_widget_itdc_small.xml。
+
+     注意：Android 16 起小组件在选择器里显示的名字取「receiver 的 android:label」
+     （AppWidgetServiceImpl: info.label = activityInfo.loadLabel(pm)），
+     这里的 android:label 只是兜底，两处都要写。 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:minWidth="110dp"
-    android:minHeight="110dp"
+    android:minWidth="250dp"
+    android:minHeight="180dp"
     android:targetCellWidth="4"
     android:targetCellHeight="4"
     android:updatePeriodMillis="7200000"
