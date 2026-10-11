@@ -1,7 +1,26 @@
 // © 2026 ADA-Quart & TyTs · 日日新（ITDC）· PolyForm Noncommercial 1.0.0 · github.com/ADA-quart/ITDC
 
 import { describe, it, expect } from 'vitest';
-import { MIN_BG_ZOOM, sanitizeAppearance } from './appearance';
+import { MIN_BG_ZOOM, resolveWidgetImage, sanitizeAppearance } from './appearance';
+
+describe('resolveWidgetImage 小组件背景图优先级', () => {
+  it('专属图优先于应用背景图', () => {
+    const base = sanitizeAppearance({});
+    expect(
+      resolveWidgetImage({ ...base, widgetBgImage: 'data:image/png;base64,x', bgImage: 'data:image/png;base64,y', widgetUseBgImage: true }),
+    ).toBe('data:image/png;base64,x');
+  });
+
+  it('没有专属图时跟随开关；开关关闭返回 null（恢复默认后不再残留图片）', () => {
+    const base = sanitizeAppearance({});
+    expect(
+      resolveWidgetImage({ ...base, widgetBgImage: null, bgImage: 'data:image/png;base64,y', widgetUseBgImage: true }),
+    ).toBe('data:image/png;base64,y');
+    expect(
+      resolveWidgetImage({ ...base, widgetBgImage: null, bgImage: 'data:image/png;base64,y', widgetUseBgImage: false }),
+    ).toBeNull();
+  });
+});
 
 describe('sanitizeAppearance 背景焦点与缩放', () => {
   it('默认焦点居中、缩放 1 倍', () => {

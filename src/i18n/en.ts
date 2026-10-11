@@ -455,6 +455,8 @@ const en: LocaleMessages = {
     widgetScheme: 'Widget brightness',
     widgetUseBgImage: 'Use this image as the widget background',
     widgetUseBgImageFirst: 'Upload a background image first',
+    widgetOwnImage: 'Widget background image',
+    widgetOwnImageHint: 'Upload an image used only by the widget — it takes priority over the switch above; remove it to follow that switch again.',
     widgetApplyNow: 'Apply to widget now',
     widgetApplied: 'Applied to the home screen widget',
     widgetApplyFailed: 'Sync failed — make sure the widget is on your home screen',

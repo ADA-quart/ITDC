@@ -53,6 +53,8 @@ export interface AppearanceSettings {
   widgetScheme: WidgetScheme;
   /** 小组件是否使用应用背景图 */
   widgetUseBgImage: boolean;
+  /** 小组件专属背景图（data URL）：设置后优先于 widgetUseBgImage（应用背景图） */
+  widgetBgImage: string | null;
 }
 
 /** 预设主题色：与小组件默认色一致，避免两处各写一份 */
@@ -104,10 +106,12 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
   widgetPanelOpacity: 90,
   widgetScheme: 'auto',
   widgetUseBgImage: false,
+  widgetBgImage: null,
 };
 
 const LS_KEY = 'itdc_appearance';
 const IMG_KEY = 'itdc_bg_image';
+const WIDGET_IMG_KEY = 'itdc_widget_bg_image';
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
@@ -157,6 +161,9 @@ export function sanitizeAppearance(raw: unknown): AppearanceSettings {
     widgetPanelOpacity: clamp(o.widgetPanelOpacity, 0, 100, DEFAULT_APPEARANCE.widgetPanelOpacity),
     widgetScheme: scheme,
     widgetUseBgImage: o.widgetUseBgImage === true,
+    widgetBgImage: typeof o.widgetBgImage === 'string' && o.widgetBgImage.startsWith('data:image/')
+      ? o.widgetBgImage
+      : null,
   };
 }
 
@@ -180,11 +187,22 @@ export async function loadBackgroundImage(): Promise<string | null> {
   }
 }
 
-/** 写入 localStorage；背景图字段一律剥掉，它只走 IndexedDB */
+/** 小组件专属背景图（与 App 背景图分开存，互不影响） */
+export async function loadWidgetBackgroundImage(): Promise<string | null> {
+  try {
+    const value = await kvGet<string>(WIDGET_IMG_KEY);
+    return typeof value === 'string' && value.startsWith('data:image/') ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 写入 localStorage；背景图字段一律剥掉，它们只走 IndexedDB */
 export function saveAppearance(settings: AppearanceSettings): void {
   try {
-    const { bgImage: _omit, ...rest } = settings;
-    void _omit;
+    const { bgImage: _omitBg, widgetBgImage: _omitWidget, ...rest } = settings;
+    void _omitBg;
+    void _omitWidget;
     localStorage.setItem(LS_KEY, JSON.stringify(rest));
   } catch {
     // 配额满或隐私模式：设置仅在本次会话生效，不阻塞使用
@@ -194,6 +212,14 @@ export function saveAppearance(settings: AppearanceSettings): void {
 export async function saveBackgroundImage(dataUrl: string | null): Promise<void> {
   try {
     await kvSet(IMG_KEY, dataUrl ?? null);
+  } catch {
+    // 存储失败时下次启动会丢图，但不影响当前会话预览
+  }
+}
+
+export async function saveWidgetBackgroundImage(dataUrl: string | null): Promise<void> {
+  try {
+    await kvSet(WIDGET_IMG_KEY, dataUrl ?? null);
   } catch {
     // 存储失败时下次启动会丢图，但不影响当前会话预览
   }
@@ -263,6 +289,11 @@ export function stripDataUrlPrefix(dataUrl: string): { mime: string; base64: str
 // 上次真正传输过的图片：滑动条等外观微调不必重复传几百 KB 的图
 let lastPushedImage: string | null = null;
 
+/** 小组件实际生效的背景图：专属图优先，其次才跟随「使用应用背景图」开关 */
+export function resolveWidgetImage(settings: AppearanceSettings): string | null {
+  return settings.widgetBgImage ?? (settings.widgetUseBgImage ? settings.bgImage : null);
+}
+
 /**
  * 把外观推给原生侧（仅 Android 生效）。
  * 传图有体积代价，因此只有首次或换图时才带 image 字段。
@@ -270,7 +301,7 @@ let lastPushedImage: string | null = null;
 export async function pushWidgetAppearance(settings: AppearanceSettings): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
 
-  const wanted = settings.widgetUseBgImage ? settings.bgImage : null;
+  const wanted = resolveWidgetImage(settings);
   const image = wanted && wanted !== lastPushedImage ? wanted : null;
 
   await ITDCWidgetPlugin.setAppearance({

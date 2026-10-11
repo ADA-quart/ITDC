@@ -17,6 +17,7 @@ import {
   compressImageToDataUrl,
   pushWidgetAppearance,
   resetPushedImageCache,
+  resolveWidgetImage,
 } from '../api/appearance';
 
 /**
@@ -74,6 +75,7 @@ const AppearanceSettings: React.FC = () => {
   const { isDark, mode, setMode, appearance, updateAppearance, resetAppearance, resetWidgetAppearance } = useTheme();
   const isMobile = useIsMobile();
   const [processing, setProcessing] = useState(false);
+  const [processingWidget, setProcessingWidget] = useState(false);
   const [applying, setApplying] = useState(false);
   const dragRef = useRef<{ x: number; y: number; fx: number; fy: number } | null>(null);
   // 预览框必须和真实屏幕同比例：横着的预览框里看到的是另一块区域，
@@ -100,6 +102,9 @@ const AppearanceSettings: React.FC = () => {
   const clampFocus = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
   // 取成局部常量，闭包（.map 等）里也能拿到非空类型
   const bgImage = appearance.bgImage;
+  // 小组件实际生效的背景图：专属图优先，其次才跟随「使用应用背景图」开关；
+  // 预览与实际下发给原生都按它来，避免"恢复默认后预览还挂着旧图"
+  const widgetImage = resolveWidgetImage(appearance);
 
   const hintStyle: React.CSSProperties = {
     fontSize: 12,
@@ -120,6 +125,20 @@ const AppearanceSettings: React.FC = () => {
       message.error(t.settings.imageFailed);
     } finally {
       setProcessing(false);
+    }
+    return false;
+  };
+
+  const handleWidgetImage = async (file: File) => {
+    setProcessingWidget(true);
+    try {
+      const dataUrl = await compressImageToDataUrl(file);
+      updateAppearance({ widgetBgImage: dataUrl });
+      message.success(t.settings.imageReady);
+    } catch {
+      message.error(t.settings.imageFailed);
+    } finally {
+      setProcessingWidget(false);
     }
     return false;
   };
@@ -481,7 +500,32 @@ const AppearanceSettings: React.FC = () => {
             )}
           </div>
 
-          {bgImage && (
+          <div>
+            <div style={{ fontSize: 13, marginBottom: 4 }}>{t.settings.widgetOwnImage}</div>
+            <Space wrap align='center'>
+              <Upload
+                accept='image/*'
+                showUploadList={false}
+                beforeUpload={(file) => { void handleWidgetImage(file as unknown as File); return false; }}
+              >
+                <Button icon={<UploadOutlined />} loading={processingWidget}>
+                  {appearance.widgetBgImage ? t.settings.replaceImage : t.settings.uploadImage}
+                </Button>
+              </Upload>
+              {appearance.widgetBgImage && (
+                <Button
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={() => updateAppearance({ widgetBgImage: null })}
+                >
+                  {t.settings.removeImage}
+                </Button>
+              )}
+            </Space>
+            <p style={{ ...hintStyle, marginTop: 6 }}>{t.settings.widgetOwnImageHint}</p>
+          </div>
+
+          {widgetImage && (
             <div>
               <div style={{ fontSize: 13, marginBottom: 4 }}>{t.settings.widgetCropPreview}</div>
               <div style={{ display: 'flex', gap: 10 }}>
@@ -497,7 +541,7 @@ const AppearanceSettings: React.FC = () => {
                       }}
                     >
                       <PreviewBackdrop
-                        image={bgImage}
+                        image={widgetImage}
                         focusX={appearance.bgFocusX}
                         focusY={appearance.bgFocusY}
                         zoom={appearance.bgZoom}
@@ -507,7 +551,7 @@ const AppearanceSettings: React.FC = () => {
                         style={{
                           position: 'absolute',
                           inset: 0,
-                          backgroundImage: `url(${bgImage})`,
+                          backgroundImage: `url(${widgetImage})`,
                           backgroundSize: 'cover',
                           backgroundPosition: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
                           backgroundRepeat: 'no-repeat',

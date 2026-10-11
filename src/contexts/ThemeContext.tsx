@@ -5,10 +5,12 @@ import {
   DEFAULT_APPEARANCE,
   loadAppearance,
   loadBackgroundImage,
+  loadWidgetBackgroundImage,
   pushWidgetAppearance,
   resetPushedImageCache,
   saveAppearance,
   saveBackgroundImage,
+  saveWidgetBackgroundImage,
   type AppearanceSettings,
 } from '../api/appearance';
 import { GLASS_FILTER_ID } from '../components/GlassFilters';
@@ -53,12 +55,17 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [appearance, setAppearance] = useState<AppearanceSettings>(() => loadAppearance());
   const [appearanceLoaded, setAppearanceLoaded] = useState(false);
 
-  // 背景图存在 IndexedDB，启动时异步补上；补齐前先用纯色，避免白屏等待
+  // 背景图（应用 + 小组件专属）存在 IndexedDB，启动时异步补上；
+  // 补齐前先用纯色，避免白屏等待
   useEffect(() => {
     let alive = true;
-    void loadBackgroundImage().then((image) => {
+    void Promise.all([loadBackgroundImage(), loadWidgetBackgroundImage()]).then(([image, widgetImage]) => {
       if (!alive) return;
-      setAppearance((prev) => (image === prev.bgImage ? prev : { ...prev, bgImage: image }));
+      setAppearance((prev) => (
+        image === prev.bgImage && widgetImage === prev.widgetBgImage
+          ? prev
+          : { ...prev, bgImage: image, widgetBgImage: widgetImage }
+      ));
       setAppearanceLoaded(true);
     });
     return () => { alive = false; };
@@ -98,6 +105,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (next.bgImage === null) resetPushedImageCache();
         void saveBackgroundImage(next.bgImage);
       }
+      // 小组件专属图换了或删了：让推送缓存失效，下一轮才会把新图（或"清图"指令）带给原生
+      if ('widgetBgImage' in patch && patch.widgetBgImage !== prev.widgetBgImage) {
+        resetPushedImageCache();
+        void saveWidgetBackgroundImage(next.widgetBgImage);
+      }
       return next;
     });
   }, []);
@@ -108,6 +120,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       localStorage.removeItem('itdc_appearance');
       await saveBackgroundImage(null);
+      await saveWidgetBackgroundImage(null);
     } catch {
       // 清理失败不影响本次会话已经回到默认外观
     }
@@ -121,6 +134,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       widgetPanelOpacity: DEFAULT_APPEARANCE.widgetPanelOpacity,
       widgetScheme: DEFAULT_APPEARANCE.widgetScheme,
       widgetUseBgImage: DEFAULT_APPEARANCE.widgetUseBgImage,
+      widgetBgImage: DEFAULT_APPEARANCE.widgetBgImage,
     });
   }, [updateAppearance]);
 
