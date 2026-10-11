@@ -35,7 +35,7 @@ Web / PWA / Android 同一套代码，断网可用，服务器只是可选的同
 - **LLM 模式**：交给大模型排程，支持 OpenAI、DeepSeek、Ollama、LM Studio 及任意 OpenAI 兼容接口；可走服务器，也可由 App 直连服务商
 
 **回顾与导出**
-- 每日 / 每周回顾，完成率等统计
+- 每日 / 每周回顾：课时、完成数、与上周对比、连续周数、逾期与补完的待办
 - 导出 Excel 日程表
 
 **Android**
