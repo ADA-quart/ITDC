@@ -165,6 +165,32 @@ const AppearanceSettings: React.FC = () => {
     </>
   );
 
+  /**
+   * 面板层滑条（日历/卡片这层的实心程度与模糊）。
+   * 有背景图时放在「裁切 → 壁纸 → 面板」的第三段；只有液态玻璃（没图）时单独成块——
+   * 之前整块被 `bgImage &&` 包住，液态玻璃模式下根本调不到日历透明度。
+   */
+  const panelSliders = (
+    <>
+      <div style={{ fontSize: 13, fontWeight: 600, marginTop: bgImage ? 16 : 0 }}>{t.settings.panelGroup}</div>
+      <SliderLabel label={t.settings.uiOpacity} value={`${appearance.uiOpacity}%`} dim={secondaryTextColor(isDark)} />
+      <Slider
+        min={0}
+        max={100}
+        value={appearance.uiOpacity}
+        onChange={(value) => updateAppearance({ uiOpacity: value })}
+      />
+      <SliderLabel label={t.settings.uiBlur} value={`${appearance.uiBlur}px`} dim={secondaryTextColor(isDark)} />
+      <Slider
+        min={0}
+        max={20}
+        value={appearance.uiBlur}
+        onChange={(value) => updateAppearance({ uiBlur: value })}
+      />
+      <div style={{ ...hintStyle, marginTop: 6 }}>{t.settings.uiOpacityHint}</div>
+    </>
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
       {/* ---------- 明暗模式（从通用设置挪到外观） ---------- */}
@@ -354,24 +380,14 @@ const AppearanceSettings: React.FC = () => {
               <div style={{ ...hintStyle, marginTop: 6 }}>{t.settings.backgroundOpacityHint}</div>
 
               {/* ③ 面板层：日历 / 卡片 / 导航这层的实心程度 */}
-              <div style={{ fontSize: 13, fontWeight: 600, marginTop: 16 }}>{t.settings.panelGroup}</div>
-              <SliderLabel label={t.settings.uiOpacity} value={`${appearance.uiOpacity}%`} dim={secondaryTextColor(isDark)} />
-              <Slider
-                min={0}
-                max={100}
-                value={appearance.uiOpacity}
-                onChange={(value) => updateAppearance({ uiOpacity: value })}
-              />
-              <SliderLabel label={t.settings.uiBlur} value={`${appearance.uiBlur}px`} dim={secondaryTextColor(isDark)} />
-              <Slider
-                min={0}
-                max={20}
-                value={appearance.uiBlur}
-                onChange={(value) => updateAppearance({ uiBlur: value })}
-              />
-              <div style={{ ...hintStyle, marginTop: 6 }}>{t.settings.uiOpacityHint}</div>
+              {panelSliders}
             </div>
           </div>
+        )}
+
+        {/* 液态玻璃但没配背景图：面板层同样要能调 */}
+        {!bgImage && appearance.liquidGlass && (
+          <div style={{ maxWidth: 520 }}>{panelSliders}</div>
         )}
       </div>
 

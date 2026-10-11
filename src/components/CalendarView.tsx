@@ -988,8 +988,8 @@ const CalendarView: React.FC = () => {
     form.setFieldsValue({ calendar_id: calendars.length > 0 ? calendars[0].id : undefined });
     setModalOpen(true);
   };
-  // 悬浮按钮要浮在底栏上方：底栏高度 + 安全区 + 间距（液态玻璃的底栏是悬浮胶囊，再抬高 12px）
-  const fabBottom = `calc(${appearance.liquidGlass ? 80 : 68}px + var(--itdc-inset-bottom, env(safe-area-inset-bottom, 0px)))`;
+  // 悬浮按钮浮在胶囊底栏上方（两种模式几何一致：胶囊 58 + 悬浮 10 + 12 间距）
+  const fabBottom = 'calc(80px + var(--itdc-inset-bottom, env(safe-area-inset-bottom, 0px)))';
 
   // 日历的下沿对齐底栏胶囊的上沿：不再用「100dvh − 200px」这类魔法数，
   // 直接量日历盒子顶部到胶囊顶部之间的可用高度（胶囊高 58 + 悬浮 10 + 安全区 + 6 间隙）
@@ -1004,7 +1004,8 @@ const CalendarView: React.FC = () => {
       if (!el) return;
       const insetRaw = getComputedStyle(document.documentElement).getPropertyValue('--itdc-inset-bottom');
       const insetBottom = parseFloat(insetRaw) || 0;
-      const navTopOffset = 58 + (appearance.liquidGlass ? 10 : 0) + insetBottom;
+      // 底栏两种模式都是「悬浮胶囊」，几何一致：58 高 + 10 悬浮 + 安全区
+      const navTopOffset = 58 + 10 + insetBottom;
       const available = window.innerHeight - el.getBoundingClientRect().top - navTopOffset - 6;
       const height = Math.max(320, Math.round(available));
       setCalHeight(height);

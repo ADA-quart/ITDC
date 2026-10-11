@@ -192,7 +192,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const navAlpha = liquid
       ? Math.min(0.8, Math.max(0.45, ui))
       : Math.min(1, Math.max(0.92, ui + 0.12));
-    const blurPx = Math.max(appearance.uiBlur, liquid ? 20 : 0);
+    // 液态玻璃只保证一个"磨砂下限"（8px），其余交给滑条——不然滑到 20 以下完全没反应，
+    // 用户会以为"日历透明度/模糊调不了"；折射与高光才是液态的主体，不靠死磕模糊值。
+    const blurPx = Math.max(appearance.uiBlur, liquid ? 8 : 0);
     // 液态玻璃的"折射"：把 SVG 位移滤镜接进 backdrop-filter（Chromium 支持；
     // 不支持 url() 滤镜时退回纯磨砂，不会整块失效）。CSS.supports 探测一次即可。
     const canRefract = liquid
@@ -204,7 +206,26 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ? `blur(${blurPx}px)${liquid ? ' saturate(180%) brightness(1.04)' : ''}${refract}`
       : 'none';
     const navBlur = glass
-      ? `blur(${Math.max(appearance.uiBlur, liquid ? 20 : 8)}px)${liquid ? ' saturate(180%) brightness(1.04)' : ''}${refract}`
+      ? `blur(${Math.max(appearance.uiBlur, 8)}px)${liquid ? ' saturate(180%) brightness(1.04)' : ''}${refract}`
+      : 'none';
+    // 交互降级：折射滤镜每帧都要重算 turbulence，拖动 / 滚动时很贵（会掉帧甚至闪一下）。
+    // 交互期间换成"纯磨砂 + 去掉高光层"，手离开 180ms 后恢复完整玻璃。
+    const liteCardBlur = glass && blurPx > 0
+      ? `blur(${Math.min(blurPx, 12)}px)${liquid ? ' saturate(170%)' : ''}`
+      : 'none';
+    const liteNavBlur = glass
+      ? `blur(${Math.min(Math.max(appearance.uiBlur, 8), 12)}px)${liquid ? ' saturate(170%)' : ''}`
+      : 'none';
+    const cardSheen = liquid
+      ? `radial-gradient(140% 110% at var(--itdc-spec-x, 26%) var(--itdc-spec-y, 0%), `
+        + `rgba(255,255,255,${isDark ? 0.22 : 0.55}) 0%, `
+        + `rgba(255,255,255,${isDark ? 0.06 : 0.16}) 34%, `
+        + 'rgba(255,255,255,0) 68%)'
+      : 'none';
+    const navSheen = liquid
+      ? `radial-gradient(160% 120% at var(--itdc-spec-x, 50%) var(--itdc-spec-y, 0%), `
+        + `rgba(255,255,255,${isDark ? 0.18 : 0.5}) 0%, `
+        + 'rgba(255,255,255,0) 60%)'
       : 'none';
     document.body.classList.toggle('itdc-has-bg-image', glass);
     document.body.classList.toggle('itdc-liquid-glass', liquid);
@@ -216,23 +237,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         : (isDark ? 'none' : '0 1px 2px rgba(0,0,0,0.03), 0 2px 8px rgba(0,0,0,0.05)'),
     );
     // 镜面高光层：位置由 --itdc-spec-x/y 决定，倾斜手机或移动指针时光会扫过表面
-    root.style.setProperty(
-      '--itdc-card-sheen',
-      liquid
-        ? `radial-gradient(140% 110% at var(--itdc-spec-x, 26%) var(--itdc-spec-y, 0%), `
-          + `rgba(255,255,255,${isDark ? 0.22 : 0.55}) 0%, `
-          + `rgba(255,255,255,${isDark ? 0.06 : 0.16}) 34%, `
-          + 'rgba(255,255,255,0) 68%)'
-        : 'none',
-    );
-    root.style.setProperty(
-      '--itdc-nav-sheen',
-      liquid
-        ? `radial-gradient(160% 120% at var(--itdc-spec-x, 50%) var(--itdc-spec-y, 0%), `
-          + `rgba(255,255,255,${isDark ? 0.18 : 0.5}) 0%, `
-          + 'rgba(255,255,255,0) 60%)'
-        : 'none',
-    );
+    root.style.setProperty('--itdc-card-sheen', cardSheen);
+    root.style.setProperty('--itdc-nav-sheen', navSheen);
     root.style.setProperty(
       '--itdc-card-bg',
       glass
@@ -274,6 +280,40 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       '--itdc-fg-secondary',
       imageDominant ? (isDark ? '#d9d9d9' : '#333333') : (isDark ? '#a6a6a6' : '#666666')
     );
+    // 拖动 / 滚动期间降档（去掉折射与高光），手离开 180ms 后恢复完整玻璃——
+    // 这是修"拖动事件 / 拖动页面时屏幕闪烁"的关键：重滤镜不再逐帧重算
+    let releaseTimer = 0;
+    const engageLite = () => {
+      if (!liquid) return;
+      root.style.setProperty('--itdc-card-blur', liteCardBlur);
+      root.style.setProperty('--itdc-nav-blur', liteNavBlur);
+      root.style.setProperty('--itdc-card-sheen', 'none');
+      root.style.setProperty('--itdc-nav-sheen', 'none');
+    };
+    const releaseFull = () => {
+      if (!liquid) return;
+      root.style.setProperty('--itdc-card-blur', blur);
+      root.style.setProperty('--itdc-nav-blur', navBlur);
+      root.style.setProperty('--itdc-card-sheen', cardSheen);
+      root.style.setProperty('--itdc-nav-sheen', navSheen);
+    };
+    const scheduleRelease = () => {
+      window.clearTimeout(releaseTimer);
+      releaseTimer = window.setTimeout(releaseFull, 180);
+    };
+    window.addEventListener('pointerdown', engageLite, true);
+    window.addEventListener('pointerup', scheduleRelease, true);
+    window.addEventListener('pointercancel', scheduleRelease, true);
+    window.addEventListener('scroll', engageLite, true);
+    window.addEventListener('scroll', scheduleRelease, true);
+    return () => {
+      window.clearTimeout(releaseTimer);
+      window.removeEventListener('pointerdown', engageLite, true);
+      window.removeEventListener('pointerup', scheduleRelease, true);
+      window.removeEventListener('pointercancel', scheduleRelease, true);
+      window.removeEventListener('scroll', engageLite, true);
+      window.removeEventListener('scroll', scheduleRelease, true);
+    };
   }, [appearance.bgImage, appearance.uiOpacity, appearance.uiBlur, appearance.liquidGlass, isDark]);
 
   // 镜面高光跟随设备运动：苹果的 Liquid Glass 高光会响应设备姿态与触摸。

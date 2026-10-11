@@ -20,19 +20,20 @@ const GlassFilters: React.FC = () => (
     style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}
   >
     <defs>
-      {/* 滤镜区域比元素大一圈：位移会把边缘像素"拉"进来，留足余量才不会出现透明缺口 */}
+      {/* 滤镜区域比元素大一圈：位移会把边缘像素"拉"进来，留足余量才不会出现透明缺口。
+          区域和 octaves 都压到刚好够用——这是每帧都要重算的滤镜，越省越不闪。 */}
       <filter
         id={GLASS_FILTER_ID}
-        x="-15%"
-        y="-15%"
-        width="130%"
-        height="130%"
+        x="-8%"
+        y="-8%"
+        width="116%"
+        height="116%"
         colorInterpolationFilters="sRGB"
       >
         <feTurbulence
           type="fractalNoise"
           baseFrequency="0.009 0.013"
-          numOctaves="2"
+          numOctaves="1"
           seed="7"
           result="noise"
         />
