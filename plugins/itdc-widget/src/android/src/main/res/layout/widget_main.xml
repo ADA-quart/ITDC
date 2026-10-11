@@ -6,6 +6,18 @@
     android:background="@drawable/widget_bg_tint"
     android:clipToOutline="true">
 
+    <!--
+      原生模糊通道（试验）：部分桌面（如三星 One UI）会把 @android:id/background
+      当作「窗口背景层」——自动截取小组件背后的壁纸、模糊，再垫在这一层下面。
+      面板色由 ITDCWidgetProvider 在这一层上 tint；不支持的桌面会忽略这个 id，
+      观感与之前完全一致（只是圆角矩形底色换了承载的视图）。
+    -->
+    <View
+        android:id="@android:id/background"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/widget_bg_tint" />
+
     <!-- 用户自定义背景层：位图由 ITDCWidgetProvider 在渲染时下发（圆角 + 底色/照片 + 透明度） -->
     <ImageView
         android:id="@+id/widget_bg_image"

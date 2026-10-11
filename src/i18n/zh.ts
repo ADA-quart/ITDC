@@ -465,6 +465,8 @@ const zh = {
     widgetUseBgImageFirst: '先上传一张背景图，再开启这个开关',
     widgetOwnImage: '小组件专属背景图',
     widgetOwnImageHint: '传一张只给桌面小组件用的图，设置后优先于上面的开关；删掉即恢复跟随上面的开关。',
+    widgetImageBlur: '背景模糊',
+    widgetImageBlurHint: '先把下发的背景图模糊好（真模糊，所有桌面通用）；仅在使用背景图时生效——露桌面壁纸时系统不允许小组件模糊。',
     widgetApplyNow: '立即应用到小组件',
     widgetApplied: '已应用到桌面小组件',
     widgetApplyFailed: '同步失败，请确认小组件已添加到桌面',

@@ -15,6 +15,10 @@ import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.graphics.RenderEffect;
+import android.graphics.RenderNode;
+import android.graphics.Shader;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Base64;
@@ -50,6 +54,7 @@ final class WidgetAppearance {
     private static final String KEY_FOCUS_X = "ap_focus_x";
     private static final String KEY_FOCUS_Y = "ap_focus_y";
     private static final String KEY_ZOOM = "ap_zoom";
+    private static final String KEY_IMAGE_BLUR = "ap_image_blur";
     private static final String KEY_CROP_FILE = "ap_crop_file";
     private static final String KEY_CROP_SIG = "ap_crop_sig";
     /** 外壳渲染时定下的明暗，列表项晚些渲染也要用同一套，避免拼出混合态 */
@@ -110,7 +115,7 @@ final class WidgetAppearance {
     /** App 下发外观：colors 立即生效；image 只在换图时传，缺省表示沿用已存的文件 */
     static void apply(Context context, String accent, String panelColor, int panelOpacity,
                       String scheme, boolean hasImage, boolean glass, int focusX, int focusY, float zoom,
-                      String imageDataUrl) throws Exception {
+                      int imageBlur, String imageDataUrl) throws Exception {
         SharedPreferences.Editor editor = prefs(context).edit();
         if (!TextUtils.isEmpty(accent)) {
             editor.putInt(KEY_ACCENT, parseColor(accent, DEFAULT_ACCENT));
@@ -123,6 +128,7 @@ final class WidgetAppearance {
         editor.putInt(KEY_FOCUS_X, Math.max(0, Math.min(100, focusX)));
         editor.putInt(KEY_FOCUS_Y, Math.max(0, Math.min(100, focusY)));
         editor.putFloat(KEY_ZOOM, clampZoom(zoom));
+        editor.putInt(KEY_IMAGE_BLUR, Math.max(0, Math.min(20, imageBlur)));
         editor.apply();
 
         if (!TextUtils.isEmpty(imageDataUrl)) {
@@ -200,7 +206,8 @@ final class WidgetAppearance {
         return image.length() + "@" + image.lastModified()
                 + "#" + prefs(context).getInt(KEY_FOCUS_X, 50)
                 + "#" + prefs(context).getInt(KEY_FOCUS_Y, 50)
-                + "#" + prefs(context).getFloat(KEY_ZOOM, 1f);
+                + "#" + prefs(context).getFloat(KEY_ZOOM, 1f)
+                + "#" + prefs(context).getInt(KEY_IMAGE_BLUR, 0);
     }
 
     /**
@@ -240,6 +247,14 @@ final class WidgetAppearance {
                 Bitmap scaled = Bitmap.createScaledBitmap(cropped, CROP_MAX_SIDE, CROP_MAX_SIDE, true);
                 if (scaled != cropped) cropped.recycle();
                 cropped = scaled;
+            }
+            // 背景预模糊（用户滑条）：RemoteViews 拿不到"小组件背后的壁纸"，
+            // 但自家背景图的像素在手里——先在 App 端模糊好再下发，全桌面通用。
+            float blurRadius = imageBlurRadius(context, cropped.getWidth());
+            if (blurRadius > 0f) {
+                Bitmap blurred = blurBitmap(cropped, blurRadius);
+                if (blurred != cropped) cropped.recycle();
+                cropped = blurred;
             }
             File dir = cropDir(context);
             if (!dir.exists() && !dir.mkdirs()) return false;
@@ -446,7 +461,13 @@ final class WidgetAppearance {
             if (delivery < side) {
                 Bitmap scaled = Bitmap.createScaledBitmap(square, delivery, delivery, true);
                 if (scaled != square) square.recycle();
-                return scaled;
+                square = scaled;
+            }
+            float blurRadius = imageBlurRadius(context, square.getWidth());
+            if (blurRadius > 0f) {
+                Bitmap blurred = blurBitmap(square, blurRadius);
+                if (blurred != square) square.recycle();
+                square = blurred;
             }
             return square;
         } catch (Exception e) {
@@ -518,6 +539,42 @@ final class WidgetAppearance {
             height = nextHeight;
         }
         return current;
+    }
+
+    /** 滑条 0-20 → 以 1280px 的裁切图为基准，最大 40px 半径；小图按比例缩 */
+    private static float imageBlurRadius(Context context, int bitmapWidth) {
+        int blur = Math.max(0, Math.min(20, prefs(context).getInt(KEY_IMAGE_BLUR, 0)));
+        if (blur <= 0) return 0f;
+        return blur * 2f * Math.max(0.2f, bitmapWidth / (float) CROP_MAX_SIDE);
+    }
+
+    /**
+     * 背景预模糊：API 31+ 用 RenderEffect 走真高斯（RenderNode 离屏渲染）；
+     * 更老的系统退回「连续降采样再放大」的廉价近似。返回的位图由调用方回收。
+     */
+    private static Bitmap blurBitmap(Bitmap src, float radius) {
+        if (radius < 0.5f) return src;
+        if (Build.VERSION.SDK_INT >= 31) {
+            try {
+                RenderNode node = new RenderNode("itdc-widget-blur");
+                node.setRenderEffect(RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP));
+                Canvas canvas = node.beginRecording(src.getWidth(), src.getHeight());
+                canvas.drawBitmap(src, 0, 0, null);
+                node.endRecording();
+                Bitmap out = Bitmap.createBitmap(src.getWidth(), src.getHeight(), Bitmap.Config.ARGB_8888);
+                Canvas outCanvas = new Canvas(out);
+                outCanvas.drawRenderNode(node);
+                outCanvas.setBitmap(null);
+                return out;
+            } catch (Throwable t) {
+                Log.w(TAG, "RenderEffect blur failed, fallback to downscale", t);
+            }
+        }
+        Bitmap small = blurDownscale(src);
+        if (small == src) return src;
+        Bitmap out = Bitmap.createScaledBitmap(small, src.getWidth(), src.getHeight(), true);
+        if (small != src) small.recycle();
+        return out;
     }
 
     private static int withAlpha(int color, int alpha) {

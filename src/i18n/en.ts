@@ -459,6 +459,8 @@ const en: LocaleMessages = {
     widgetUseBgImageFirst: 'Upload a background image first',
     widgetOwnImage: 'Widget background image',
     widgetOwnImageHint: 'Upload an image used only by the widget — it takes priority over the switch above; remove it to follow that switch again.',
+    widgetImageBlur: 'Background blur',
+    widgetImageBlurHint: 'Pre-blurs the image pushed to the widget (real blur, works on any launcher); only applies while a background image is used.',
     widgetApplyNow: 'Apply to widget now',
     widgetApplied: 'Applied to the home screen widget',
     widgetApplyFailed: 'Sync failed — make sure the widget is on your home screen',

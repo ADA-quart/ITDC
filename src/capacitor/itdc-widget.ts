@@ -24,6 +24,8 @@ export interface ItdcWidgetPluginInterface {
     focusX: number;
     focusY: number;
     zoom: number;
+    /** 背景图预模糊半径（0-20，App 端先把图模糊好再下发；仅在使用背景图时有效） */
+    blur?: number;
     image?: string;
   }): Promise<void>;
   /** 查询是否已排除电池优化（澎湃 OS / MIUI 会冻结后台导致小组件不刷新） */

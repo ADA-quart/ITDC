@@ -108,6 +108,7 @@ public class ITDCWidgetPlugin extends Plugin {
                     call.getInt("focusX", 50),
                     call.getInt("focusY", 50),
                     call.getFloat("zoom", 1f),
+                    call.getInt("blur", 0),
                     image);
         } catch (Exception e) {
             call.reject("apply appearance failed: " + e.getMessage());

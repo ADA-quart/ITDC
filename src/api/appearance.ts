@@ -55,6 +55,8 @@ export interface AppearanceSettings {
   widgetUseBgImage: boolean;
   /** 小组件专属背景图（data URL）：设置后优先于 widgetUseBgImage（应用背景图） */
   widgetBgImage: string | null;
+  /** 小组件背景图的预模糊半径 0-20（App 端先模糊再下发，全桌面通用） */
+  widgetImageBlur: number;
 }
 
 /** 预设主题色：与小组件默认色一致，避免两处各写一份 */
@@ -107,6 +109,7 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
   widgetScheme: 'auto',
   widgetUseBgImage: false,
   widgetBgImage: null,
+  widgetImageBlur: 0,
 };
 
 const LS_KEY = 'itdc_appearance';
@@ -164,6 +167,7 @@ export function sanitizeAppearance(raw: unknown): AppearanceSettings {
     widgetBgImage: typeof o.widgetBgImage === 'string' && o.widgetBgImage.startsWith('data:image/')
       ? o.widgetBgImage
       : null,
+    widgetImageBlur: clamp(o.widgetImageBlur, 0, 20, 0),
   };
 }
 
@@ -314,6 +318,7 @@ export async function pushWidgetAppearance(settings: AppearanceSettings): Promis
     focusX: settings.bgFocusX,
     focusY: settings.bgFocusY,
     zoom: settings.bgZoom,
+    blur: settings.widgetImageBlur,
     ...(image ? { image } : {}),
   });
 

@@ -533,6 +533,14 @@ const AppearanceSettings: React.FC = () => {
           {widgetImage && (
             <div>
               <div style={{ fontSize: 13, marginBottom: 4 }}>{t.settings.widgetCropPreview}</div>
+              <SliderLabel label={t.settings.widgetImageBlur} value={`${appearance.widgetImageBlur}`} dim={secondaryTextColor(isDark)} />
+              <Slider
+                min={0}
+                max={20}
+                value={appearance.widgetImageBlur}
+                onChange={(value) => updateAppearance({ widgetImageBlur: value })}
+              />
+              <div style={{ ...hintStyle, marginTop: 2 }}>{t.settings.widgetImageBlurHint}</div>
               <div style={{ display: 'flex', gap: 10 }}>
                 {[{ label: '4×2', ratio: '2 / 1' }, { label: '4×4', ratio: '1 / 1' }].map((preset) => (
                   <div key={preset.label} style={{ flex: 1, minWidth: 0 }}>
@@ -543,6 +551,10 @@ const AppearanceSettings: React.FC = () => {
                         borderRadius: 10,
                         overflow: 'hidden',
                         border: `1px solid ${isDark ? '#303030' : '#e8e8e8'}`,
+                        // 预览按小图比例近似真机上的预模糊半径（真机是 1280px 裁切图）
+                        filter: appearance.widgetImageBlur > 0
+                          ? `blur(${(appearance.widgetImageBlur * 0.35).toFixed(1)}px)`
+                          : undefined,
                       }}
                     >
                       <PreviewBackdrop
