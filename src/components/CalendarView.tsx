@@ -1050,6 +1050,20 @@ const CalendarView: React.FC = () => {
       const BASE_HEADER = isShort ? 26 : 40;
       const leftover = Math.max(0, (height - BASE_HEADER) % HOURS);
       setCalHeaderH(BASE_HEADER + (timetableModeRef.current ? 0 : leftover));
+      // 日视图行高：FC 的空格子靠 :empty:before 的 &nbsp; 撑着（行盒 ≈16.5px），
+      // 矮屏上 34 行（07:00–24:00）塞不进可用高度时会出现内部滚动条、装不满到底。
+      // 等 FC 按新高度渲染完，按"真实内容高度 ÷ 34"显式写行高（--itdc-slot-h），
+      // 再让 FC 重新测量一次事件层（它内部用 px 定位，行高变了必须重排）。
+      if (!timetableModeRef.current) {
+        window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+          const scroller = el.querySelector('.fc-timegrid-body')?.closest('.fc-scroller') as HTMLElement | null;
+          const clientH = scroller?.clientHeight ?? 0;
+          if (clientH > 0) {
+            el.style.setProperty('--itdc-slot-h', `${clientH / 34}px`);
+            calendarRef.current?.getApi().updateSize();
+          }
+        }));
+      }
     };
     compute();
     // 字体/首帧布局稳定后再量一次（首次渲染的字体度量可能还没生效）
@@ -1331,7 +1345,11 @@ const CalendarView: React.FC = () => {
             </div>
           )}
           {/* 周视图用课表格子时，FullCalendar 只隐藏不卸载：切回日视图时它的实例还在 */}
-          <div ref={calBoxRef} style={{ display: timetableMode ? 'none' : undefined }}>
+          <div
+            ref={calBoxRef}
+            className={isMobile ? 'itdc-slot-fill' : undefined}
+            style={{ display: timetableMode ? 'none' : undefined }}
+          >
           <FullCalendar
             ref={calendarRef}
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, rrulePlugin]}

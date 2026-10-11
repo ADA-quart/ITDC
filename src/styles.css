@@ -152,6 +152,23 @@ body.itdc-native [contenteditable='true'] {
 
 .fc .fc-timegrid-slot {
   border-top-color: var(--itdc-border, #ececec);
+  /* 空格子靠 :empty:before 的 &nbsp; 撑行盒（≈16.5px），压到 12px 才允许行高被压小 */
+  line-height: 12px;
+}
+
+/*
+ * 日视图行高：触屏下由 App 实测「真实内容高度 ÷ 34」写进 --itdc-slot-h
+ * （见 CalendarView 的高度计算），保证 34 行均匀分配、正好铺到 24:00，
+ * 不再出现内部滚动条或"最后一格到不了 24:00"。桌面不设这个变量，走 FC 默认 1.5em。
+ */
+.itdc-slot-fill .fc .fc-timegrid-slot {
+  height: var(--itdc-slot-h, 1.5em);
+}
+
+/* 刻度标签的行盒同样压小（标签文字仍是 11px） */
+.fc .fc-timegrid-slot-label-cushion {
+  line-height: 12px;
+  font-size: 11px;
 }
 
 /*
