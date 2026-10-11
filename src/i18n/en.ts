@@ -442,7 +442,7 @@ const en: LocaleMessages = {
     imageZoom: 'Image zoom',
     imageZoomHint: '1× fills the frame; zoom in to crop, zoom out to shrink the whole image (blurred copy fills the edges). App and widget share the same image',
     widgetCropPreview: 'Widget crop preview',
-    widgetCropHint: 'Previewed for 4×2 and 4×4; the real result depends on the size on your home screen',
+    widgetCropHint: 'Previewed for 4×2 and 4×4 — drag the image to move it (shared with the app background); the real result depends on the size on your home screen',
     uiOpacity: 'Panel opacity (calendar / cards)',
     uiBlur: 'Panel blur',
     uiOpacityHint: 'Applies to the calendar, cards, quadrant panels and bottom nav: 0 = fully see-through, 100 = solid. Set blur to 0 for pure transparency without frosted glass',

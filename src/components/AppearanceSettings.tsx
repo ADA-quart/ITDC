@@ -81,6 +81,8 @@ const AppearanceSettings: React.FC = () => {
   const [processingWidget, setProcessingWidget] = useState(false);
   const [applying, setApplying] = useState(false);
   const dragRef = useRef<{ x: number; y: number; fx: number; fy: number } | null>(null);
+  /** 小组件裁切预览的拖动（焦点与 App 背景共用一个值——都是同一张图） */
+  const widgetDragRef = useRef<{ x: number; y: number; fx: number; fy: number } | null>(null);
   // 预览框必须和真实屏幕同比例：横着的预览框里看到的是另一块区域，
   // 用户没法判断图片实际会被裁成什么样（之前只能靠猜）
   const [viewAspect, setViewAspect] = useState(() =>
@@ -545,6 +547,28 @@ const AppearanceSettings: React.FC = () => {
                 {[{ label: '4×2', ratio: '2 / 1' }, { label: '4×4', ratio: '1 / 1' }].map((preset) => (
                   <div key={preset.label} style={{ flex: 1, minWidth: 0 }}>
                     <div
+                      onPointerDown={(e) => {
+                        widgetDragRef.current = {
+                          x: e.clientX,
+                          y: e.clientY,
+                          fx: appearance.bgFocusX,
+                          fy: appearance.bgFocusY,
+                        };
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                      }}
+                      onPointerMove={(e) => {
+                        const drag = widgetDragRef.current;
+                        if (!drag) return;
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const dx = ((e.clientX - drag.x) / Math.max(1, rect.width)) * 100;
+                        const dy = ((e.clientY - drag.y) / Math.max(1, rect.height)) * 100;
+                        updateAppearance({
+                          bgFocusX: clampFocus(drag.fx - dx),
+                          bgFocusY: clampFocus(drag.fy - dy),
+                        });
+                      }}
+                      onPointerUp={() => { widgetDragRef.current = null; }}
+                      onPointerCancel={() => { widgetDragRef.current = null; }}
                       style={{
                         position: 'relative',
                         aspectRatio: preset.ratio,
@@ -555,6 +579,8 @@ const AppearanceSettings: React.FC = () => {
                         filter: appearance.widgetImageBlur > 0
                           ? `blur(${(appearance.widgetImageBlur * 0.35).toFixed(1)}px)`
                           : undefined,
+                        cursor: 'grab',
+                        touchAction: 'none',
                       }}
                     >
                       <PreviewBackdrop
@@ -576,6 +602,26 @@ const AppearanceSettings: React.FC = () => {
                           transformOrigin: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
                         }}
                       />
+                      {/* 顶部两行内容的示意（标题 + 今天/明天表头）：拖动图片时避开文字 */}
+                      <div
+                        aria-hidden
+                        style={{
+                          position: 'absolute',
+                          left: 8,
+                          right: 8,
+                          top: 8,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 6,
+                          pointerEvents: 'none',
+                        }}
+                      >
+                        <div style={{ width: '52%', height: 6, borderRadius: 3, background: 'rgba(255,255,255,.55)' }} />
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <div style={{ flex: 1, height: 5, borderRadius: 2.5, background: 'rgba(255,255,255,.38)' }} />
+                          <div style={{ flex: 1, height: 5, borderRadius: 2.5, background: 'rgba(255,255,255,.38)' }} />
+                        </div>
+                      </div>
                     </div>
                     <div style={{ fontSize: 11, textAlign: 'center', color: secondaryTextColor(isDark) }}>
                       {preset.label}
