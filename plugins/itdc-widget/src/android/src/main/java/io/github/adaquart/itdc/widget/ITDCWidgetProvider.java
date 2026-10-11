@@ -378,20 +378,13 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
                 boolean hasImage = WidgetAppearance.hasImage(context);
                 boolean configColors = WidgetAppearance.useConfigColors(context);
                 // 有图时根底色透明，让壁纸从图片透明度里透出来；无图时才是用户的面板色
-                int panelTint = hasImage || configColors
+                int rootTint = hasImage || configColors
                         ? 0x00000000
                         : WidgetAppearance.panelColorWithAlpha(context);
-                // 面板色画在 @android:id/background 这层「原生背景层」上：
-                // 支持该通道的桌面（三星 One UI 等）会在它背后垫一张模糊壁纸 → 真·毛玻璃；
-                // 不支持的桌面只是多一层同色背景，圆角由根布局 clipToOutline 裁剪，观感不变。
-                rv.setColorStateList(
-                        android.R.id.background,
-                        "setBackgroundTintList",
-                        android.content.res.ColorStateList.valueOf(panelTint));
                 rv.setColorStateList(
                         R.id.widget_root,
                         "setBackgroundTintList",
-                        android.content.res.ColorStateList.valueOf(0x00000000));
+                        android.content.res.ColorStateList.valueOf(rootTint));
                 if (hasImage) {
                     // 清掉上一轮可能留下的资源底（跟随系统切到自定义色时会残留）
                     rv.setInt(R.id.widget_bg_image, "setBackgroundResource", android.R.color.transparent);
@@ -431,11 +424,6 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             }
             // 旧系统回退：位图一次性画好圆角 + 底色/照片 + 透明度
             rv.setInt(R.id.widget_root, "setBackgroundColor", Color.TRANSPARENT);
-            // 旧系统没有原生模糊通道，这层保持透明，别把新的白底露出来
-            rv.setColorStateList(
-                    android.R.id.background,
-                    "setBackgroundTintList",
-                    android.content.res.ColorStateList.valueOf(0x00000000));
             android.graphics.Bitmap bitmap = WidgetAppearance.backgroundBitmap(context, appWidgetId);
             if (bitmap != null) {
                 rv.setImageViewBitmap(R.id.widget_bg_image, bitmap);
