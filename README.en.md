@@ -212,12 +212,19 @@ Not supported for now; the focus is Android and the web build.
   share, **non-commercial only**. Required Notice: Copyright 2026 ADA-Quart & TyTs.
 - This is an **unofficial** student project, not affiliated with Chengdu University of Technology.
   Academic-system data belongs to the university — please follow its rules.
+- **About the name.** “日日新” comes from the Book of Rites (苟日新，日日新，又日新). It has **no
+  connection** to SenseTime or to its “日日新” (SenseNova) model family; this project is not
+  affiliated with or endorsed by SenseTime and does not use its models or services.
 - Third-party licenses: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ## Acknowledgements
 
-Thanks to the open-source projects that make this possible: React, Capacitor, Ant Design,
-FullCalendar, onnxruntime-web, PaddleOCR / PP-OCR, sql.js, ical.js and many others (full list in
-[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)).
+- **Special thanks to [kengwang/CDUniTap](https://github.com/kengwang/CDUniTap).** The unified
+  authentication (CAS) login and the academic-system timetable fetching in this project reference the
+  interface and flow design of that project. No code from it is distributed here, and the timetable
+  parser is our own implementation (CDUniTap is GPL-3.0; this project does not include or link it).
+- Thanks as well to the open-source projects that make this possible: React, Capacitor, Ant Design,
+  FullCalendar, onnxruntime-web, PaddleOCR / PP-OCR, sql.js, ical.js and many others (full list in
+  [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)).
 
 <p align="center"><sub>苟日新，日日新，又日新。</sub></p>

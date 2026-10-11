@@ -172,10 +172,12 @@ cd android
 
 - 代码以 [PolyForm Noncommercial License 1.0.0](LICENSE) 发布：**可以自由使用、修改、分发，但不可用于商业用途**。Required Notice: Copyright 2026 ADA-Quart & TyTs
 - 本项目是**非官方**学生作品，与成都理工大学无任何隶属关系；教务系统数据版权归学校所有，请遵守学校的使用规定
+- **名称说明**：「日日新」取自《礼记·大学》「苟日新，日日新，又日新」，与商汤科技及其「日日新」（SenseNova）大模型**没有任何关系**；本项目不代表、不隶属于商汤科技，也未使用其模型或服务
 - 第三方开源依赖的许可清单见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)
 
 ## 致谢
 
-感谢所有开源项目的作者：React、Capacitor、Ant Design、FullCalendar、onnxruntime-web、PaddleOCR / PP-OCR、sql.js、ical.js 等（完整清单见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)）。
+- **特别感谢 [kengwang/CDUniTap](https://github.com/kengwang/CDUniTap)**：本项目「统一认证（CAS）登录 + 教务课表抓取」的接口与流程设计参考了这个项目——仅作设计参考，未分发其代码，课表解析为本项目自有实现
+- 也感谢所有开源项目的作者：React、Capacitor、Ant Design、FullCalendar、onnxruntime-web、PaddleOCR / PP-OCR、sql.js、ical.js 等（完整清单见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)）
 
 <p align="center"><sub>苟日新，日日新，又日新。</sub></p>
