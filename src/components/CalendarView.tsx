@@ -1104,9 +1104,14 @@ const CalendarView: React.FC = () => {
         <div style={{ flex: 1, overflow: 'auto' }}>
           {calendars.map(c => (
               <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: TOUCH_TARGET, padding: '8px 10px', borderRadius: 10, marginBottom: 6, background: appearance.bgImage ? (hiddenCalendars.has(c.id) ? 'var(--itdc-cell-bg, rgba(127,127,127,.12))' : withAlpha(appearance.accent, isDark ? 0.24 : 0.16)) : (hiddenCalendars.has(c.id) ? (isDark ? '#303030' : '#f5f5f5') : (isDark ? '#1a1a2e' : '#e6f7ff')), backdropFilter: appearance.bgImage ? 'blur(10px)' : undefined, opacity: hiddenCalendars.has(c.id) ? 0.5 : 1 }}>
-              <Checkbox checked={!hiddenCalendars.has(c.id)} onChange={() => toggleCalendar(c.id)} style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
-                <span style={{ flex: 1, minWidth: 0, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+              <Checkbox className="itdc-cal-pick" checked={!hiddenCalendars.has(c.id)} onChange={() => toggleCalendar(c.id)} style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {/* antd 会把 children 再包一层 ant-checkbox-label（块级），圆点和课名必须自己
+                    组成一行 flex：不然长名字（如「教务课表 2026-2027-1」）会先被挤到第二行、
+                    再横向溢出，看着像坏了 */}
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                </span>
               </Checkbox>
               {calendars.length <= 1 ? null : (
                 <Popconfirm title={t.calendar.deleteCalendar} onConfirm={() => handleDeleteCalendar(c.id)} okText={t.calendar.delete} cancelText={t.calendar.cancel}>

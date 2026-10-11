@@ -191,6 +191,18 @@ body.itdc-has-bg-image .ant-segmented .ant-segmented-item-selected {
   box-shadow: none;
 }
 
+/*
+ * 日历列表的勾选行：antd 生成的 .ant-checkbox-label 默认 min-width:auto，
+ * 长课名（如「教务课表 2026-2027-1」）会把内容层撑得比容器还宽、
+ * 压到右侧删除按钮上。允许收缩 + 用 flex 对齐，超长由内层省略号截断。
+ */
+.itdc-cal-pick .ant-checkbox-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
 .itdc-tap {
   transition: filter 0.12s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
