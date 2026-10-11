@@ -198,3 +198,30 @@ body.itdc-native [contenteditable='true'] {
     overflow: hidden;
   }
 }
+
+/*
+ * 表格四角圆角：antd Table 默认只圆"上两角"（borderRadiusLG，20px），底部是直角——
+ * 「LLM 服务配置」下面的模型列表整张表看着像"圆角只做了一半"。
+ * 统一成四角同心圆角（卡片档 --itdc-r-lg），表头 / 末行的角一起圆，
+ * 末行悬停底色不会从方角里溢出来。用 :root 提升优先级，避免被 antd 运行时样式盖掉。
+ */
+:root .ant-table-wrapper .ant-table,
+:root .ant-table-wrapper .ant-table .ant-table-container {
+  border-radius: var(--itdc-r-lg, 16px);
+}
+
+:root .ant-table-wrapper .ant-table .ant-table-thead > tr:first-child > th:first-child {
+  border-start-start-radius: var(--itdc-r-lg, 16px);
+}
+
+:root .ant-table-wrapper .ant-table .ant-table-thead > tr:first-child > th:last-child {
+  border-start-end-radius: var(--itdc-r-lg, 16px);
+}
+
+:root .ant-table-wrapper .ant-table .ant-table-tbody > tr:last-child > td:first-child {
+  border-end-start-radius: var(--itdc-r-lg, 16px);
+}
+
+:root .ant-table-wrapper .ant-table .ant-table-tbody > tr:last-child > td:last-child {
+  border-end-end-radius: var(--itdc-r-lg, 16px);
+}

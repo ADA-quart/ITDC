@@ -52,8 +52,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [appearance, setAppearance] = useState<AppearanceSettings>(() => loadAppearance());
   const [appearanceLoaded, setAppearanceLoaded] = useState(false);
-  /** 背景图平均亮度（暗=true）；用于「图片主导视觉时自动切换明暗方案」 */
-  const [bgImageDark, setBgImageDark] = useState<boolean | null>(null);
 
   // 背景图存在 IndexedDB，启动时异步补上；补齐前先用纯色，避免白屏等待
   useEffect(() => {
@@ -82,13 +80,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, []);
 
-  // 背景图主导视觉（uiOpacity 很低、卡片几乎全透）时按图自适应：
-  // 深色照片上白卡变全透后黑字会看不清——此时直接跟随图片明暗切换方案
-  // （深图 → 深玻璃 + 白字；亮图 → 浅玻璃 + 黑字）。透明度较高（卡片仍以浅色为主）时不干预。
-  let isDark = mode === 'dark' || (mode === 'system' && systemDark);
-  if (appearance.bgImage && bgImageDark !== null && appearance.uiOpacity < 50) {
-    isDark = bgImageDark;
-  }
+  // 明暗完全交给用户（浅色 / 深色 / 跟随系统）：不再按背景图亮度自动翻转——
+  // 之前背景图主导视觉（uiOpacity < 50）时会隐式跟随图片明暗，用户选了浅色也会被翻成深色。
+  const isDark = mode === 'dark' || (mode === 'system' && systemDark);
 
   const setMode = useCallback((m: ThemeMode) => {
     setModeState(m);
@@ -139,45 +133,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     document.documentElement.style.setProperty('--itdc-accent', appearance.accent);
   }, [appearance.accent]);
-
-  // 采样背景图平均亮度（32×32 缩略图 + 相对亮度公式）
-  useEffect(() => {
-    const img = appearance.bgImage;
-    if (!img) {
-      setBgImageDark(null);
-      return;
-    }
-    let alive = true;
-    const el = new Image();
-    el.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = 32;
-        canvas.height = 32;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        ctx.drawImage(el, 0, 0, 32, 32);
-        const data = ctx.getImageData(0, 0, 32, 32).data;
-        let sum = 0;
-        for (let i = 0; i < data.length; i += 4) {
-          sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
-        }
-        // 阈值 100：只有明显偏暗的图才切深色方案；
-        // 中亮图（100-160 之间）用黑字更稳——黑白字在"半亮"底上都勉强，
-        // 但亮区更多时黑字的对比度普遍更好。
-        if (alive) setBgImageDark(sum / (data.length / 4) < 100);
-      } catch {
-        if (alive) setBgImageDark(null);
-      }
-    };
-    el.onerror = () => {
-      if (alive) setBgImageDark(null);
-    };
-    el.src = img;
-    return () => {
-      alive = false;
-    };
-  }, [appearance.bgImage]);
 
   // 有自定义背景图时把卡片/课表格子玻璃化：图片透出来，文字仍有底可读
   useEffect(() => {

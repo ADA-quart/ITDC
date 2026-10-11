@@ -354,6 +354,7 @@ const en: LocaleMessages = {
     light: 'Light',
     dark: 'Dark',
     system: 'System',
+    themeHint: 'Light/dark follows this choice everywhere — a background image no longer switches the scheme automatically.',
     liquidGlass: 'Liquid glass',
     liquidGlassHint: 'Stronger blur + saturation + inner highlight for cards and the tab bar. Works without a background image too.',
     courseTextTone: 'Course text color',

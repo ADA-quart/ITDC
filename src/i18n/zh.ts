@@ -353,6 +353,7 @@ const zh = {
     light: '浅色',
     dark: '深色',
     system: '跟随系统',
+    themeHint: '浅色 / 深色完全按这里的选择生效，有背景图时也不再根据图片明暗自动切换。',
     liquidGlass: '液态玻璃',
     liquidGlassHint: '更强的模糊 + 饱和度 + 内高光，卡片与底栏像玻璃。没有背景图时也能开（透出页面底色）。',
     courseTextTone: '课块字色',

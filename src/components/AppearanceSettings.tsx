@@ -207,6 +207,7 @@ const AppearanceSettings: React.FC = () => {
             { value: 'system', label: t.settings.system },
           ]}
         />
+        <p style={{ ...hintStyle, marginTop: 8 }}>{t.settings.themeHint}</p>
       </div>
 
       {/* ---------- 液态玻璃 ---------- */}
