@@ -1,228 +1,161 @@
 <div align="center">
 
-<img src="public/icons/icon-512.png" width="108" alt="日日新 应用图标：日历与对勾">
+# 日日新 · ITDC
 
-<h1>智能待办课表 —— 日日新</h1>
+**本地优先的日历 + 待办 + 智能排程应用**
 
-<p><b>Day Day New</b> · 本地优先的「智能待办 + 课表」应用<br>
-待办按艾森豪威尔四象限管理，交给算法或大模型自动排进课表空档；<br>
-教务课表一键导入，提醒、桌面小组件与离线 OCR 图片转待办都在本机完成</p>
+Web / PWA / Android 同一套代码，断网可用，服务器只是可选的同步端。
 
-<p><i>苟日新，日日新，又日新。</i> —— 《礼记·大学》</p>
-
-<p>
-  <a href="https://github.com/ADA-quart/ITDC/releases/latest"><b>下载 Android APK</b></a> ·
-  <a href="README.en.md">English</a> ·
-  <a href="docs/ARCHITECTURE.md">架构说明</a> ·
-  <a href="CHANGELOG.md">更新日志</a>
-</p>
-
-<p>
-  <a href="https://github.com/ADA-quart/ITDC/actions/workflows/ci.yml"><img alt="CI 状态" src="https://img.shields.io/github/actions/workflow/status/ADA-quart/ITDC/ci.yml?branch=main&label=CI"></a>
-  <a href="https://github.com/ADA-quart/ITDC/releases/latest"><img alt="最新版本" src="https://img.shields.io/github/v/release/ADA-quart/ITDC?label=release&color=blue"></a>
-  <img alt="平台：Web / Android / PWA" src="https://img.shields.io/badge/platform-Web%20%7C%20Android%20%7C%20PWA-blue">
-  <a href="LICENSE"><img alt="许可证：PolyForm Noncommercial 1.0.0" src="https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-orange"></a>
-</p>
-
-<p><sub>名字取自《礼记·大学》。本项目是个人开发的课表与待办工具，<b>与商汤科技及其「日日新」（SenseNova）大模型没有任何关系</b>。</sub></p>
+[English](README.en.md) · [架构说明](docs/ARCHITECTURE.md) · [部署指南](docs/DEPLOYMENT.md) · [API](docs/API.md) · [更新日志](CHANGELOG.md)
 
 </div>
 
 ---
 
-## 这是什么
+## 截图
 
-一个**把待办和课表打通**的工具：别的待办软件不知道你什么时候有课，别的课表软件不知道你还有多少事要做。
+| 日历 | 待办 | 排程 | 回顾 |
+|:---:|:---:|:---:|:---:|
+| ![日历](docs/images/app-calendar.png) | ![待办](docs/images/app-todos.png) | ![排程](docs/images/app-schedule.png) | ![回顾](docs/images/app-review.png) |
 
-- **课表侧**：从教务系统导入真实课表（周一到周日、七节大节 + 夜间时段），周/日视图、课内待办、上课提醒。
-- **待办侧**：四象限管理，写完之后点「智能规划」，算法（或大模型）把待办**自动排进课表空档**，并遵守作息规则——不排早八前、不排午饭晚饭、课间不足 30 分钟不硬塞、22:00 前必须结束（只有「紧急重要」能用 22:00–22:30 的加时窗口）。
-- **两边合起来**：排进课堂的待办会**融合进那节课**显示；临时有事的待办可以拖到别的时段；一节课上到底要做什么，长按课程就能看到。
+## 功能
 
-默认**数据只在本机**，网络只在三种情况下用到：调用大模型、拉取教务课表、以及你自己开启的跨设备同步。
+**日历**
+- 日 / 周 / 月视图，支持 RRULE 重复事件（基于 FullCalendar）
+- 导入 `.ics` 日历文件，多日历合并与重复事件去重
+- 课表视图：一键导入教务系统课程（目前支持成都理工大学），课程自动配色，可设置课前提醒
 
-## 界面
+**待办**
+- 优先级、截止时间、预估耗时、拆分子任务
+- 自然语言新建待办（「明天下午三点交实验报告」），离线时走本地规则解析
+- 截图 / 图片 OCR 识别成待办（PP-OCR 模型在本机运行，按需下载）
 
-| 日历视图 | 待办（四象限） | 智能规划 |
-| :---: | :---: | :---: |
-| ![日历视图](docs/images/app-calendar.png) | ![待办](docs/images/app-todos.png) | ![智能规划](docs/images/app-schedule.png) |
+**智能排程**
+- **算法模式**：纯本地，按优先级与截止时间把待办填进日历空闲时段
+- **LLM 模式**：交给大模型排程，支持 OpenAI、DeepSeek、Ollama、LM Studio 及任意 OpenAI 兼容接口；可走服务器，也可由 App 直连服务商
 
-| 回顾（周报 / streak） | 桌面小组件（今天 / 明天 + 待办） |
-| :---: | :---: |
-| ![回顾](docs/images/app-review.png) | ![小组件](docs/images/widget.png) |
+**回顾与导出**
+- 每日 / 每周回顾，完成率等统计
+- 导出 Excel 日程表
 
-## 核心能力
+**Android**
+- 桌面小组件：可滚动查看今日课程与待办，点按直接完成
+- 本地通知提醒；API Key 用 Android Keystore 加密保存
+- 小组件与 App 外观可自定义（背景图、透明度、液态玻璃效果）
 
-### 待办：四象限 + 自动排程
+**其他**
+- 中英双语界面，浅色 / 深色 / 跟随系统
+- 手机、平板（横屏三栏）、桌面三档自适应布局
 
-- **四象限看板**：紧急重要 / 重要不紧急 / 紧急不重要 / 普通，每格显示剩余数量，点进去看具体有哪些；点一下看详情、长按删除。
-- **两种排程引擎**：配了大模型就走「AI 拆解 + 排程」（返回结果会被客户端算法逐条校验），没配或没网时自动降级为**本地规则算法**——纯算法也能把待办排进空档。
-- **作息规则四处同口径**（客户端算法 / 服务端算法 / 提示词 / 结果校验共用 `shared/schedule-policy.ts`）：
+## 设计思路
 
-| 规则 | 值 |
-| --- | --- |
-| 最早开始 | 08:00（更早属于打扰） |
-| 最晚开始 | 21:00；**「紧急重要」可放宽到 22:30** |
-| 最晚结束 | 22:00；**「紧急重要」可到 22:30** |
-| 课间下限 | 30 分钟（5 分钟、25 分钟的课间不硬塞） |
-| 与下一日程缓冲 | 5 分钟 |
-| 保护时段 | 午餐 11:50–13:00、晚餐 18:00–19:00 |
-| 单段上限 | 90 分钟，超出自动拆分并插入休息 |
+```
+客户端（浏览器 / PWA / Android）
+   React 界面 → src/api/client.ts → IndexedDB（权威数据）
+        │ 启用同步时                     │ 始终
+        ▼                                ▼
+Express + SQLite（镜像）            桌面小组件（读快照）
+```
 
-- **课内可做**：待办可以标记「可以在上课时做」，排程会把它放进课堂时间并融合到课程块上。
-- **拆分明细**：一个 3 小时的待办会拆成多段排，每段都能单独勾掉。
-- **两类提醒各管各的**：上课提醒按导入课表在**课前 N 分钟**推送（课程名 + 时间 + 教室 + 教师，可设静默）；待办提醒在**已排程开始时间 / 截止时间**前推送，提前量用数字框自由填（0 = 到点提醒）。两者是独立通道，互不影响。
+- 所有写操作先落本机 IndexedDB 并立即返回，服务器不可达不影响使用。
+- 服务器只是镜像：多设备之间按 `sync_uid` + `updated_at` 合并，删除用墓碑记录同步。
+- 后端数据库用 sql.js（SQLite 的 WASM 版），无需原生编译，Windows / Docker / 云平台装完即跑。
 
-### 课表：教务导入 + 周视图
-
-- **一键导入**：在设置里选「成都理工大学」，填学号密码，走统一认证抓取本学期课表（不需要手动整理 Excel）。
-- **每天首次打开自动同步**：开学初课表有变动时不用手动重导；也可以随时点「更新教务课表」。
-- **周视图就是课表格子**：七节大节按**真实时长**分配行高（95/60/40 分钟不再等高），外加一节 21:35–22:30 的「夜」行——在图书馆待到十点半也能排。
-- **课程块**：显示课名 + 教室 + 时间；同一节课出现在多行时连起来看；点开看详情，长按可拖动改时间或删除。
-- **补课与调课**：课表之外的安排落在「课外」兜底行，不会和上一节课挤在同一格。
-
-### 图片转待办（多模态 + 离线 OCR）
-
-待办页的「图片」按钮支持把截图直接变成待办，走一条逐级降级的链路：
-
-1. **多模态直发**：把图交给支持视觉的大模型提取待办（一次可出多条，自动跳过已截止的）。
-2. **本机 OCR**：模型不支持图片或没网时，用**PP-OCRv4**（PaddleOCR / RapidOCR 的 ONNX 版，跑在 onnxruntime-web 上）在本机读字，再走文本解析——**全程离线，不需要 Google 服务**。
-3. **存原文**：解析也失败时，把识别到的文字原样存成一条待办，等有网再整理。
-
-OCR 的模型（检测 4.7MB + 识别 10.9MB）不随包分发，在「设置 → 通用设置 → 离线 OCR 扩展」里按需下载，可随时删除。
-
-去掉大模型也能用的纯算法解析覆盖到**聊天记录**：群聊 / 群公告截图按「消息块」聚合（人名、时间戳、公告控件当作分隔符，OCR 拆行的长消息会重新拼回一条），"收到 / 写错了"这类寒暄与提问不建待办；群公告里没有年份的日期以**公告发布日**为锚（09/26 发的"10月8日"就是同年 10-08），已截止的按规则跳过，而不是算到明年。
-
-### 桌面小组件
-
-- 今天 / 明天两栏课表 + 待办清单，**可滚动**，待办能直接在桌面打勾。
-- 点任意位置（除打勾区）都能打开 App。
-- 上色与明暗可单独设置：面板色、透明度、浅色 / 深色 / **跟随系统**（跟随系统时配色交给 `values-night` 资源，切主题即时生效，不依赖 App 进程被唤醒）。
-- 背景可以用 App 里选的那张图：边框固定、图片等比裁切，和 App 内看到的画面一致。
-
-### 回顾与周报
-
-- 「回顾」页有今天 / 本周两个视图：今天上了多少课、完成了哪些待办、还有哪些逾期。
-- 周报统计本周完成数、投入时长、每天分布、与上周对比，并记录**连续记录周数（streak）**。
-- 逾期与补账分开算：逾期清单里补上的欠账会单独标注。
-
-### 个性化外观
-
-- **背景图**：等比裁切 + 焦点拖动，缩放 0.5–3 倍（小于 1 倍时四周用同图模糊放大版填充，不会露底）。
-- **玻璃拟态**：日历卡片、课表格子、底部导航可调透明度与模糊；纯透明时自动按背景图明暗切换文字深浅，保证可读。
-- **两层分开调**：外观页按「裁切与取景 / 壁纸层 / 面板层」分组——**背景图不透明度**只管壁纸，**面板不透明度**管日历、卡片与底部导航；数字输入框（提前量等）在透明模式下与输入框本体同材质，不会一截实一截透。
-- **主题色**：内置 8 个预设 + 取色器，App 与小组件可分别设置。
-- **排版**：控件高度 44px（对齐 Apple HIG 44pt）、圆角统一为一套 token（6 / 12·8 / 12 / 14），底部导航整块可点。
-
-### 数据、导入导出与离线
-
-- **离线优先**：断网照常读写，所有操作先落本机，联网后再处理。
-- **导入导出**：iCal（.ics）导入导出、导出本周为 Excel（手机端走系统分享面板）。
-- **跨设备同步（可选）**：填一个同步 ID 即可按记录合并两端数据；也可以自建服务器，或仅用本机模式。
+详见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 
 ## 快速开始
 
-1. **装 APK**：到 [Releases](https://github.com/ADA-quart/ITDC/releases/latest) 下载 `itdc-vX.Y.Z.apk`，首次安装需允许「未知来源」，通常可以直接覆盖升级。
-2. **导入课表**：设置 → 通用设置 → 学校选「成都理工大学」→ 填学号密码 → 导入本学期课表。
-3. **配模型（可选）**：设置 → LLM 服务配置里填服务商 + API Key。填了就能用 AI 拆解、AI 排程与图片直发；不填也能用本地规则解析与本地排程。
-4. **加待办并排程**：待办页新建（或「AI 添加」「图片」）→ 回到「智能规划」点生成。
+需要 **Node.js 18+**。
 
-> 小组件不刷新时：把「设置 → 应用 → 日日新 → 省电策略」设为**无限制**（澎湃 OS / MIUI 等默认限制后台，会冻结小组件刷新）。
+### Windows 一键启动
 
-## 三种使用模式
+双击 `install.bat` 安装依赖，之后双击 `start.bat` 启动，会自动打开浏览器。
 
-| 模式 | 数据在哪 | 需要什么 | 适用 |
-| --- | --- | --- | --- |
-| **仅本机**（默认） | 手机本地数据库 | 什么都不用配 | 只想自己用，数据不出手机 |
-| **跨设备同步** | 本机 + 同步服务 | 一个同步 ID | 手机 + 平板/网页一起用 |
-| **自建服务器** | 自己的服务器 | 部署 `server/` | 想完全自己掌控数据 |
-
-## 数据与隐私
-
-- 课表、待办、事件、外观设置默认**只存在本机**（IndexedDB / 本地数据库）。
-- 大模型 API Key 与教务密码存在**系统加密存储**（Android Keystore）里，不写进普通配置文件。
-- 只有「调用大模型」「拉取教务课表」「开启同步」这三种操作会联网，且只发送该操作必需的内容。
-- 项目不包含任何统计、埋点或第三方上报 SDK。
-
-## 技术栈
-
-| 层 | 选型 |
-| --- | --- |
-| 壳与打包 | Capacitor 8（Android + PWA 共用一套前端） |
-| 前端 | React + TypeScript + Vite + Ant Design 5 |
-| 日历 | FullCalendar（月/周/日）+ 自研课表格子组件 |
-| 桌面小组件 | Android 原生 RemoteViews（Java）+ 可滚动列表 |
-| 离线 OCR | PP-OCRv4 ONNX + onnxruntime-web（模型按需下载） |
-| 排程算法 | 本地规则引擎（TypeScript），与服务端共用同一份策略 |
-| 可选服务端 | Node + 同步 / 排程 / 大模型代理（见 `server/`） |
-| 测试 | Vitest（覆盖排程、课表解析、同步合并等关键逻辑） |
-
-## 项目结构
-
-```
-src/                 前端（React）
-  api/               本地存储、排程引擎、大模型、OCR 安装器
-  components/        页面与组件（课表格子、四象限、设置、外观…）
-  i18n/              中英文文案
-shared/              前后端共用的策略与解析（课表解析、排程策略、提示词）
-server/              可选服务端（同步、排程、LLM 代理）
-plugins/itdc-widget/ 桌面小组件原生插件（Java）
-android/             Capacitor Android 工程
-docs/                架构、部署、小组件实现、调研笔记
-```
-
-## 开发
+### 命令行
 
 ```bash
 npm install
-npm run dev                 # 浏览器里开发（前端全部功能可跑）
-npm run test                # 单元测试
-npm run android:sync        # 构建前端并同步到 android/
-npm run android:open        # 用 Android Studio 打开
-
-# 直接出 debug APK
-./android/gradlew.bat -p android assembleDebug
+cp .env.example .env     # 按需修改
+npm run dev:all          # 前端 Vite + 后端 Express 同时启动
 ```
 
-需要 Node 20+、JDK 21（Android 构建）。发布流程见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。
+只想用纯本地功能（不需要同步、不走服务器 LLM）时，`npm run dev` 单独起前端即可。
 
-## 文档
+### 生产运行
 
-- [架构说明](docs/ARCHITECTURE.md) —— 数据流、离线优先策略、模块划分
-- [小组件实现](docs/WIDGET.md) —— RemoteViews、位图预算与刷新时机
-- [待办调研](docs/todo-research-2026-10.md) —— 四象限与排程算法的取舍
-- [API](docs/API.md) / [部署](docs/DEPLOYMENT.md)
-- [更新日志](CHANGELOG.md)
+```bash
+npm run build
+npm start                # 默认 http://localhost:3000，同时托管前端与 /api
+```
 
-## 常见问题
+### Docker
 
-**小组件不刷新 / 早上显示「打开 App 刷新」？**
-把省电策略设为「无限制」。刷新时机已对齐课程结束、跨天、解锁与 2 小时兜底，但系统冻结后台时仍要等下一次刷新。
+```bash
+echo "CRYPTO_SECRET=$(openssl rand -hex 32)" > .env
+docker compose up -d
+```
 
-**检查更新提示查询频繁？**
-GitHub 接口对匿名请求限流，等一段时间再点，或直接去 Releases 页面看。
+数据保存在 `itdc_data` 卷中。内网穿透、Railway、Render、VPS 等部署方式见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。
 
-**教务导入失败？**
-确认学号密码正确、且当前网络能访问教务系统；导入失败不会影响已有课表。
+## 环境变量
 
-**OCR 要下载多大？**
-检测 4.7MB + 识别 10.9MB ≈ 15.6MB，装好后完全离线可用，可随时删除。
+| 变量 | 说明 | 默认 |
+|---|---|---|
+| `PORT` | 后端端口 | `3000` |
+| `HOST` | 监听地址 | `0.0.0.0` |
+| `CRYPTO_SECRET` | 加密 LLM API Key 的 AES-256-GCM 密钥，**生产环境必填** | — |
+| `DB_PATH` | SQLite 文件路径 | `data/calendar.db` |
+| `CORS_ORIGINS` | 允许跨域的前端来源，逗号分隔 | 空 |
+| `CORS_ALLOW_ALL` | 设为 `1` 放行所有来源，仅限内网自建 | 空 |
+| `BACKEND_PORT` | Vite 开发代理指向的后端端口 | 同 `PORT` |
 
-**为什么没排到 22:00 之后？**
-默认 21:00 后不新开、22:00 前必须结束；只有标成「紧急重要」的待办能用 22:00–22:30 的加时窗口。
+## 构建 Android
 
-## 已知限制
+需要 Android Studio 与 JDK。
 
-- 教务导入目前**只适配成都理工大学**（其他学校可参考 `shared/cdut-parser.ts` 扩展）。
-- 本机 OCR 面向**手机截图**（横排文字）；倾斜与竖排文字不支持。
-- 桌面小组件是 Android 原生实现，iOS 端暂无计划。
+```bash
+npm run android:sync     # 构建 Web 资源并同步到 android/
+npm run android:open     # 用 Android Studio 打开工程
+```
 
-## 贡献
+或直接在 `android/` 下执行 `./gradlew assembleDebug`，产物位于 `android/app/build/outputs/apk/debug/`。
 
-欢迎提 Issue 与 PR：报 bug 请附版本号、机型与复现步骤；改动请保持 `npm run test` 与 `npx tsc --noEmit` 通过，并在 `CHANGELOG.md` 的未发布段落记录。
+小组件的实现细节与国产 ROM 注意事项见 [docs/WIDGET.md](docs/WIDGET.md)。
 
-## 开源许可
+## 常用脚本
 
-- 作者：[@ADA-quart](https://github.com/ADA-quart) 与 TyTs；源码文件头与启动控制台均带作者水印。
-- 本项目代码采用 [PolyForm Noncommercial License 1.0.0](LICENSE)：**允许个人非商业使用与修改，禁止商业用途**。
-- 第三方依赖与模型许可见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)（OCR 模型为 PaddleOCR / RapidOCR，Apache-2.0）。
-- 应用名「日日新」取自《礼记·大学》，与商汤科技及其「日日新」（SenseNova）大模型无任何关联。
+| 命令 | 作用 |
+|---|---|
+| `npm run dev` | 启动前端开发服务器 |
+| `npm run dev:server` | 启动后端（热重载） |
+| `npm run dev:all` | 前后端一起启动 |
+| `npm run build` | 构建前端到 `dist/` |
+| `npm start` | 运行生产服务 |
+| `npm test` | 运行 Vitest 测试 |
+| `npm run licenses` | 重新生成第三方许可清单 |
+
+## 目录结构
+
+```
+src/        前端（React + TypeScript + Ant Design）
+  api/        数据入口、本地排程、LLM、OCR、同步、提醒
+  components/ 界面组件
+  i18n/       中英文案
+server/     后端（Express + sql.js）
+  routes/     calendar / todos / schedule / sync / school / widget / settings
+  llm/        大模型服务商适配
+shared/     前后端共用：提示词、排程策略、课表解析、去重
+plugins/    Capacitor 原生插件（桌面小组件、安全存储）
+android/    Android 工程
+docs/       架构、部署、API、小组件文档
+```
+
+## 参与贡献
+
+欢迎提 Issue 和 PR，请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。安全问题请按 [SECURITY.md](SECURITY.md) 私下报告。
+
+## 许可
+
+© 2026 ADA-Quart & TyTs
+
+本项目采用 [PolyForm Noncommercial 1.0.0](LICENSE) 许可：可自由用于个人学习、研究及非商业用途，**禁止商业使用**。第三方依赖的许可见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
