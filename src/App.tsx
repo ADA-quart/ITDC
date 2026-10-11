@@ -32,7 +32,7 @@ import { useI18n } from './i18n';
 import { TOUCH_TARGET, withAlpha } from './components/ui';
 import { FONT_STACK, tabularNums } from './components/ui';
 import { useTheme } from './contexts/ThemeContext';
-import { useIsMobile } from './hooks/useIsMobile';
+import { useLayoutInfo } from './hooks/useLayoutTier';
 
 const { Sider, Content } = Layout;
 
@@ -52,7 +52,10 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<PageKey>(getPageFromHash);
   const [settingsTab, setSettingsTab] = useState<string | undefined>(undefined);
   const [isOffline, setIsOffline] = useState(false);
-  const isMobile = useIsMobile();
+  const layout = useLayoutInfo();
+  const isMobile = layout.tier !== 'desktop';
+  /** 平板：非日历页限宽居中，避免 1400+ 宽屏上单列内容被拉满整行 */
+  const isTablet = layout.tier === 'tablet';
   const { t, locale, setLocale } = useI18n();
   const { mode: themeMode, setMode: setThemeMode, isDark } = useTheme();
   const { appearance } = useTheme();
@@ -360,7 +363,9 @@ const App: React.FC = () => {
               paddingBottom: `calc(80px + ${inset('bottom')})`,
             }}
           >
-            {renderContent()}
+            {isTablet && currentPage !== 'calendar' ? (
+              <div style={{ maxWidth: 980, margin: '0 auto' }}>{renderContent()}</div>
+            ) : renderContent()}
 {offlineBanner}
           </Content>
           <div style={{

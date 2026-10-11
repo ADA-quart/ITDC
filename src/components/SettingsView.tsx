@@ -14,7 +14,7 @@ import { llmConfigService } from '../api/llm-config-service';
 import type { LLMConfig } from '../types';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
-import { useIsMobile } from '../hooks/useIsMobile';
+import { useLayoutInfo } from '../hooks/useLayoutTier';
 import { getSelectedSchool, setSelectedSchool } from '../api/school-prefs';
 import { getAutoSyncEnabled, setAutoSyncEnabled } from '../api/school-sync';
 import {
@@ -85,7 +85,10 @@ const DEFAULT_MODELS: Record<string, string> = {
 const SettingsView: React.FC<Props> = ({ initialTab }) => {
   const { t, locale, setLocale } = useI18n();
   const { isDark } = useTheme();
-  const isMobile = useIsMobile();
+  const layout = useLayoutInfo();
+  const isMobile = layout.tier !== 'desktop';
+  /** 平板：设置卡片限宽居中，不然 1400+ 宽屏上控件会被拉得又宽又空 */
+  const isTablet = layout.tier === 'tablet';
 
   const [configs, setConfigs] = useState<LLMConfig[]>([]);
   const [form] = Form.useForm();
@@ -983,9 +986,11 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
 
   return (
     <div style={cardStyle(isDark, isMobile)}>
+      <div style={isTablet ? { maxWidth: 980, margin: '0 auto' } : undefined}>
       <h3 style={{ marginTop: 0, marginBottom: 12 }}>{t.settings.title}</h3>
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
       <LicenseModal open={licenseOpen} onClose={() => setLicenseOpen(false)} onOpenExternal={(url) => void openExternal(url)} />
+      </div>
     </div>
   );
 };

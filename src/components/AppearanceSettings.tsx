@@ -7,7 +7,7 @@ import { Capacitor } from '@capacitor/core';
 import { useTheme } from '../contexts/ThemeContext';
 import type { CourseTextTone } from '../../shared/course-colors';
 import { useI18n } from '../i18n';
-import { useIsMobile } from '../hooks/useIsMobile';
+import { useLayoutInfo } from '../hooks/useLayoutTier';
 import { secondaryTextColor } from './ui';
 import { SectionTitle } from './PageBlocks';
 import {
@@ -73,7 +73,10 @@ const SliderLabel: React.FC<{ label: string; value: string; dim: string }> = ({ 
 const AppearanceSettings: React.FC = () => {
   const { t } = useI18n();
   const { isDark, mode, setMode, appearance, updateAppearance, resetAppearance, resetWidgetAppearance } = useTheme();
-  const isMobile = useIsMobile();
+  const layout = useLayoutInfo();
+  const isMobile = layout.tier !== 'desktop';
+  /** 平板：宽屏上把预览放大、裁剪区改横排、色板限宽，不然整页被横向拉爆 */
+  const isTablet = layout.tier === 'tablet';
   const [processing, setProcessing] = useState(false);
   const [processingWidget, setProcessingWidget] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -95,7 +98,7 @@ const AppearanceSettings: React.FC = () => {
   // 宽度取上限、高度反推：手机上就是一块竖向的屏幕形状
   // 手机上再给高度封顶（240px）：预览要跟滑条同屏才能边拖边看，
   // 太高会把整列滑条挤到屏幕外，调参数时看不见预览。
-  const rawPreviewWidth = Math.min(isMobile ? 230 : 190, Math.round(320 * viewAspect));
+  const rawPreviewWidth = Math.min(isTablet ? 320 : isMobile ? 230 : 190, Math.round(320 * viewAspect));
   const rawPreviewHeight = Math.max(90, Math.round(rawPreviewWidth / Math.max(0.2, viewAspect)));
   const previewHeight = isMobile ? Math.min(240, rawPreviewHeight) : rawPreviewHeight;
   const previewWidth = isMobile ? Math.round(previewHeight * viewAspect) : rawPreviewWidth;
@@ -150,6 +153,8 @@ const AppearanceSettings: React.FC = () => {
         style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${ACCENT_PRESETS.length}, minmax(0, 1fr))`,
+          // 宽屏上限宽：每个色块最多 ~56px（手机上本来就是 40 以内，不受影响）
+          maxWidth: ACCENT_PRESETS.length * 56 + (ACCENT_PRESETS.length - 1) * 6,
           gap: 6,
           alignItems: 'center',
           marginBottom: 10,
@@ -292,7 +297,7 @@ const AppearanceSettings: React.FC = () => {
         </Space>
 
         {bgImage && (
-          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 16 }}>
+            <div style={{ display: 'flex', flexDirection: isMobile && !isTablet ? 'column' : 'row', gap: 16 }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0 }}>
               <div
               onPointerDown={(e) => {
