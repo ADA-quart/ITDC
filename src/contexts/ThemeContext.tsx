@@ -188,9 +188,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const cellAlpha = Math.max(0, ui * 0.7);
     const headAlpha = Math.min(1, ui * 0.85);
     // 普通通栏底栏保持高不透明（否则列表文字从下面透上来重影）；
-    // 液态玻璃的底栏是悬浮胶囊，透明度跟着面板走（默认 62%），模糊 + 折射才透得出来
+    // 液态玻璃的底栏是悬浮胶囊，内容会从胶囊底下滚过去——不透明度与模糊都必须强于面板
+    // （默认面板 62% / 14px → 胶囊 80% / 22px），否则透过去能看到滚动的文字，很诡异。
+    // 跟随面板滑条但不低于"面板 +18% / +8px"，封顶 92% / 40px。
     const navAlpha = liquid
-      ? Math.min(0.8, Math.max(0.45, ui))
+      ? Math.min(0.92, Math.max(0.72, ui + 0.18))
       : Math.min(1, Math.max(0.92, ui + 0.12));
     // 液态玻璃只保证一个"磨砂下限"（8px），其余交给滑条——不然滑到 20 以下完全没反应，
     // 用户会以为"日历透明度/模糊调不了"；折射与高光才是液态的主体，不靠死磕模糊值。
@@ -205,8 +207,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const blur = glass && blurPx > 0
       ? `blur(${blurPx}px)${liquid ? ' saturate(180%) brightness(1.04)' : ''}${refract}`
       : 'none';
+    // 胶囊模糊 = 面板模糊 + 8px（液态玻璃下）；非液态玻璃保持面板值
+    const navBlurPx = liquid
+      ? Math.min(40, Math.max(appearance.uiBlur, 8) + 8)
+      : Math.max(appearance.uiBlur, 8);
     const navBlur = glass
-      ? `blur(${Math.max(appearance.uiBlur, 8)}px)${liquid ? ' saturate(180%) brightness(1.04)' : ''}${refract}`
+      ? `blur(${navBlurPx}px)${liquid ? ' saturate(180%) brightness(1.04)' : ''}${refract}`
       : 'none';
     // 交互降级：折射滤镜每帧都要重算 turbulence，拖动 / 滚动时很贵（会掉帧甚至闪一下）。
     // 只去掉最贵的 url(#折射)，模糊 / 饱和度 / 亮度 / 高光层全部保持不变——
@@ -215,7 +221,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ? `blur(${blurPx}px)${liquid ? ' saturate(180%) brightness(1.04)' : ''}`
       : 'none';
     const liteNavBlur = glass
-      ? `blur(${Math.max(appearance.uiBlur, 8)}px)${liquid ? ' saturate(180%) brightness(1.04)' : ''}`
+      ? `blur(${navBlurPx}px)${liquid ? ' saturate(180%) brightness(1.04)' : ''}`
       : 'none';
     const cardSheen = liquid
       ? `radial-gradient(140% 110% at var(--itdc-spec-x, 26%) var(--itdc-spec-y, 0%), `
