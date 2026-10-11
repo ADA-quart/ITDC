@@ -602,26 +602,6 @@ const AppearanceSettings: React.FC = () => {
                           transformOrigin: `${appearance.bgFocusX}% ${appearance.bgFocusY}%`,
                         }}
                       />
-                      {/* 顶部两行内容的示意（标题 + 今天/明天表头）：拖动图片时避开文字 */}
-                      <div
-                        aria-hidden
-                        style={{
-                          position: 'absolute',
-                          left: 8,
-                          right: 8,
-                          top: 8,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 6,
-                          pointerEvents: 'none',
-                        }}
-                      >
-                        <div style={{ width: '52%', height: 6, borderRadius: 3, background: 'rgba(255,255,255,.55)' }} />
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <div style={{ flex: 1, height: 5, borderRadius: 2.5, background: 'rgba(255,255,255,.38)' }} />
-                          <div style={{ flex: 1, height: 5, borderRadius: 2.5, background: 'rgba(255,255,255,.38)' }} />
-                        </div>
-                      </div>
                     </div>
                     <div style={{ fontSize: 11, textAlign: 'center', color: secondaryTextColor(isDark) }}>
                       {preset.label}
