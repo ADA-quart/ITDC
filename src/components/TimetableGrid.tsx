@@ -743,7 +743,8 @@ const TimetableGrid: React.FC<Props> = ({
           flex: fillHeight ? 1 : undefined,
           minHeight: 0,
           border,
-          borderRadius: 10,
+          // 课表格子 12：减去 2px 内边距后，课程块的 10 正好与它同心
+          borderRadius: 12,
           overflow: 'hidden',
           background: cellBg,
         }}

@@ -123,6 +123,12 @@ const CalendarView: React.FC = () => {
   const [calView] = useState(() => resolveInitialView(isMobile));
   const [calViewType, setCalViewType] = useState(calView);
   const [calTitle, setCalTitle] = useState('');
+  /** 日历（FullCalendar 或课表格子）的盒子：用它量出"到胶囊上沿"的可用高度 */
+  const calBoxRef = useRef<HTMLDivElement | null>(null);
+  const trackBoxRef = useRef<HTMLDivElement | null>(null);
+  const [calHeight, setCalHeight] = useState<number | null>(null);
+  /** 日视图标题行的高度：把「总高度 ÷ 17 小时」除不尽的那几像素吃进来，保证每格等高 */
+  const [calHeaderH, setCalHeaderH] = useState<number | null>(null);
   // 手机端「周」视图直接用课表格子渲染（数据复用日历事件，翻页用自己的周起点）
   const [timetableMode, setTimetableMode] = useState(() => calView === 'timeGridWeek');
   const [weekStart, setWeekStart] = useState(() => mondayOf(dayjs()));
@@ -985,6 +991,40 @@ const CalendarView: React.FC = () => {
   // 悬浮按钮要浮在底栏上方：底栏高度 + 安全区 + 间距（液态玻璃的底栏是悬浮胶囊，再抬高 12px）
   const fabBottom = `calc(${appearance.liquidGlass ? 80 : 68}px + var(--itdc-inset-bottom, env(safe-area-inset-bottom, 0px)))`;
 
+  // 日历的下沿对齐底栏胶囊的上沿：不再用「100dvh − 200px」这类魔法数，
+  // 直接量日历盒子顶部到胶囊顶部之间的可用高度（胶囊高 58 + 悬浮 10 + 安全区 + 6 间隙）
+  useEffect(() => {
+    if (!isMobile) {
+      setCalHeight(null);
+      setCalHeaderH(null);
+      return;
+    }
+    const compute = () => {
+      const el = (timetableModeRef.current ? trackBoxRef.current : calBoxRef.current);
+      if (!el) return;
+      const insetRaw = getComputedStyle(document.documentElement).getPropertyValue('--itdc-inset-bottom');
+      const insetBottom = parseFloat(insetRaw) || 0;
+      const navTopOffset = 58 + (appearance.liquidGlass ? 10 : 0) + insetBottom;
+      const available = window.innerHeight - el.getBoundingClientRect().top - navTopOffset - 6;
+      const height = Math.max(320, Math.round(available));
+      setCalHeight(height);
+      // 07:00–24:00 共 17 个整点行；标题行 = 基础高 + 除不尽的余数，
+      // 这样每一小时都是整数等高，22:00 那格不会再"下半截变长"
+      const HOURS = 17;
+      const BASE_HEADER = 40;
+      const leftover = Math.max(0, (height - BASE_HEADER) % HOURS);
+      setCalHeaderH(BASE_HEADER + (timetableModeRef.current ? 0 : leftover));
+    };
+    compute();
+    // 字体/首帧布局稳定后再量一次（首次渲染的字体度量可能还没生效）
+    const timer = window.setTimeout(compute, 350);
+    window.addEventListener('resize', compute);
+    return () => {
+      window.removeEventListener('resize', compute);
+      window.clearTimeout(timer);
+    };
+  }, [isMobile, appearance.liquidGlass, timetableMode]);
+
   return (
     <div style={{
       display: 'flex',
@@ -1098,7 +1138,7 @@ const CalendarView: React.FC = () => {
               bottom: fabBottom,
               width: 56,
               height: 56,
-              borderRadius: 19,
+              borderRadius: 16,
               border: 'none',
               background: appearance.accent,
               color: '#fff',
@@ -1174,11 +1214,11 @@ const CalendarView: React.FC = () => {
                高度固定成「一屏 - 顶部按钮/日期行/底部导航」：每周都是同一页长度，
                不会这周长那周短；日历列表照旧在下一屏，往上滑就能看到。 */
             <div
+              ref={trackBoxRef}
               style={{
                 overflow: 'hidden',
-                // 顶部不再有「新建事件」按钮（挪成右下角 FAB），可用高度增加；
-                // 悬浮玻璃底栏比通栏略高，整体按「一屏 - 200px」算（原 232px）
-                height: isMobile ? 'calc(100dvh - 200px)' : undefined,
+                // 高度实测：下沿刚好停在底栏胶囊上沿（留 6px 间隙）
+                height: isMobile ? (calHeight ?? undefined) : undefined,
                 minHeight: isMobile ? 320 : undefined,
               }}
             >
@@ -1211,7 +1251,7 @@ const CalendarView: React.FC = () => {
             </div>
           )}
           {/* 周视图用课表格子时，FullCalendar 只隐藏不卸载：切回日视图时它的实例还在 */}
-          <div style={{ display: timetableMode ? 'none' : undefined }}>
+          <div ref={calBoxRef} style={{ display: timetableMode ? 'none' : undefined }}>
           <FullCalendar
             ref={calendarRef}
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, rrulePlugin]}
@@ -1329,21 +1369,30 @@ const CalendarView: React.FC = () => {
             dayHeaderContent={(arg) => {
               const d = dayjs(arg.date);
               const weekday = '日一二三四五六'[d.day()];
+              const isToday = d.isSame(dayjs(), 'day');
               // 周视图顶部：写成「11.1」而不是「11月1日周六」，窄列里放得下
               if (arg.view.type === 'timeGridWeek') {
                 return (
-                  <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
+                  <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15, color: isToday ? appearance.accent : undefined }}>
                     <span style={{ fontWeight: 600 }}>{d.format('M.D')}</span>
                     <span style={{ fontSize: 11, opacity: 0.75 }}>周{weekday}</span>
                   </span>
                 );
               }
-              // 日视图：FullCalendar 默认会把日期、周几、星期全名写三遍；这里收成一行
+              // 日视图：顶部导航已经有完整日期，这里只留星期避免重复；
+              // 「今天」用主题色，而不是 FullCalendar 的默认蓝
               if (arg.view.type === 'timeGridDay' && isMobile) {
                 return (
-                  <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, padding: '2px 0' }}>
-                    <span style={{ fontSize: 15, fontWeight: 600 }}>{d.format('M月D日')}</span>
-                    <span style={{ fontSize: 12, opacity: 0.75 }}>周{weekday}</span>
+                  <span style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: calHeaderH ?? 34,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: isToday ? appearance.accent : secondaryTextColor(isDark),
+                  }}>
+                    周{weekday}
                   </span>
                 );
               }
@@ -1431,12 +1480,13 @@ const CalendarView: React.FC = () => {
             eventDragStart={() => { draggingRef.current = true; }}
             // 手机上让日历铺满一整屏：高度按视口算（扣掉顶部新建按钮、日期行与底部导航），
             // 日历列表与导入/导出顺延到下一屏，往上滑即可看到
-            height={isMobile ? 'calc(100dvh - 200px)' : 'auto'}
+            height={isMobile && calHeight ? calHeight : 'auto'}
             allDaySlot={hasAllDay}
             // 待办拖进课程时段时并排显示，而不是盖住课程（课程优先，待办不占课的位置）
             slotEventOverlap={false}
             slotMinTime="07:00:00"
-            slotMaxTime="23:00:00"
+            // 拉到 24:00：22:00 之后那截不再是被裁掉的半格，而是完整的 23:00 行
+            slotMaxTime="24:00:00"
           />
           </div>
         </div>

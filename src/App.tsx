@@ -231,8 +231,8 @@ const App: React.FC = () => {
       // 圆角沿用 1.9.0 那次整备的结论：手机 12 / 桌面 8（见 CHANGELOG 307 行），
       // 手写元素统一从 styles.css 的 --itdc-r-* 取，避免 6/8/10/12/14 乱用
       borderRadius: isMobile ? 12 : 8,
-      borderRadiusSM: 6,
-      borderRadiusLG: 14,
+      borderRadiusSM: 8,
+      borderRadiusLG: 20,
       // 手机端控件高度对齐 Apple HIG 的 44pt（之前 40 是"接近 44-48"的折中，
       // 而手写行/卡片一直用 48，等于两套标准；现在统一到 44）
       controlHeight: isMobile ? 44 : 32,
@@ -242,9 +242,9 @@ const App: React.FC = () => {
       lineHeight: 1.6,
     },
     components: {
-      Modal: { borderRadiusLG: 14 },
-      Card: { borderRadiusLG: 12 },
-      Segmented: { borderRadius: 10 },
+      Modal: { borderRadiusLG: 20 },
+      Card: { borderRadiusLG: 16 },
+      Segmented: { borderRadius: 12 },
       // 全局 controlHeight=44 是给触控目标用的，但日期面板的格子宽度是按
       // controlHeightSM×1.5 算的：7 列凑出来约 360px，窄弹窗里又大又放不下。
       // 面板宽度单独收回到手机尺寸，输入框本身仍是 44 的触控高度。
@@ -376,7 +376,8 @@ const App: React.FC = () => {
               ? `1px solid ${isDark ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.55)'}`
               : undefined,
             borderTop: glassNav ? undefined : `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
-            borderRadius: glassNav ? 26 : 0,
+            // 胶囊 = 全圆角（高度 58 → 半径 29），浮在内容上方
+            borderRadius: glassNav ? 999 : 0,
             boxShadow: glassNav
               ? (isDark ? '0 14px 40px rgba(0,0,0,.5)' : '0 14px 40px rgba(15,23,42,.18)')
               : undefined,

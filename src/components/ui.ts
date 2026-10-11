@@ -10,7 +10,8 @@ import type { CSSProperties } from 'react';
  * - 触控实验研究：约 10mm（≈48dp）的按键在不看屏幕时命中率最好
  */
 export const TOUCH_TARGET = 48;
-export const CARD_RADIUS = 12;
+/** 卡片圆角：M3 large = 16；嵌套元素的圆角按「外圆角 − 内边距」取（同心圆角规则） */
+export const CARD_RADIUS = 16;
 
 /**
  * 字体栈：优先用设备自带的中文 UI 字体。
