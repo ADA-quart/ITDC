@@ -163,6 +163,20 @@ body.itdc-native [contenteditable='true'] {
   -webkit-tap-highlight-color: transparent;
 }
 
+/*
+ * 触屏设备没有 hover：触摸后 hover 态会"粘"在元素上（表格行、列表项）。
+ * 我们自己的交互反馈一律走 .itdc-tap 的按压态，这里把仍在依赖 hover 的底色关掉。
+ */
+@media (hover: none) {
+  .ant-table-wrapper .ant-table-tbody > tr:hover > td {
+    background: transparent;
+  }
+
+  .fc-list-event:hover td {
+    background: transparent;
+  }
+}
+
 .itdc-tap {
   transition: filter 0.12s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }

@@ -32,7 +32,7 @@ import { syncClassReminders } from '../api/reminders';
 import { pushWidgetSnapshot } from '../api/widget-sync';
 import { useI18n } from '../i18n';
 import { useTheme } from '../contexts/ThemeContext';
-import { useIsMobile } from '../hooks/useIsMobile';
+import { useLayoutInfo } from '../hooks/useLayoutTier';
 import { findMergeTarget } from '../utils/calendar-merge';
 import { dedupeEvents, dedupeEventKey } from '../../shared/event-dedupe';
 import { COURSE_PALETTE_BY_HUE, assignCourseColors, courseTextColor } from '../../shared/course-colors';
@@ -97,10 +97,31 @@ function resolveInitialView(isMobile: boolean): string {
 const CalendarView: React.FC = () => {
   const { t, locale } = useI18n();
   const { isDark, appearance } = useTheme();
-  const isMobile = useIsMobile();
+  const layoutInfo = useLayoutInfo();
+  /** 触屏（手机 / 平板）走移动布局；桌面浏览器保留网页版布局 */
+  const isMobile = layoutInfo.tier !== 'desktop';
+  /** 矮屏（横屏手机）：压缩头部、降低日历最小高度 */
+  const isShort = layoutInfo.short;
+  /** 平板横屏：日历 + 当日待办双栏；其余触屏单栏堆叠 */
+  const dualPane = layoutInfo.tier === 'tablet' && layoutInfo.landscape;
+  const stacked = isMobile && !dualPane;
   const [events, setEvents] = useState<any[]>([]);
+  /** 当日待办面板的数据（双栏模式下渲染） */
+  const [panelTodos, setPanelTodos] = useState<Todo[]>([]);
+  /** 当前可见日期范围：当日待办面板按它过滤（日视图=当天，周视图=当周） */
+  const [viewRange, setViewRange] = useState<{ start: number; end: number } | null>(null);
   /** 有没有全天事件：没有就把「全天」那一行收起来（日视图白白占一行，纯噪音） */
   const hasAllDay = useMemo(() => (events as any[]).some((e) => e?.allDay), [events]);
+  const panelItems = useMemo(() => {
+    if (!viewRange) return [] as Todo[];
+    return panelTodos
+      .filter((td) => td.scheduled_start && td.scheduled_end)
+      .filter((td) => {
+        const start = new Date(td.scheduled_start as string).getTime();
+        return start >= viewRange.start && start < viewRange.end;
+      })
+      .sort((a, b) => String(a.scheduled_start).localeCompare(String(b.scheduled_start)));
+  }, [panelTodos, viewRange]);
   const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [hiddenCalendars, setHiddenCalendars] = useState<Set<number>>(loadHiddenCalendars);
   const [modalOpen, setModalOpen] = useState(false);
@@ -208,6 +229,7 @@ const CalendarView: React.FC = () => {
     const hidden = currentHidden || hiddenCalendarsRef.current;
     const rawTodos = await todoApi.getAll({ status: 'scheduled' });
     const todoList: Todo[] = Array.isArray(rawTodos) ? rawTodos : [];
+    setPanelTodos(todoList);
     // 事件颜色优先级：事件自己的颜色（课程配色）→ 服务器回传的日历色 → 本地日历色
     const colorByCalendarId = new Map(calendarsRef.current.map((c) => [c.id, c.color]));
     const visibleEvents = dedupeEvents(eventList.filter((e: CalendarEvent) => !hidden.has(e.calendar_id)));
@@ -1019,12 +1041,13 @@ const CalendarView: React.FC = () => {
       // （实测 777 → 1018 = 777 + 241px 滚动量）。文档坐标与滚动位置无关。
       const elTop = el.getBoundingClientRect().top + window.scrollY;
       const available = window.innerHeight - elTop - navTopOffset - 6;
-      const height = Math.max(320, Math.round(available));
+      // 矮屏（横屏手机）可用高度小，最小高度跟着降，避免日历比屏幕还高
+      const height = Math.max(isShort ? 180 : 320, Math.round(available));
       setCalHeight(height);
       // 07:00–24:00 共 17 个整点行；标题行 = 基础高 + 除不尽的余数，
       // 这样每一小时都是整数等高，22:00 那格不会再"下半截变长"
       const HOURS = 17;
-      const BASE_HEADER = 40;
+      const BASE_HEADER = isShort ? 26 : 40;
       const leftover = Math.max(0, (height - BASE_HEADER) % HOURS);
       setCalHeaderH(BASE_HEADER + (timetableModeRef.current ? 0 : leftover));
     };
@@ -1036,7 +1059,7 @@ const CalendarView: React.FC = () => {
       window.removeEventListener('resize', compute);
       window.clearTimeout(timer);
     };
-  }, [isMobile, appearance.liquidGlass, timetableMode]);
+  }, [isMobile, isShort, appearance.liquidGlass, timetableMode]);
 
   return (
     <div style={{
@@ -1061,15 +1084,16 @@ const CalendarView: React.FC = () => {
           onClose={() => setLoadError(null)}
         />
       )}
-      {/* 窄屏改为上下堆叠：日历优先占满，日历列表与导入导出折叠到下方 */}
-      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', flex: isMobile ? undefined : 1, gap: 12, minHeight: 0 }}>
+      {/* 窄屏上下堆叠：日历优先占满，日历列表与导入导出折叠到下方；
+          平板横屏换成「日历列表 + 日历 + 当日待办」三栏（日历铺满剩余高度） */}
+      <div style={{ display: 'flex', flexDirection: stacked ? 'column' : 'row', flex: stacked ? undefined : 1, gap: 12, minHeight: 0 }}>
       <div style={{
-        width: isMobile ? '100%' : 220,
-        minWidth: isMobile ? undefined : 220,
+        width: stacked ? '100%' : 220,
+        minWidth: stacked ? undefined : 220,
         ...cardStyle(isDark, isMobile, { padding: isMobile ? 12 : 16 }),
         display: 'flex',
         flexDirection: 'column',
-        order: isMobile ? 2 : 0,
+        order: stacked ? 2 : 0,
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <span style={{ fontWeight: 'bold' }}>{t.calendar.calendarList}</span>
@@ -1126,11 +1150,49 @@ const CalendarView: React.FC = () => {
         </div>
       </div>
 
+      {dualPane && (
+        <div style={{
+          order: 1,
+          width: 300,
+          minWidth: 280,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+          ...cardStyle(isDark, true, { padding: 12 }),
+        }}>
+          <div style={{ fontWeight: 'bold', marginBottom: 8 }}>{t.calendar.todayTodos}</div>
+          <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {panelItems.length === 0 ? (
+              <div style={{ fontSize: 13, color: isDark ? '#999' : '#666', padding: '6px 0' }}>
+                {t.calendar.noTodayTodos}
+              </div>
+            ) : (
+              panelItems.map((td) => (
+                <div
+                  key={td.id}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: 10,
+                    background: 'var(--itdc-cell-bg, rgba(127,127,127,.12))',
+                    borderLeft: `3px solid ${getTodoColor(td, td.id)}`,
+                  }}
+                >
+                  <div style={{ fontSize: 13, lineHeight: 1.4 }}>{td.title}</div>
+                  <div style={{ fontSize: 11, color: isDark ? '#999' : '#666', marginTop: 2 }}>
+                    {dayjs(td.scheduled_start as string).format('HH:mm')} – {dayjs(td.scheduled_end as string).format('HH:mm')}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
       <div style={{
-        flex: isMobile ? undefined : 1,
+        flex: stacked ? undefined : 1,
         ...cardStyle(isDark, isMobile, { padding: isMobile ? 12 : 16 }),
         overflow: 'auto',
-        order: isMobile ? 1 : 0,
+        order: stacked ? 1 : 0,
         minHeight: 0,
       }}>
         {/* 桌面：常规按钮；手机：主操作挪到右下角拇指区（FAB，56dp ≥ 7-10mm 触控标准） */}
@@ -1169,7 +1231,7 @@ const CalendarView: React.FC = () => {
         )}
         {/* 手机端自绘导航：标题一行放得下，按钮分组不再挤成一团 */}
         {isMobile && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: isShort ? 4 : 8 }}>
             <Button
               size="small"
               type="text"
@@ -1182,7 +1244,7 @@ const CalendarView: React.FC = () => {
               minWidth: 0,
               textAlign: 'center',
               fontWeight: 600,
-              fontSize: 15,
+              fontSize: isShort ? 14 : 15,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -1232,7 +1294,7 @@ const CalendarView: React.FC = () => {
                 overflow: 'hidden',
                 // 高度实测：下沿刚好停在底栏胶囊上沿（留 6px 间隙）
                 height: isMobile ? (calHeight ?? undefined) : undefined,
-                minHeight: isMobile ? 320 : undefined,
+                minHeight: isMobile ? (isShort ? 180 : 320) : undefined,
               }}
             >
               <div
@@ -1276,6 +1338,7 @@ const CalendarView: React.FC = () => {
             datesSet={(arg) => {
               setCalTitle(shortTitle(arg.view.title));
               setCalViewType(arg.view.type);
+              setViewRange({ start: arg.start.getTime(), end: arg.end.getTime() });
               // 记住用户选的视图，下次打开沿用
               try { localStorage.setItem(CAL_VIEW_KEY, arg.view.type); } catch { /* 忽略存储失败 */ }
             }}

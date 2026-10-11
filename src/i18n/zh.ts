@@ -16,6 +16,8 @@ const zh = {
   calendar: {
     nightRow: '夜',
     calendarList: '日历列表',
+    todayTodos: '当日待办',
+    noTodayTodos: '这一天还没有排期的待办',
     newCalendar: '新建日历',
     newEvent: '新建事件',
     viewDay: '日',

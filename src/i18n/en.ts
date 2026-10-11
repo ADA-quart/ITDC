@@ -18,6 +18,8 @@ const en: LocaleMessages = {
   calendar: {
     nightRow: 'Night',
     calendarList: 'Calendars',
+    todayTodos: 'Todos for this day',
+    noTodayTodos: 'No scheduled todos for this day yet',
     newCalendar: 'New Calendar',
     newEvent: 'New Event',
     viewDay: 'Day',
