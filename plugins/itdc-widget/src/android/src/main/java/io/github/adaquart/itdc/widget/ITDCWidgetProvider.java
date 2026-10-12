@@ -317,6 +317,17 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
                 if (!TextUtils.isEmpty(tomorrowLabel)) tomorrowHeader += " " + tomorrowLabel;
                 rv.setTextViewText(R.id.widget_today_label, todayHeader);
                 rv.setTextViewText(R.id.widget_tomorrow_label, tomorrowHeader);
+
+                // 「纯课表」条目还有第三列：后天
+                if (isPureTimetable(context, appWidgetId)) {
+                    String dayAfterHeader = context.getString(R.string.widget_day_after);
+                    JSONObject dayAfter = findDay(root, dayAfterTomorrowDateKey());
+                    if (dayAfter != null) {
+                        String dayAfterLabel = dayAfter.optString("label", "");
+                        if (!TextUtils.isEmpty(dayAfterLabel)) dayAfterHeader += " " + dayAfterLabel;
+                    }
+                    rv.setTextViewText(R.id.widget_dayafter_label, dayAfterHeader);
+                }
             } catch (Exception e) {
                 Log.e(TAG, "parse snapshot header failed", e);
             }
@@ -326,10 +337,8 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             rv.setTextViewText(R.id.widget_date, dateText);
             rv.setTextViewText(R.id.widget_todo_header, context.getString(R.string.widget_todo_header));
             rv.setTextColor(R.id.widget_todo_all_done, WidgetAppearance.accent(context));
-            // 小尺寸自动精简（见方法注释）：手机 2×2 只留「今天」，平板 2×2 仍走完整布局
-            applyCompactIfSmall(context, rv, appWidgetId);
-            // 「纯课表」条目：隐藏待办区，课表两列自动占满高度
-            applyPureTimetableIfNeeded(context, rv, appWidgetId);
+            // 条目 / 尺寸的显隐规则：紧凑尺寸只留「今天」；纯课表条目加第三列（后天）、去掉待办区
+            applyVariantLayout(context, rv, appWidgetId);
             // 「全部完成」：一键把当前展示的待办全部标记完成
             rv.setOnClickPendingIntent(R.id.widget_todo_all_done,
                     ITDCWidgetActionReceiver.allDonePendingIntent(context));
@@ -337,6 +346,9 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             // 三个列表都通过 RemoteViewsService 提供数据 → 均可上下滑动
             bindList(context, rv, R.id.widget_today_list, appWidgetId, ITDCWidgetListService.LIST_TODAY);
             bindList(context, rv, R.id.widget_tomorrow_list, appWidgetId, ITDCWidgetListService.LIST_TOMORROW);
+            if (isPureTimetable(context, appWidgetId)) {
+                bindList(context, rv, R.id.widget_dayafter_list, appWidgetId, ITDCWidgetListService.LIST_DAY_AFTER);
+            }
             bindList(context, rv, R.id.widget_todo_list, appWidgetId, ITDCWidgetListService.LIST_TODO);
 
             // 集合里的子项点击走 fill-in 模板（见 ITDCWidgetActionReceiver）
@@ -401,46 +413,56 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
     }
 
     /**
-     * 小尺寸精简：手机 2×2（约 110×110dp）放不下双列 + 待办，只留「今天」一列；
-     * 平板 2×2 的格子大（≈200dp，比手机 4×2 还宽敞），仍然显示完整内容。
+     * 三个小组件条目共用同一套布局，这里统一决定哪些区域露脸：
+     *
+     *   普通条目：今天 + 明天两列 + 待办区；手机 2×2（约 110×110dp）这类紧凑尺寸只留「今天」；
+     *   纯课表条目：今天 + 明天 + 后天三列，没有待办区；紧凑尺寸同样只留「今天」。
+     *
+     * 条目之间的差异靠 provider 类名区分（见 isPureTimetable）——不存状态，删了重建也不会串。
      */
-    private static void applyCompactIfSmall(Context context, RemoteViews rv, int appWidgetId) {
+    private static void applyVariantLayout(Context context, RemoteViews rv, int appWidgetId) {
         try {
             AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
             android.os.Bundle options = awm.getAppWidgetOptions(appWidgetId);
             int minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250);
             int minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 180);
             boolean compact = minWidth < 220 && minHeight < 150;
-            int visibility = compact ? android.view.View.GONE : android.view.View.VISIBLE;
-            rv.setViewVisibility(R.id.widget_tomorrow_label, visibility);
-            rv.setViewVisibility(R.id.widget_tomorrow_list, visibility);
-            rv.setViewVisibility(R.id.widget_divider_vertical, visibility);
-            rv.setViewVisibility(R.id.widget_todo_header_row, visibility);
-            rv.setViewVisibility(R.id.widget_todo_list, visibility);
-            rv.setViewVisibility(R.id.widget_divider_horizontal, visibility);
+            boolean pure = isPureTimetable(context, appWidgetId);
+
+            int gone = android.view.View.GONE;
+            int shown = android.view.View.VISIBLE;
+
+            // 明天列：非紧凑时显示
+            rv.setViewVisibility(R.id.widget_tomorrow_label, compact ? gone : shown);
+            rv.setViewVisibility(R.id.widget_tomorrow_list, compact ? gone : shown);
+            rv.setViewVisibility(R.id.widget_divider_vertical, compact ? gone : shown);
+
+            // 后天列：只有纯课表且在非紧凑尺寸下显示
+            boolean dayAfter = pure && !compact;
+            rv.setViewVisibility(R.id.widget_dayafter_label, dayAfter ? shown : gone);
+            rv.setViewVisibility(R.id.widget_dayafter_list, dayAfter ? shown : gone);
+            rv.setViewVisibility(R.id.widget_divider_vertical_2, dayAfter ? shown : gone);
+
+            // 待办区：纯课表条目没有，紧凑尺寸也放不下
+            boolean todo = !pure && !compact;
+            rv.setViewVisibility(R.id.widget_todo_header_row, todo ? shown : gone);
+            rv.setViewVisibility(R.id.widget_todo_list, todo ? shown : gone);
+            rv.setViewVisibility(R.id.widget_divider_horizontal, todo ? shown : gone);
         } catch (Exception e) {
-            Log.w(TAG, "applyCompactIfSmall failed", e);
+            Log.w(TAG, "applyVariantLayout failed", e);
         }
     }
 
-    /**
-     * 「纯课表」条目（ITDCWidgetPureTimetableProvider）：隐藏待办区的标题行、分隔线与列表，
-     * 课表两列按权重自动占满剩余高度。
-     *
-     * 条目之间的差异靠 provider 类名区分——AppWidgetProviderInfo.provider 能告诉我们
-     * 这个实例属于哪个 receiver；不用额外存状态，删了重建也不会串。
-     */
-    private static void applyPureTimetableIfNeeded(Context context, RemoteViews rv, int appWidgetId) {
+    /** 这个小组件实例是不是「纯课表」条目（AppWidgetProviderInfo.provider 里有它的 receiver 类名） */
+    private static boolean isPureTimetable(Context context, int appWidgetId) {
         try {
             AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
             AppWidgetProviderInfo info = awm.getAppWidgetInfo(appWidgetId);
-            if (info == null || info.provider == null) return;
-            if (!ITDCWidgetPureTimetableProvider.class.getName().equals(info.provider.getClassName())) return;
-            rv.setViewVisibility(R.id.widget_todo_header_row, android.view.View.GONE);
-            rv.setViewVisibility(R.id.widget_divider_horizontal, android.view.View.GONE);
-            rv.setViewVisibility(R.id.widget_todo_list, android.view.View.GONE);
+            return info != null && info.provider != null
+                    && ITDCWidgetPureTimetableProvider.class.getName().equals(info.provider.getClassName());
         } catch (Exception e) {
-            Log.w(TAG, "applyPureTimetableIfNeeded failed", e);
+            Log.w(TAG, "isPureTimetable failed", e);
+            return false;
         }
     }
 
@@ -629,6 +651,13 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
     static String tomorrowDateKey() {
         Calendar c = Calendar.getInstance();
         c.add(Calendar.DAY_OF_YEAR, 1);
+        return dateKey(c);
+    }
+
+    /** 后天的 YYYY-MM-DD（纯课表条目的第三列） */
+    static String dayAfterTomorrowDateKey() {
+        Calendar c = Calendar.getInstance();
+        c.add(Calendar.DAY_OF_YEAR, 2);
         return dateKey(c);
     }
 

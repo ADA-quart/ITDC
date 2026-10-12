@@ -74,6 +74,15 @@
             android:layout_weight="1"
             android:textSize="13sp"
             android:textColor="@color/widget_section_label" />
+
+        <TextView
+            android:id="@+id/widget_dayafter_label"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="13sp"
+            android:textColor="@color/widget_section_label"
+            android:visibility="gone" />
     </LinearLayout>
 
     <!-- 课表区：今天 / 明天 两列并排，各用一个可滚动列表 -->
@@ -109,6 +118,28 @@
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
+            android:divider="@null"
+            android:dividerHeight="0dp"
+            android:scrollbars="vertical"
+            android:fadeScrollbars="true"
+            android:listSelector="@android:color/transparent" />
+
+        <ImageView
+            android:id="@+id/widget_divider_vertical_2"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:background="@color/widget_divider"
+            android:contentDescription="@null"
+            android:visibility="gone" />
+
+        <ListView
+            android:id="@+id/widget_dayafter_list"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:visibility="gone"
             android:divider="@null"
             android:dividerHeight="0dp"
             android:scrollbars="vertical"

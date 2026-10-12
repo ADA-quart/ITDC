@@ -21,7 +21,7 @@ import java.util.Calendar;
 import java.util.List;
 
 /**
- * 集合型小组件的数据源：为今天课表 / 明天课表 / 待办三个列表提供条目。
+ * 集合型小组件的数据源：为课表各列（今天 / 明天 / 后天）与待办列表提供条目。
  *
  * 之所以用 RemoteViewsService + ListView：静态位图无法滚动，
  * 只有集合型小组件支持滑动。
@@ -31,6 +31,7 @@ public class ITDCWidgetListService extends RemoteViewsService {
     static final String EXTRA_LIST = "list";
     static final String LIST_TODAY = "today";
     static final String LIST_TOMORROW = "tomorrow";
+    static final String LIST_DAY_AFTER = "dayafter";
     static final String LIST_TODO = "todo";
 
     @Override
@@ -71,21 +72,24 @@ public class ITDCWidgetListService extends RemoteViewsService {
                 if (LIST_TODO.equals(listType)) {
                     parseTodos(root);
                 } else {
+                    boolean isDayAfter = LIST_DAY_AFTER.equals(listType);
                     boolean isTomorrow = LIST_TOMORROW.equals(listType);
                     // 新结构：按「当前日期」从 days 里取当天条目；跨天后同一份快照自然换成新一天
-                    JSONObject day = ITDCWidgetProvider.findDay(root,
-                            isTomorrow ? ITDCWidgetProvider.tomorrowDateKey() : ITDCWidgetProvider.currentDateKey());
+                    String dateKey = isDayAfter ? ITDCWidgetProvider.dayAfterTomorrowDateKey()
+                            : isTomorrow ? ITDCWidgetProvider.tomorrowDateKey()
+                            : ITDCWidgetProvider.currentDateKey();
+                    JSONObject day = ITDCWidgetProvider.findDay(root, dateKey);
                     JSONArray arr;
                     if (day != null) {
                         arr = day.optJSONArray("items");
-                    } else if (root.optJSONArray("days") == null) {
-                        // 旧结构快照（无 days）：退回扁平的 schedule / tomorrow 字段
+                    } else if (root.optJSONArray("days") == null && !isDayAfter) {
+                        // 旧结构快照（无 days）：退回扁平的 schedule / tomorrow 字段；后天没有旧结构可退
                         arr = root.optJSONArray(isTomorrow ? "tomorrow" : "schedule");
                     } else {
                         // 新结构但覆盖不到这一天：按空处理，避免显示过期数据
                         arr = null;
                     }
-                    parseScheduleArray(arr, isTomorrow);
+                    parseScheduleArray(arr, !isTomorrow && !isDayAfter);
                 }
             } catch (Exception e) {
                 Log.e(TAG, "onDataSetChanged failed", e);
@@ -98,12 +102,11 @@ public class ITDCWidgetListService extends RemoteViewsService {
          *
          * 已结束的课会在渲染时被过滤掉 —— 刷新由课程结束边界闹钟 / 解锁 /
          * App 推送共同触发，因此课不需要打开 App 就会自动消失。
-         * 明天那一栏不过滤（明天的课还没开始）。
+         * 只有「今天」这一栏过滤（明天、后天的课还没开始）。
          */
-        private void parseScheduleArray(JSONArray arr, boolean isTomorrow) throws Exception {
+        private void parseScheduleArray(JSONArray arr, boolean isToday) throws Exception {
             if (arr == null || arr.length() == 0) {
-                emptyText = context.getString(
-                        isTomorrow ? R.string.widget_no_class_tomorrow : R.string.widget_no_class_today);
+                emptyText = context.getString(emptyTextRes());
                 return;
             }
             String nowHm = currentHm();
@@ -112,7 +115,7 @@ public class ITDCWidgetListService extends RemoteViewsService {
                 String end = o.optString("end", "");
 
                 // 今天已结束的课不再展示；"跨天进行中"（end 为空）保留
-                if (!isTomorrow && !TextUtils.isEmpty(end) && end.compareTo(nowHm) <= 0) {
+                if (isToday && !TextUtils.isEmpty(end) && end.compareTo(nowHm) <= 0) {
                     continue;
                 }
 
@@ -126,9 +129,15 @@ public class ITDCWidgetListService extends RemoteViewsService {
             }
 
             if (rows.isEmpty()) {
-                emptyText = context.getString(
-                        isTomorrow ? R.string.widget_no_class_tomorrow : R.string.widget_no_class_today);
+                emptyText = context.getString(emptyTextRes());
             }
+        }
+
+        /** 空状态的文案：按具体是哪一列挑 */
+        private int emptyTextRes() {
+            if (LIST_DAY_AFTER.equals(listType)) return R.string.widget_no_class_day_after;
+            if (LIST_TOMORROW.equals(listType)) return R.string.widget_no_class_tomorrow;
+            return R.string.widget_no_class_today;
         }
 
         private void parseTodos(JSONObject root) throws Exception {

@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 「纯课表」条目：与标准条目同尺寸，但隐藏待办区，只显示今天/明天两列课程。
-     渲染时按 provider 类名区分（见 ITDCWidgetProvider.applyPureTimetableIfNeeded）。 -->
+<!-- 「纯课表」条目：隐藏待办区，显示今天 / 明天 / 后天三列课程。
+     渲染时按 provider 类名区分（见 ITDCWidgetProvider.applyVariantLayout）。
+
+     尺寸：小米等桌面按 min 尺寸换算格数（≈ (dp + 30) / 70），180dp 会换成 3 行——
+     纯课表没有待办区，摆 4×3 太占手机桌面（6×4 的格子占掉半屏）。
+     100dp → 2 行，默认就是 4×2；minResizeHeight 再放开，用户还能拖到 1 行高。 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="250dp"
-    android:minHeight="180dp"
+    android:minHeight="100dp"
+    android:minResizeHeight="35dp"
     android:targetCellWidth="4"
     android:targetCellHeight="2"
     android:updatePeriodMillis="7200000"

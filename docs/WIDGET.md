@@ -14,20 +14,21 @@
 ### 三个条目（标准 / 小尺寸 / 纯课表）
 
 启动器在「添加小部件」里显示的默认格数来自 `minWidth/minHeight`（小米不读 `targetCellWidth/Height`），
-而平板的格子比手机大——同一个 `min` 没法两全（给 250×180dp，平板就缩不到 2×2；给 110×110dp，手机默认也变小方块）。
-所以拆成两个 receiver，共用同一套渲染代码，差异只在 `res/xml` 的元数据：
+换算公式约 `(dp + 30) / 70`；而平板的格子比手机大——同一个 `min` 没法两全
+（给 250×180dp，平板就缩不到 2×2；给 110×110dp，手机默认也变小方块）。
+所以拆成三个 receiver，共用同一套渲染代码，差异只在 `res/xml` 的元数据：
 
 | 条目 | provider 类 | min 尺寸 | 手机上加出来 | 平板加出来 |
 | --- | --- | --- | --- | --- |
 | 标准 | `ITDCWidgetProvider` | 250×180dp | 4×2 | 2×2+（格子大） |
 | 小尺寸 | `ITDCWidgetSmallProvider` | 110×110dp | 2×2 | 2×2 |
-| 纯课表 | `ITDCWidgetPureTimetableProvider` | 250×180dp | 4×2 | 2×2+ |
+| 纯课表 | `ITDCWidgetPureTimetableProvider` | 250×100dp | 4×2（可拖到 1 行） | 2×2+ |
 
 三者渲染代码完全共用，差异只有元数据与两处开关：
 
-- 所有条目都随实际尺寸自适应（`applyCompactIfSmall`）：手机的小方块只留「今天」一列；
-- 「纯课表」在渲染时按 provider 类名隐藏待办区（`applyPureTimetableIfNeeded`），
-  课表两列自动占满高度——用类名判断而不是存状态，删了重建不会串。
+- 所有条目都随实际尺寸自适应（`applyVariantLayout`）：手机的小方块只留「今天」一列；
+- 「纯课表」按 provider 类名在渲染时切换成「今天 / 明天 / 后天」三列、隐藏待办区，
+  课表自动占满高度——用类名判断而不是存状态，删了重建不会串。
 
 枚举实例 / 刷新 / 停闹钟都走 `ITDCWidgetProvider.allWidgetIds()`，三个条目一起算——
 否则删掉其中一个会把其它条目的定时刷新链一起停掉。

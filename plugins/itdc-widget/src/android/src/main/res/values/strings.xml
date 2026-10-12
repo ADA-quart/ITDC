@@ -17,8 +17,10 @@
     <!-- 课表区 -->
     <string name="widget_today">今天</string>
     <string name="widget_tomorrow">明天</string>
+    <string name="widget_day_after">后天</string>
     <string name="widget_no_class_today">今天没有课啦</string>
     <string name="widget_no_class_tomorrow">明天没有课啦</string>
+    <string name="widget_no_class_day_after">后天没有课啦</string>
     <string name="widget_no_todo">暂无待办</string>
     <string name="widget_due_prefix">截止 </string>
     <string name="widget_week_prefix">第</string>
