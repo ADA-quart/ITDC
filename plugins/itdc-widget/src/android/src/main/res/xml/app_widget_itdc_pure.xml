@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 「纯课表」条目：与标准条目同尺寸，但隐藏待办区，只显示今天/明天两列课程。
+     渲染时按 provider 类名区分（见 ITDCWidgetProvider.applyPureTimetableIfNeeded）。 -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="180dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="7200000"
+    android:initialLayout="@layout/widget_main"
+    android:previewLayout="@layout/widget_main"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:description="@string/app_widget_description_pure"
+    android:label="@string/app_widget_label_pure">
+</appwidget-provider>

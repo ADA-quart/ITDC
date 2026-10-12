@@ -11,7 +11,7 @@
 - 圆角磨砂外观，跟随系统**日夜模式**自动切换，也可在 App 里自定义配色与背景图
 - **上过的课自动消失**（按结束时间过滤，无需打开 App）
 
-### 两个条目（标准 / 小尺寸）
+### 三个条目（标准 / 小尺寸 / 纯课表）
 
 启动器在「添加小部件」里显示的默认格数来自 `minWidth/minHeight`（小米不读 `targetCellWidth/Height`），
 而平板的格子比手机大——同一个 `min` 没法两全（给 250×180dp，平板就缩不到 2×2；给 110×110dp，手机默认也变小方块）。
@@ -21,10 +21,16 @@
 | --- | --- | --- | --- | --- |
 | 标准 | `ITDCWidgetProvider` | 250×180dp | 4×2 | 2×2+（格子大） |
 | 小尺寸 | `ITDCWidgetSmallProvider` | 110×110dp | 2×2 | 2×2 |
+| 纯课表 | `ITDCWidgetPureTimetableProvider` | 250×180dp | 4×2 | 2×2+ |
 
-两者都随实际尺寸自适应（`applyCompactIfSmall`）：手机的小方块只留「今天」一列。
-枚举实例 / 刷新 / 停闹钟都走 `ITDCWidgetProvider.allWidgetIds()`，两个条目一起算——
-否则删掉小条目会把标准条目的定时刷新链一起停掉。
+三者渲染代码完全共用，差异只有元数据与两处开关：
+
+- 所有条目都随实际尺寸自适应（`applyCompactIfSmall`）：手机的小方块只留「今天」一列；
+- 「纯课表」在渲染时按 provider 类名隐藏待办区（`applyPureTimetableIfNeeded`），
+  课表两列自动占满高度——用类名判断而不是存状态，删了重建不会串。
+
+枚举实例 / 刷新 / 停闹钟都走 `ITDCWidgetProvider.allWidgetIds()`，三个条目一起算——
+否则删掉其中一个会把其它条目的定时刷新链一起停掉。
 
 ## 为什么用集合型小组件
 

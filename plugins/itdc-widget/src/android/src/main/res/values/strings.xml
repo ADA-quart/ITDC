@@ -4,6 +4,8 @@
     <string name="app_widget_description">今日课表与待办事项，点按打开「日日新」</string>
     <string name="app_widget_label_small">日日新 待办课表（小）</string>
     <string name="app_widget_description_small">小尺寸版：今日课程与待办，点按打开「日日新」</string>
+    <string name="app_widget_label_pure">日日新 纯课表</string>
+    <string name="app_widget_description_pure">只显示今天与明天的课程，不含待办；点按打开「日日新」</string>
 
     <string name="widget_empty">今日暂无安排\n点按打开 日日新 添加日程</string>
     <string name="widget_missing_server">打开 日日新 即可显示今日安排</string>

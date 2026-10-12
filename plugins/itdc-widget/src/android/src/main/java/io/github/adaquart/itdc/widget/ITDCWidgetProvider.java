@@ -6,6 +6,7 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
+import android.appwidget.AppWidgetProviderInfo;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -147,7 +148,8 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
      * 枚举实例、刷新、判断要不要停闹钟时必须两个都算上。
      */
     private static final Class<?>[] PROVIDER_CLASSES = {
-            ITDCWidgetProvider.class, ITDCWidgetSmallProvider.class
+            ITDCWidgetProvider.class, ITDCWidgetSmallProvider.class,
+            ITDCWidgetPureTimetableProvider.class
     };
 
     /** 两个条目在桌面上的全部实例 id */
@@ -326,6 +328,8 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             rv.setTextColor(R.id.widget_todo_all_done, WidgetAppearance.accent(context));
             // 小尺寸自动精简（见方法注释）：手机 2×2 只留「今天」，平板 2×2 仍走完整布局
             applyCompactIfSmall(context, rv, appWidgetId);
+            // 「纯课表」条目：隐藏待办区，课表两列自动占满高度
+            applyPureTimetableIfNeeded(context, rv, appWidgetId);
             // 「全部完成」：一键把当前展示的待办全部标记完成
             rv.setOnClickPendingIntent(R.id.widget_todo_all_done,
                     ITDCWidgetActionReceiver.allDonePendingIntent(context));
@@ -411,12 +415,32 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             rv.setViewVisibility(R.id.widget_tomorrow_label, visibility);
             rv.setViewVisibility(R.id.widget_tomorrow_list, visibility);
             rv.setViewVisibility(R.id.widget_divider_vertical, visibility);
-            rv.setViewVisibility(R.id.widget_todo_header, visibility);
-            rv.setViewVisibility(R.id.widget_todo_all_done, visibility);
+            rv.setViewVisibility(R.id.widget_todo_header_row, visibility);
             rv.setViewVisibility(R.id.widget_todo_list, visibility);
             rv.setViewVisibility(R.id.widget_divider_horizontal, visibility);
         } catch (Exception e) {
             Log.w(TAG, "applyCompactIfSmall failed", e);
+        }
+    }
+
+    /**
+     * 「纯课表」条目（ITDCWidgetPureTimetableProvider）：隐藏待办区的标题行、分隔线与列表，
+     * 课表两列按权重自动占满剩余高度。
+     *
+     * 条目之间的差异靠 provider 类名区分——AppWidgetProviderInfo.provider 能告诉我们
+     * 这个实例属于哪个 receiver；不用额外存状态，删了重建也不会串。
+     */
+    private static void applyPureTimetableIfNeeded(Context context, RemoteViews rv, int appWidgetId) {
+        try {
+            AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
+            AppWidgetProviderInfo info = awm.getAppWidgetInfo(appWidgetId);
+            if (info == null || info.provider == null) return;
+            if (!ITDCWidgetPureTimetableProvider.class.getName().equals(info.provider.getClassName())) return;
+            rv.setViewVisibility(R.id.widget_todo_header_row, android.view.View.GONE);
+            rv.setViewVisibility(R.id.widget_divider_horizontal, android.view.View.GONE);
+            rv.setViewVisibility(R.id.widget_todo_list, android.view.View.GONE);
+        } catch (Exception e) {
+            Log.w(TAG, "applyPureTimetableIfNeeded failed", e);
         }
     }
 
