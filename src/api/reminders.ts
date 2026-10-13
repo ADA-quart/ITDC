@@ -3,8 +3,10 @@
 import { Capacitor } from '@capacitor/core';
 import type { Todo, CalendarEvent } from '../types';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { ITDCWidgetPlugin } from '../capacitor/itdc-widget';
 import {
   CLASS_NOTIFICATION_ID_BASE,
+  getClassReminderDismissMin,
   getClassReminderEnabled,
   planClassReminders,
 } from './class-reminders';
@@ -216,6 +218,24 @@ export async function syncClassReminders(events: CalendarEvent[]): Promise<void>
         schedule: { at: p.at, allowWhileIdle: true },
       })),
     });
+
+    // 「自动消失」：通知插件本身没有 timeoutAfter，交给原生侧再挂一个
+    // 「到点取消这条通知」的闹钟。只排未来 7 天内的（每次打开 App 都会重排刷新窗口），
+    // 避免一次挂几百个闹钟。
+    const dismissMin = getClassReminderDismissMin();
+    if (dismissMin > 0) {
+      const horizon = 7 * 24 * 3600_000;
+      const items = plans
+        .filter((p) => p.at.getTime() - Date.now() < horizon)
+        .map((p) => ({ id: p.id, at: p.at.getTime() + dismissMin * 60_000 }));
+      if (items.length > 0) {
+        try {
+          await ITDCWidgetPlugin.scheduleNotificationDismisses({ items });
+        } catch (err) {
+          console.warn('scheduleNotificationDismisses failed:', err);
+        }
+      }
+    }
   } catch (err) {
     console.warn('syncClassReminders failed:', err);
   }

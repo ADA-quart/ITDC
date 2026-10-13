@@ -51,6 +51,24 @@ export function setClassReminderLeadMin(min: number): void {
   try { localStorage.setItem(CLASS_LEAD_KEY, String(min)); } catch {}
 }
 
+// 上课提醒「自动消失」时间（分钟）：通知发出后到点由原生侧把通知取消；0 = 不自动消失。
+// 默认 30 分钟——旧通知一直堆在通知栏不划掉时，小米等系统会把新通知静音。
+const CLASS_DISMISS_KEY = 'itdc_class_reminder_dismiss_min';
+
+export const DEFAULT_CLASS_DISMISS_MIN = 30;
+
+export function getClassReminderDismissMin(): number {
+  try {
+    const n = parseInt(localStorage.getItem(CLASS_DISMISS_KEY) ?? '', 10);
+    if (Number.isFinite(n) && n >= 0 && n <= 240) return n;
+  } catch { /* 读取失败回退默认值 */ }
+  return DEFAULT_CLASS_DISMISS_MIN;
+}
+
+export function setClassReminderDismissMin(min: number): void {
+  try { localStorage.setItem(CLASS_DISMISS_KEY, String(min)); } catch {}
+}
+
 /** 是否教务课表导入的课程事件：source 命中学校注册表 */
 export function isClassEvent(e: CalendarEvent): boolean {
   return !!e.source && !!SCHOOLS[e.source];

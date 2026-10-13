@@ -30,10 +30,13 @@ import {
 import { todoApi } from '../api/client';
 import {
   DEFAULT_CLASS_LEAD_MIN,
+  DEFAULT_CLASS_DISMISS_MIN,
   getClassReminderEnabled,
   getClassReminderLeadMin,
+  getClassReminderDismissMin,
   setClassReminderEnabled,
   setClassReminderLeadMin,
+  setClassReminderDismissMin,
 } from '../api/class-reminders';
 import AppearanceSettings from './AppearanceSettings';
 import OcrExtension from './OcrExtension';
@@ -49,6 +52,8 @@ interface Props {
 
 /** 提前量输入的取值范围（分钟） */
 const clampLead = (n: number, min: number) => Math.min(120, Math.max(min, Math.round(n)));
+/** 自动消失时间的取值范围（分钟，0 = 不自动消失） */
+const clampDismiss = (n: number) => Math.min(240, Math.max(0, Math.round(n)));
 
 const PROVIDER_OPTIONS_ZH = [
   { value: 'openai', label: 'OpenAI' },
@@ -117,9 +122,11 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
   const [classReminderOn, setClassReminderOn] = useState(getClassReminderEnabled());
   const [classLeadMin, setClassLeadMin] = useState<number | null>(getClassReminderLeadMin());
   const [classReminderSilent, setClassReminderSilentState] = useState(getClassReminderSilent());
+  const [classDismissMin, setClassDismissMin] = useState<number | null>(getClassReminderDismissMin());
   const [todoLeadMin, setTodoLeadMin] = useState<number | null>(getTodoReminderLeadMin());
   // 数字输入框的防抖保存句柄：输入停顿或失焦时提交
   const classLeadTimer = useRef<number | null>(null);
+  const classDismissTimer = useRef<number | null>(null);
   const todoLeadTimer = useRef<number | null>(null);
   // 表单是否已按「当前启用的配置」对齐过：只做一次，避免打断用户正在输入的内容
   const formSeeded = useRef(false);
@@ -784,6 +791,44 @@ const SettingsView: React.FC<Props> = ({ initialTab }) => {
                   {t.settings.classReminderSilent}
                 </span>
               </Space>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13 }}>{t.settings.classReminderDismiss}</span>
+                <InputNumber
+                  value={classDismissMin}
+                  disabled={!classReminderOn}
+                  min={0}
+                  max={240}
+                  step={5}
+                  addonAfter={t.settings.classReminderMinutes}
+                  style={{ width: 160 }}
+                  onChange={(v) => {
+                    const num = typeof v === 'number' ? v : null;
+                    setClassDismissMin(num);
+                    if (classDismissTimer.current) window.clearTimeout(classDismissTimer.current);
+                    if (typeof num === 'number') {
+                      classDismissTimer.current = window.setTimeout(() => {
+                        setClassReminderDismissMin(clampDismiss(num));
+                        void resyncClassReminders();
+                        message.success(t.settings.classReminderSaved);
+                      }, 700);
+                    }
+                  }}
+                  onPressEnter={(e) => (e.target as HTMLInputElement).blur()}
+                  onBlur={async () => {
+                    if (classDismissTimer.current) {
+                      window.clearTimeout(classDismissTimer.current);
+                      classDismissTimer.current = null;
+                    }
+                    const min = clampDismiss(classDismissMin ?? DEFAULT_CLASS_DISMISS_MIN);
+                    setClassDismissMin(min);
+                    if (min === getClassReminderDismissMin()) return;
+                    setClassReminderDismissMin(min);
+                    await resyncClassReminders();
+                    message.success(t.settings.classReminderSaved);
+                  }}
+                />
+              </div>
+              <p style={{ ...hintTextStyle(isDark), marginTop: 6 }}>{t.settings.classReminderDismissHint}</p>
               <p style={{ ...hintTextStyle(isDark), marginTop: 8 }}>{t.settings.classReminderSilentHint}</p>
             </div>
           )}

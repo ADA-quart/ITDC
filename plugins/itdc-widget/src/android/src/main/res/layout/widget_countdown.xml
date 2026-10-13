@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 「倒计时」条目：参考「倒数日」风格——目标 + 还有 / 大数字 + 单位 / 目标日期。
+     渲染逻辑见 ITDCWidgetProvider.renderCountdown（按 provider 类名分流）。 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg_tint"
+    android:clipToOutline="true">
+
+    <!-- 用户自定义背景层：与主布局同名 id，复用同一套外观下发 -->
+    <ImageView
+        android:id="@+id/widget_bg_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:contentDescription="@null" />
+
+    <LinearLayout
+        android:id="@+id/widget_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="10dp">
+
+        <TextView
+            android:id="@+id/countdown_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="@color/widget_text_primary"
+            android:text="期末考试 还有" />
+
+        <LinearLayout
+            android:id="@+id/countdown_num_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:orientation="horizontal"
+            android:baselineAligned="true">
+
+            <TextView
+                android:id="@+id/countdown_num"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:includeFontPadding="false"
+                android:textSize="46sp"
+                android:textStyle="bold"
+                android:textColor="#FF4C9AFF"
+                android:text="67" />
+
+            <TextView
+                android:id="@+id/countdown_unit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:maxLines="1"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="#FF4C9AFF"
+                android:text="天" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/countdown_sub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="2dp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textSize="12sp"
+            android:textColor="@color/widget_text_secondary"
+            android:text="10-20 09:00 开始" />
+
+        <ImageView
+            android:id="@+id/countdown_divider"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="8dp"
+            android:background="@color/widget_divider"
+            android:contentDescription="@null" />
+
+        <TextView
+            android:id="@+id/countdown_next"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="6dp"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textSize="12sp"
+            android:textColor="@color/widget_text_secondary"
+            android:text="接下来：实验报告 · 3 天" />
+
+        <TextView
+            android:id="@+id/countdown_empty"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:textSize="14sp"
+            android:textColor="@color/widget_text_secondary"
+            android:visibility="gone"
+            android:text="暂无待办倒计时\n给待办加上时间或截止日期即可" />
+    </LinearLayout>
+</FrameLayout>

@@ -210,6 +210,8 @@ const en: LocaleMessages = {
     visionUnsupported: 'The current model does not support images — switch to a vision-capable model under Settings → LLM',
     canDoInClass: 'Can be done during class',
     canDoInClassHint: 'When checked, the algorithm/LLM may place it inside class time; it will merge into that class automatically. Good for easy classes, self-study, or lecture-listening tasks.',
+    pinCountdown: 'Pin as countdown',
+    pinCountdownHint: 'The desktop "Countdown" widget always shows this todo (needs a time or deadline). Uncheck to go back to the nearest one.',
     inClassTag: 'In class',
   },
   ocr: {
@@ -390,6 +392,8 @@ const en: LocaleMessages = {
     classReminderNoPerm: 'Notification permission is off, so class reminders will not appear',
     classReminderSilent: 'Silent',
     classReminderSilentHint: 'Only show in the notification shade, no sound or vibration (you can also tune this channel in system notification settings)',
+    classReminderDismiss: 'Auto dismiss',
+    classReminderDismissHint: 'Class notifications are cleared from the shade after this time (0 = keep until swiped).',
     todoReminder: 'Todo reminders',
     todoReminderHint: 'Pushed before the scheduled start time or deadline. 0 = on time (default); todos without a scheduled time have no start time — use Smart Plan first.',
     todoReminderSaved: 'Todo reminder setting saved',

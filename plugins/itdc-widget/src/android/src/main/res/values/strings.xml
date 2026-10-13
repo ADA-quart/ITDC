@@ -6,6 +6,8 @@
     <string name="app_widget_description_small">小尺寸版：今日课程与待办，点按打开「日日新」</string>
     <string name="app_widget_label_pure">日日新 纯课表</string>
     <string name="app_widget_description_pure">只显示今天与明天的课程，不含待办；点按打开「日日新」</string>
+    <string name="app_widget_label_countdown">日日新 倒计时</string>
+    <string name="app_widget_description_countdown">距离下一个待办/目标开始（或截止）的倒计时；点按打开「日日新」</string>
 
     <string name="widget_empty">今日暂无安排\n点按打开 日日新 添加日程</string>
     <string name="widget_missing_server">打开 日日新 即可显示今日安排</string>
@@ -28,4 +30,17 @@
     <string name="widget_todo_header">待办</string>
     <string name="widget_all_done">全部完成</string>
     <string name="widget_toggle_done">标记完成</string>
+
+    <!-- 倒计时条目 -->
+    <string name="widget_countdown_also">还有</string>
+    <string name="widget_countdown_in_progress">进行中</string>
+    <string name="widget_countdown_start_suffix">开始</string>
+    <string name="widget_countdown_end_suffix">结束</string>
+    <!-- 用引号包住以保住尾部空格（Android 会剥离引号、保留内部空白） -->
+    <string name="widget_countdown_due_prefix">"截止 "</string>
+    <string name="widget_countdown_next_prefix">接下来：</string>
+    <string name="widget_countdown_unit_days">天</string>
+    <string name="widget_countdown_unit_hours">小时</string>
+    <string name="widget_countdown_unit_mins">分钟</string>
+    <string name="widget_countdown_soon">不到 1 分钟</string>
 </resources>

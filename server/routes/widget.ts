@@ -28,7 +28,7 @@ router.get('/today', (_req: Request, res: Response) => {
     ).all(dayStart, dayEnd);
 
     const todos = db.prepare(
-      `SELECT id, title, urgency, importance, deadline
+      `SELECT id, title, urgency, importance, deadline, scheduled_start, scheduled_end
        FROM todos
        WHERE status != 'completed' AND completed_at IS NULL
        ORDER BY (urgency * 10 + importance) DESC, COALESCE(deadline, '9999-12-31') ASC
@@ -50,6 +50,9 @@ router.get('/today', (_req: Request, res: Response) => {
         id: t.id, title: t.title,
         urgency: t.urgency, importance: t.importance,
         deadline: t.deadline ? new Date(t.deadline).toDateString() : '',
+        startIso: t.scheduled_start ?? '',
+        endIso: t.scheduled_end ?? '',
+        deadlineIso: t.deadline ?? '',
       })),
       updated_at: new Date().toISOString(),
     });

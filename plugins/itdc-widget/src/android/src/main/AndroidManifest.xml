@@ -60,6 +60,21 @@
                 android:resource="@xml/app_widget_itdc_pure" />
         </receiver>
 
+        <!-- 「倒计时」条目：距下一个待办/目标开始（或截止）的倒计时 -->
+        <receiver
+            android:name=".ITDCWidgetCountdownProvider"
+            android:label="@string/app_widget_label_countdown"
+            android:exported="true"
+            android:permission="android.permission.BIND_APPWIDGET">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+                <category android:name="android.appwidget.category.DYNAMIC_PROVIDER"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/app_widget_itdc_countdown" />
+        </receiver>
+
         <!-- 集合型小组件的数据源：为今天/明天/待办三个列表提供条目，没有它列表无法滚动 -->
         <service
             android:name=".ITDCWidgetListService"
@@ -98,6 +113,11 @@
                 <action android:name="android.intent.action.USER_PRESENT"/>
             </intent-filter>
         </receiver>
+
+        <!-- 上课提醒的「自动消失」闹钟：到点把通知栏里的那条通知取消掉 -->
+        <receiver
+            android:name=".ITDCNotificationDismiss"
+            android:exported="false" />
     </application>
 
 </manifest>

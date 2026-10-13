@@ -209,6 +209,8 @@ const zh = {
     visionUnsupported: '当前模型不支持图片输入，可在「设置 → LLM 服务配置」换一个支持视觉的模型',
     canDoInClass: '可以在上课时做',
     canDoInClassHint: '勾选后，算法/大模型可以把它安排进课堂时间；排进课程时会自动融合到课程里。适合水课、自习、听讲座时顺手完成的任务。',
+    pinCountdown: '设为倒计时目标',
+    pinCountdownHint: '桌面「倒计时」小组件固定显示这条待办（需已设时间或截止日期）；取消勾选恢复自动取最近一条。',
     inClassTag: '课内可做',
   },
   ocr: {
@@ -396,6 +398,8 @@ const zh = {
     classReminderNoPerm: '未获得通知权限，系统不会显示上课提醒',
     classReminderSilent: '静默提醒',
     classReminderSilentHint: '开启后只显示在通知栏，不响铃、不震动（也可以到系统通知设置里单独调整这个渠道）',
+    classReminderDismiss: '提醒自动消失',
+    classReminderDismissHint: '通知发出后按此时间自动从通知栏消失（0 = 不自动消失）；旧通知一直堆着不划掉时，部分系统会把新通知静音。',
     todoReminder: '待办提醒',
     todoReminderHint: '在「已排程的开始时间 / 截止时间」前推送到通知栏。填 0 = 到点提醒（默认）；没排过时间的待办没有开始时间，可先用智能规划排一下。',
     todoReminderSaved: '待办提醒设置已保存',

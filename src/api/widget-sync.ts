@@ -27,6 +27,25 @@ function getHiddenCalendarIds(): Set<number> {
   }
 }
 
+// 「倒计时目标」：用户在待办里指定的那一条，桌面「倒计时」小组件会固定显示它
+const COUNTDOWN_PIN_KEY = 'itdc_countdown_pin';
+
+/** 被指定为倒计时目标的待办 id（未设置返回 null） */
+export function getCountdownPin(): number | null {
+  try {
+    const n = parseInt(localStorage.getItem(COUNTDOWN_PIN_KEY) ?? '', 10);
+    if (Number.isFinite(n)) return n;
+  } catch { /* 读不到按未设置 */ }
+  return null;
+}
+
+export function setCountdownPin(id: number | null): void {
+  try {
+    if (id === null) localStorage.removeItem(COUNTDOWN_PIN_KEY);
+    else localStorage.setItem(COUNTDOWN_PIN_KEY, String(id));
+  } catch {}
+}
+
 /** 单条课程/日程：今天与明天共用同一结构 */
 export interface WidgetScheduleItem {
   id: number;
@@ -50,6 +69,12 @@ export interface WidgetTodoItem {
   slot: string;
   /** 是否已完成：原生端据此显示复选框与划线 */
   done: boolean;
+  /** 原始 ISO 时间（倒计时小组件用）：已排程开始 / 结束 / 截止，无则为空串 */
+  startIso: string;
+  endIso: string;
+  deadlineIso: string;
+  /** 用户的「倒计时目标」：原生端优先用这条当主倒计时 */
+  pinned?: boolean;
 }
 
 /** 单天的安排（跨天渲染用：快照一次覆盖多天，小组件自行选取"今天"） */
@@ -317,6 +342,14 @@ export async function buildWidgetSnapshot(): Promise<WidgetSnapshot> {
     ...sortedTodos.filter((t) => isDone(t) && doneToday(t)),
   ].slice(0, 10);
 
+  // 「倒计时目标」必须进快照（即使不在待办 Top10），原生端优先把它当主目标
+  const pin = getCountdownPin();
+  let listTodos = pending;
+  if (pin !== null && !pending.some((t) => t.id === pin)) {
+    const pinTodo = sortedTodos.find((t) => t.id === pin && !isDone(t));
+    if (pinTodo) listTodos = [pinTodo, ...pending].slice(0, 10);
+  }
+
   const week = teachingWeek(now);
 
   return {
@@ -327,7 +360,7 @@ export async function buildWidgetSnapshot(): Promise<WidgetSnapshot> {
     tomorrowLabel: shortDate(tomorrowDate),
     weekLabel: week > 0 ? `${week}` : '',
     boardTitle: nearestClassCalendarName(schedule, tomorrowItems, now, calendarNameById),
-    todos: pending.map((t) => ({
+    todos: listTodos.map((t) => ({
       id: t.id,
       title: t.title,
       urgency: t.urgency,
@@ -338,6 +371,10 @@ export async function buildWidgetSnapshot(): Promise<WidgetSnapshot> {
       slot: t.scheduled_start && t.scheduled_end
         ? `${hhmm(t.scheduled_start)}-${hhmm(t.scheduled_end)}`
         : '',
+      startIso: t.scheduled_start ?? '',
+      endIso: t.scheduled_end ?? '',
+      deadlineIso: t.deadline ?? '',
+      pinned: pin !== null && t.id === pin,
     })),
     day: dayKey(now),
     updated_at: new Date().toISOString(),

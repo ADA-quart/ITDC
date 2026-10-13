@@ -18,6 +18,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.text.TextUtils;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.View;
 import android.widget.RemoteViews;
 
@@ -149,7 +150,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
      */
     private static final Class<?>[] PROVIDER_CLASSES = {
             ITDCWidgetProvider.class, ITDCWidgetSmallProvider.class,
-            ITDCWidgetPureTimetableProvider.class
+            ITDCWidgetPureTimetableProvider.class, ITDCWidgetCountdownProvider.class
     };
 
     /** 两个条目在桌面上的全部实例 id */
@@ -174,10 +175,13 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         try {
             AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
             for (int id : allWidgetIds(context)) {
-                // 先让列表数据源重算（已结束的课要消失），再重绘外壳
-                awm.notifyAppWidgetViewDataChanged(id, R.id.widget_today_list);
-                awm.notifyAppWidgetViewDataChanged(id, R.id.widget_tomorrow_list);
-                awm.notifyAppWidgetViewDataChanged(id, R.id.widget_todo_list);
+                // 先让列表数据源重算（已结束的课要消失），再重绘外壳。
+                // 「倒计时」条目没有这些列表视图，跳过数据源通知。
+                if (!isCountdown(context, id)) {
+                    awm.notifyAppWidgetViewDataChanged(id, R.id.widget_today_list);
+                    awm.notifyAppWidgetViewDataChanged(id, R.id.widget_tomorrow_list);
+                    awm.notifyAppWidgetViewDataChanged(id, R.id.widget_todo_list);
+                }
                 refreshWidget(context, id);
             }
         } catch (Exception e) { Log.e(TAG, "refreshAll failed", e); }
@@ -194,6 +198,17 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
             PendingIntent pi = PendingIntent.getBroadcast(context, 0, it, flags);
             long trigger = nextRefreshTime(context, System.currentTimeMillis());
+            // 倒计时的分钟级刷新（触发 ≤2 分钟）：尽量用精确闹钟让分钟数即时跳动；
+            // 没有精确闹钟权限时回退 setWindow。
+            if (trigger - System.currentTimeMillis() <= 2 * 60_000L
+                    && (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || am.canScheduleExactAlarms())) {
+                try {
+                    am.setExactAndAllowWhileIdle(AlarmManager.RTC, trigger, pi);
+                    return;
+                } catch (Exception ignored) {
+                    // 权限被系统静默收回等情况：继续走 setWindow
+                }
+            }
             // 不带 WAKEUP 的 RTC + 窗口：设备睡着时不叫醒，亮屏时过期闹钟会立即补发；
             // 醒着时在窗口内投递。setWindow 不需要精确闹钟权限。
             am.setWindow(AlarmManager.RTC, trigger, REFRESH_WINDOW_MS, pi);
@@ -212,6 +227,12 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         try {
             long midnight = dayStart(now) + 24 * 60 * 60 * 1000L + 2 * 60 * 1000L;
             if (midnight > now && midnight < next) next = midnight;
+
+            // 「倒计时」条目：按显示粒度安排刷新（≥1 天按整点，临近按分钟）
+            if (hasCountdownWidget(context)) {
+                long tick = countdownNextTick(context, now);
+                if (tick > now && tick < next) next = tick;
+            }
 
             String snapshot = getLocalSnapshot(context);
             if (TextUtils.isEmpty(snapshot)) return next;
@@ -279,6 +300,11 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
 
     /** 按快照渲染主界面并挂上三个可滚动列表 */
     private static void renderSnapshot(Context context, int appWidgetId, String json) {
+        // 「倒计时」条目用自己的布局，不共用课表/待办那套
+        if (isCountdown(context, appWidgetId)) {
+            renderCountdown(context, appWidgetId, json);
+            return;
+        }
         try {
             RemoteViews rv = new RemoteViews(context.getPackageName(), R.layout.widget_main);
             applyAppearance(context, rv, appWidgetId);
@@ -689,6 +715,274 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         return (Long.parseLong(hm.substring(0, 2)) * 60 + Long.parseLong(hm.substring(3, 5))) * 60_000L;
     }
 
+    // ---------- 「倒计时」条目 ----------
+
+    /** 这个小组件实例是不是「倒计时」条目 */
+    static boolean isCountdown(Context context, int appWidgetId) {
+        try {
+            AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
+            AppWidgetProviderInfo info = awm.getAppWidgetInfo(appWidgetId);
+            return info != null && info.provider != null
+                    && ITDCWidgetCountdownProvider.class.getName().equals(info.provider.getClassName());
+        } catch (Exception e) {
+            Log.w(TAG, "isCountdown failed", e);
+            return false;
+        }
+    }
+
+    /** 桌面上是否放着「倒计时」条目：没有的话不做分钟级刷新排程 */
+    private static boolean hasCountdownWidget(Context context) {
+        try {
+            AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
+            int[] ids = awm.getAppWidgetIds(new ComponentName(context, ITDCWidgetCountdownProvider.class.getName()));
+            return ids != null && ids.length > 0;
+        } catch (Exception e) {
+            Log.w(TAG, "hasCountdownWidget failed", e);
+            return false;
+        }
+    }
+
+    /** 倒计时的一条候选：when = 倒计时的目标时刻 */
+    private static final class CdItem {
+        String title;
+        long when;
+        /** 0=距开始 1=进行中(距结束) 2=距截止 */
+        int kind;
+        /** 用户指定的「倒计时目标」：固定当主目标 */
+        boolean pinned;
+    }
+
+    /** 从快照待办里挑出倒计时候选，按目标时刻升序 */
+    private static java.util.List<CdItem> countdownItems(String json, long now) {
+        java.util.List<CdItem> out = new java.util.ArrayList<>();
+        try {
+            JSONObject root = new JSONObject(json);
+            JSONArray todos = root.optJSONArray("todos");
+            if (todos == null) return out;
+            for (int i = 0; i < todos.length(); i++) {
+                JSONObject t = todos.optJSONObject(i);
+                if (t == null || t.optBoolean("done", false)) continue;
+                String title = t.optString("title", "");
+                if (title.isEmpty()) continue;
+                long start = parseIsoMillis(t.optString("startIso", ""));
+                long end = parseIsoMillis(t.optString("endIso", ""));
+                long due = parseIsoMillis(t.optString("deadlineIso", ""));
+                CdItem item = null;
+                if (start > now) {
+                    item = new CdItem();
+                    item.when = start;
+                    item.kind = 0;
+                } else if (start > 0 && end > now) {
+                    item = new CdItem();
+                    item.when = end;
+                    item.kind = 1;
+                } else if (due > now) {
+                    item = new CdItem();
+                    item.when = due;
+                    item.kind = 2;
+                }
+                if (item != null) {
+                    item.title = title;
+                    item.pinned = t.optBoolean("pinned", false);
+                    out.add(item);
+                }
+            }
+            java.util.Collections.sort(out, (a, b) -> Long.compare(a.when, b.when));
+            // 用户指定的「倒计时目标」固定当主目标（不管它是不是最近一条）
+            for (int i = 0; i < out.size(); i++) {
+                if (out.get(i).pinned) {
+                    out.add(0, out.remove(i));
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "countdownItems failed", e);
+        }
+        return out;
+    }
+
+    /** 解析快照里的 ISO 时间：带时区与不带时区都支持，失败返回 0 */
+    private static long parseIsoMillis(String s) {
+        if (TextUtils.isEmpty(s)) return 0;
+        String[] patterns = {
+                "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", "yyyy-MM-dd'T'HH:mm:ssXXX",
+                "yyyy-MM-dd'T'HH:mm:ss.SSS", "yyyy-MM-dd'T'HH:mm:ss",
+                "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm",
+        };
+        for (String p : patterns) {
+            try {
+                java.text.SimpleDateFormat f = new java.text.SimpleDateFormat(p, Locale.US);
+                f.setLenient(true);
+                java.util.Date d = f.parse(s);
+                if (d != null) return d.getTime();
+            } catch (Exception ignored) {
+                // 换下一种格式
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * 剩余时长按「倒数日」风格拆成大数字 + 单位：≥1 天只到天、≥1 小时只到小时、
+     * 否则到分钟（显示颗粒越细刷新越频繁——见 countdownNextTick）。
+     */
+    private static String[] remainingParts(Context context, long remain) {
+        if (remain < 60_000L) {
+            return new String[]{"", context.getString(R.string.widget_countdown_soon)};
+        }
+        long totalMin = remain / 60_000L;
+        long days = totalMin / (24 * 60);
+        long hours = (totalMin % (24 * 60)) / 60;
+        long mins = totalMin % 60;
+        if (days > 0) return new String[]{String.valueOf(days), context.getString(R.string.widget_countdown_unit_days)};
+        if (hours > 0) return new String[]{String.valueOf(hours), context.getString(R.string.widget_countdown_unit_hours)};
+        return new String[]{String.valueOf(mins), context.getString(R.string.widget_countdown_unit_mins)};
+    }
+
+    /** 「接下来」行用的剩余文案：「3 天」「5 小时」「23 分钟」 */
+    private static String coarseRemaining(Context context, long remain) {
+        String[] parts = remainingParts(context, remain);
+        return parts[0].isEmpty() ? parts[1] : parts[0] + " " + parts[1];
+    }
+
+    /** M-d HH:mm */
+    private static String shortTime(long millis) {
+        return new java.text.SimpleDateFormat("M-d HH:mm", Locale.US).format(new java.util.Date(millis));
+    }
+
+    /** 「倒计时」条目的渲染：距最近一个待办目标（开始 / 结束 / 截止）的剩余时间 */
+    private static void renderCountdown(Context context, int appWidgetId, String json) {
+        try {
+            RemoteViews rv = new RemoteViews(context.getPackageName(), R.layout.widget_countdown);
+            applyAppearance(context, rv, appWidgetId);
+
+            // 按实际格子尺寸等比缩放排版：格子越高，大数字、间距、字号一起放大把空间用满；
+            // 又矮又窄时砍掉「接下来」行，避免挤成一团。任意比例都自适应。
+            AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
+            android.os.Bundle options = awm.getAppWidgetOptions(appWidgetId);
+            int cellW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250);
+            int cellH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 110);
+            Log.i(TAG, "countdown cell " + cellW + "x" + cellH);
+            float density = context.getResources().getDisplayMetrics().density;
+            float numSp = Math.max(30f, Math.min(72f, cellH * 0.48f));
+            float unitSp = Math.max(12f, Math.min(24f, numSp * 0.32f));
+            float labelSp = Math.max(12f, Math.min(15f, 11f + numSp * 0.06f));
+            float subSp = Math.max(11f, Math.min(14f, 10.5f + numSp * 0.045f));
+            float nextSp = subSp;
+            boolean showNextRow = cellW >= 180 && cellH >= 90;
+            boolean moreNext = numSp >= 58f;
+            int padH = Math.round(16 * density);
+            int padTop = Math.round(numSp * 0.22f * density);
+            int padBottom = Math.round(numSp * 0.18f * density);
+            rv.setViewPadding(R.id.widget_content, padH, padTop, padH, padBottom);
+            rv.setViewPadding(R.id.countdown_num_row, 0, Math.round(numSp * 0.12f * density), 0, 0);
+            rv.setViewPadding(R.id.countdown_sub, 0, Math.round(numSp * 0.07f * density), 0, 0);
+            rv.setViewPadding(R.id.countdown_next, 0, Math.round(numSp * 0.13f * density), 0, 0);
+            rv.setTextViewTextSize(R.id.countdown_num, TypedValue.COMPLEX_UNIT_SP, numSp);
+            rv.setTextViewTextSize(R.id.countdown_unit, TypedValue.COMPLEX_UNIT_SP, unitSp);
+            rv.setTextViewTextSize(R.id.countdown_label, TypedValue.COMPLEX_UNIT_SP, labelSp);
+            rv.setTextViewTextSize(R.id.countdown_sub, TypedValue.COMPLEX_UNIT_SP, subSp);
+            rv.setTextViewTextSize(R.id.countdown_next, TypedValue.COMPLEX_UNIT_SP, nextSp);
+            rv.setInt(R.id.countdown_next, "setMaxLines", moreNext ? 3 : 2);
+
+            if (!WidgetAppearance.useConfigColors(context)) {
+                rv.setTextColor(R.id.countdown_label, WidgetAppearance.textPrimary(context));
+                rv.setTextColor(R.id.countdown_sub, WidgetAppearance.textSecondary(context));
+                rv.setTextColor(R.id.countdown_next, WidgetAppearance.textSecondary(context));
+                rv.setTextColor(R.id.countdown_empty, WidgetAppearance.textSecondary(context));
+                rv.setInt(R.id.countdown_divider, "setBackgroundColor", WidgetAppearance.divider(context));
+            }
+            int accent = WidgetAppearance.accent(context);
+            rv.setTextColor(R.id.countdown_num, accent);
+            rv.setTextColor(R.id.countdown_unit, accent);
+
+            long now = System.currentTimeMillis();
+            java.util.List<CdItem> items = countdownItems(json, now);
+            if (items.isEmpty()) {
+                rv.setViewVisibility(R.id.countdown_empty, View.VISIBLE);
+                rv.setViewVisibility(R.id.countdown_label, View.GONE);
+                rv.setViewVisibility(R.id.countdown_num, View.GONE);
+                rv.setViewVisibility(R.id.countdown_unit, View.GONE);
+                rv.setViewVisibility(R.id.countdown_sub, View.GONE);
+                rv.setViewVisibility(R.id.countdown_divider, View.GONE);
+                rv.setViewVisibility(R.id.countdown_next, View.GONE);
+            } else {
+                CdItem main = items.get(0);
+                rv.setViewVisibility(R.id.countdown_empty, View.GONE);
+                rv.setViewVisibility(R.id.countdown_label, View.VISIBLE);
+                rv.setViewVisibility(R.id.countdown_num, View.VISIBLE);
+                rv.setViewVisibility(R.id.countdown_unit, View.VISIBLE);
+                rv.setViewVisibility(R.id.countdown_sub, View.VISIBLE);
+
+                // 第一行：目标 + 状态词（「还有」/「进行中」），第二行：大数字 + 单位
+                rv.setTextViewText(R.id.countdown_label, main.title + " " + context.getString(
+                        main.kind == 1 ? R.string.widget_countdown_in_progress : R.string.widget_countdown_also));
+                String[] parts = remainingParts(context, main.when - now);
+                rv.setTextViewText(R.id.countdown_num, parts[0]);
+                rv.setTextViewText(R.id.countdown_unit, parts[1]);
+
+                // 第三行：目标时刻
+                String sub;
+                if (main.kind == 0) {
+                    sub = shortTime(main.when) + " " + context.getString(R.string.widget_countdown_start_suffix);
+                } else if (main.kind == 1) {
+                    sub = hm(main.when) + " " + context.getString(R.string.widget_countdown_end_suffix);
+                } else {
+                    sub = context.getString(R.string.widget_countdown_due_prefix) + shortTime(main.when);
+                }
+                rv.setTextViewText(R.id.countdown_sub, sub);
+
+                // 后续 1-2 条：让「下一个目标」也能一眼看到
+                StringBuilder sb = new StringBuilder();
+                for (int i = 1; i < items.size() && i <= (moreNext ? 3 : 2); i++) {
+                    CdItem n = items.get(i);
+                    if (sb.length() > 0) sb.append('\n');
+                    sb.append(context.getString(R.string.widget_countdown_next_prefix))
+                            .append(n.title).append(" · ").append(coarseRemaining(context, n.when - now));
+                }
+                boolean hasNext = sb.length() > 0 && showNextRow;
+                rv.setViewVisibility(R.id.countdown_divider, hasNext ? View.VISIBLE : View.GONE);
+                rv.setViewVisibility(R.id.countdown_next, hasNext ? View.VISIBLE : View.GONE);
+                if (hasNext) rv.setTextViewText(R.id.countdown_next, sb.toString());
+            }
+
+            PendingIntent openApp = openAppIntent(context);
+            rv.setOnClickPendingIntent(R.id.widget_root, openApp);
+            rv.setOnClickPendingIntent(R.id.widget_content, openApp);
+            rv.setOnClickPendingIntent(R.id.countdown_label, openApp);
+            rv.setOnClickPendingIntent(R.id.countdown_num, openApp);
+
+            awm.updateAppWidget(appWidgetId, rv);
+        } catch (Exception e) {
+            Log.e(TAG, "renderCountdown failed", e);
+        }
+    }
+
+    /** 倒计时条目的下一次刷新时刻：显示粒度决定（≥1 天按整点，临近按分钟） */
+    private static long countdownNextTick(Context context, long now) {
+        try {
+            String snapshot = getLocalSnapshot(context);
+            if (TextUtils.isEmpty(snapshot)) return now + REFRESH_INTERVAL_MS;
+            java.util.List<CdItem> items = countdownItems(snapshot, now);
+            if (items.isEmpty()) return now + REFRESH_INTERVAL_MS;
+            long remain = items.get(0).when - now;
+            if (remain <= 0) return now - (now % 60_000L) + 60_000L + 3_000L;
+            if (remain >= 24 * 3600_000L) {
+                // 显示到「天」：跨天（00:01）后再刷新
+                return dayStart(now) + 24 * 3600_000L + 60_000L;
+            }
+            if (remain >= 3600_000L) {
+                // 显示到「小时」：下一个整点再刷新
+                return now - (now % 3_600_000L) + 3_600_000L + 5_000L;
+            }
+            // 显示到「分钟」：下一分钟边界
+            return now - (now % 60_000L) + 60_000L + 3_000L;
+        } catch (Exception e) {
+            Log.w(TAG, "countdownNextTick failed", e);
+            return now + REFRESH_INTERVAL_MS;
+        }
+    }
+
     // ---------- 持久化 ----------
 
     private static SharedPreferences prefs(Context context) {
@@ -737,10 +1031,13 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         try {
             AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
             for (int id : allWidgetIds(context)) {
-                // 先通知数据源失效，再重绘，否则列表仍显示旧内容
-                awm.notifyAppWidgetViewDataChanged(id, R.id.widget_today_list);
-                awm.notifyAppWidgetViewDataChanged(id, R.id.widget_tomorrow_list);
-                awm.notifyAppWidgetViewDataChanged(id, R.id.widget_todo_list);
+                // 先通知数据源失效，再重绘，否则列表仍显示旧内容；
+                // 「倒计时」条目没有这些列表视图，跳过。
+                if (!isCountdown(context, id)) {
+                    awm.notifyAppWidgetViewDataChanged(id, R.id.widget_today_list);
+                    awm.notifyAppWidgetViewDataChanged(id, R.id.widget_tomorrow_list);
+                    awm.notifyAppWidgetViewDataChanged(id, R.id.widget_todo_list);
+                }
                 refreshWidget(context, id);
             }
         } catch (Exception e) { Log.e(TAG, "requestRefresh failed", e); }

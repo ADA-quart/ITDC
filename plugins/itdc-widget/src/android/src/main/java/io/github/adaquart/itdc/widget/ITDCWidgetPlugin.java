@@ -9,6 +9,7 @@ import android.os.PowerManager;
 import android.provider.Settings;
 
 import com.getcapacitor.JSObject;
+import com.getcapacitor.JSArray;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
@@ -149,6 +150,31 @@ public class ITDCWidgetPlugin extends Plugin {
             call.resolve();
         } catch (Exception e) {
             call.reject("clear queue failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 上课提醒的「自动消失」：给每条已排程的提醒再挂一个「到点把通知取消掉」的闹钟。
+     * 通知本体由 @capacitor/local-notifications 发出，这里只补它没有的超时取消能力。
+     */
+    @PluginMethod
+    public void scheduleNotificationDismisses(PluginCall call) {
+        try {
+            JSArray items = call.getArray("items");
+            if (items != null) {
+                for (int i = 0; i < items.length(); i++) {
+                    org.json.JSONObject item = items.optJSONObject(i);
+                    if (item == null) continue;
+                    int id = item.optInt("id", -1);
+                    long at = item.optLong("at", 0L);
+                    if (id >= 0 && at > 0) {
+                        ITDCNotificationDismiss.schedule(getContext(), id, at);
+                    }
+                }
+            }
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("scheduleNotificationDismisses failed: " + e.getMessage());
         }
     }
 

@@ -7,6 +7,7 @@ import { todoApi } from '../api/client';
 import type { Todo } from '../types';
 import { useI18n } from '../i18n';
 import { getPriorityFromUrgencyImportance } from '../utils/priority';
+import { getCountdownPin, setCountdownPin, pushWidgetSnapshot } from '../api/widget-sync';
 
 interface Props {
   visible: boolean;
@@ -37,6 +38,7 @@ const TodoForm: React.FC<Props> = ({ visible, todo, onClose, onSaved }) => {
         deadline: todo.deadline ? dayjs(todo.deadline) : undefined,
         color: todo.color,
         can_do_in_class: !!todo.can_do_in_class,
+        countdown_pin: getCountdownPin() === todo.id,
       });
     } else if (visible) {
       form.resetFields();
@@ -62,6 +64,13 @@ const TodoForm: React.FC<Props> = ({ visible, todo, onClose, onSaved }) => {
 
       if (todo) {
         await todoApi.update(todo.id, data);
+        // 「倒计时目标」开关：变了就写本地设置并让桌面倒计时小组件立即重绘
+        const wantPin = !!values.countdown_pin;
+        const wasPin = getCountdownPin() === todo.id;
+        if (wantPin !== wasPin) {
+          setCountdownPin(wantPin ? todo.id : null);
+          void pushWidgetSnapshot();
+        }
         message.success(t.todo.updated);
       } else {
         await todoApi.create(data);
@@ -90,7 +99,7 @@ const TodoForm: React.FC<Props> = ({ visible, todo, onClose, onSaved }) => {
       cancelText={t.todo.cancel}
       destroyOnClose
     >
-      <Form form={form} layout="vertical" initialValues={{ urgency: 2, importance: 2, estimated_minutes: 30, can_do_in_class: false }}>
+      <Form form={form} layout="vertical" initialValues={{ urgency: 2, importance: 2, estimated_minutes: 30, can_do_in_class: false, countdown_pin: false }}>
         <Form.Item name="title" label={t.todo.title} rules={[{ required: true, message: t.todo.enterTitle }]}>
           <Input placeholder={t.todo.enterTitle} />
         </Form.Item>
@@ -120,6 +129,17 @@ const TodoForm: React.FC<Props> = ({ visible, todo, onClose, onSaved }) => {
         >
           <Checkbox>{t.todo.canDoInClass}</Checkbox>
         </Form.Item>
+
+        {todo && (
+          <Form.Item
+            name="countdown_pin"
+            valuePropName="checked"
+            extra={t.todo.pinCountdownHint}
+            style={{ marginBottom: 12 }}
+          >
+            <Checkbox>{t.todo.pinCountdown}</Checkbox>
+          </Form.Item>
+        )}
 
         <Form.Item name="color" label={t.todo.color}>
           <ColorPicker />

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 「倒计时」条目：距下一个待办（考试/作业等目标）开始或截止的倒计时。
+     小米等桌面按 min 尺寸换算格数（≈ (dp+30)/70）：250×100dp → 4×2，可自由拖动。 -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="100dp"
+    android:minResizeHeight="35dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="7200000"
+    android:initialLayout="@layout/widget_countdown"
+    android:previewLayout="@layout/widget_countdown"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:description="@string/app_widget_description_countdown"
+    android:label="@string/app_widget_label_countdown">
+</appwidget-provider>
