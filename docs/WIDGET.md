@@ -23,17 +23,20 @@
 | 标准 | `ITDCWidgetProvider` | 250×180dp | 4×2 | 2×2+（格子大） |
 | 小尺寸 | `ITDCWidgetSmallProvider` | 110×110dp | 2×2 | 2×2 |
 | 纯课表 | `ITDCWidgetPureTimetableProvider` | 250×100dp | 4×2（可拖到 1 行） | 2×2+ |
-| 倒计时 | `ITDCWidgetCountdownProvider` | 250×100dp | 4×2（可拖到 1 行） | 2×2+ |
+| 倒计时 | `ITDCWidgetCountdownProvider` | 250×100dp（`minResize` 放宽到 110×35dp） | 4×2（可拖到 1 行 / 2 列，即 2×1） | 2×2+ |
 
 渲染代码基本共用，差异只有元数据与几处开关：
 
 - 所有条目都随实际尺寸自适应（`applyVariantLayout`）：手机的小方块只留「今天」一列；
 - 「纯课表」按 provider 类名在渲染时切换成「今天 / 明天 / 后天」三列、隐藏待办区，
   课表自动占满高度——用类名判断而不是存状态，删了重建不会串。
-- 「倒计时」用独立布局（`widget_countdown.xml`）：渲染距最近一个待办的开始 / 结束 /
-  截止的剩余时间；快照里带 `pinned` 的待办会固定当主目标（待办编辑里的
-  「设为倒计时目标」）；刷新排程由 `countdownNextTick()` 决定（≥1 天按整点，
-  临近按分钟，分钟级尽量走精确闹钟），没有倒计时实例时退回常规的课程边界刷新链。
+- 「倒计时」用独立布局（纵向 `widget_countdown.xml` / 宽扁 `widget_countdown_wide.xml`）：
+  渲染距最近一个待办的开始 / 结束 / 截止的剩余时间；尺寸优先取 launcher 的
+  `appWidgetSizes`（竖/横两套实际尺寸），字号按剩余空间等比反推、再按宽度收敛；
+  宽 ≥ 1.9×高或高度不足 120dp 时走两栏横排，窄条（<240dp）只留大数字 + 标题。
+  快照里带 `pinned` 的待办会固定当主目标（待办编辑里的「设为倒计时目标」）；
+  刷新排程由 `countdownNextTick()` 决定（≥1 天按整点，临近按分钟，分钟级尽量走
+  精确闹钟），没有倒计时实例时退回常规的课程边界刷新链。
 
 枚举实例 / 刷新 / 停闹钟都走 `ITDCWidgetProvider.allWidgetIds()`，全部条目一起算——
 否则删掉其中一个会把其它条目的定时刷新链一起停掉。

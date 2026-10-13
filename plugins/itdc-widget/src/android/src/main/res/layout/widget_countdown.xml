@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 「倒计时」条目：参考「倒数日」风格——目标 + 还有 / 大数字 + 单位 / 目标日期。
-     渲染逻辑见 ITDCWidgetProvider.renderCountdown（按 provider 类名分流）。 -->
+<!-- 「倒计时」条目（纵向，2×2 / 4×2 / 高格子）：目标 + 还有 / 大数字 + 单位 /
+     目标时刻 / 接下来。渲染逻辑见 ITDCWidgetProvider.renderCountdown：
+     · 尺寸取 launcher 的 appWidgetSizes（竖/横两套实际尺寸），字号按剩余空间反推；
+     · 大数字那一行 weight=1，格子被拉高时多出来的高度落在数字上下，
+       不会堆到卡片边缘变成一大片空白。 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
@@ -21,11 +24,10 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:gravity="center_vertical"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
-        android:paddingTop="12dp"
-        android:paddingBottom="10dp">
+        android:paddingTop="10dp"
+        android:paddingBottom="8dp">
 
         <TextView
             android:id="@+id/countdown_label"
@@ -38,42 +40,51 @@
             android:textColor="@color/widget_text_primary"
             android:text="期末考试 还有" />
 
+        <!-- 外层负责吃掉多余高度并把数字块垂直居中；内层只管基线对齐。
+             注意：若在基线对齐的这层上设 center_vertical 重力，子项就不参与基线对齐了，
+             单位「天」会飘到数字中部。 -->
         <LinearLayout
             android:id="@+id/countdown_num_row"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingTop="4dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:orientation="horizontal"
-            android:baselineAligned="true">
+            android:gravity="center_vertical">
 
-            <TextView
-                android:id="@+id/countdown_num"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:maxLines="1"
-                android:includeFontPadding="false"
-                android:textSize="46sp"
-                android:textStyle="bold"
-                android:textColor="#FF4C9AFF"
-                android:text="67" />
+                android:orientation="horizontal"
+                android:baselineAligned="true">
 
-            <TextView
-                android:id="@+id/countdown_unit"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:maxLines="1"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:textColor="#FF4C9AFF"
-                android:text="天" />
+                <TextView
+                    android:id="@+id/countdown_num"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:includeFontPadding="false"
+                    android:textSize="46sp"
+                    android:textStyle="bold"
+                    android:textColor="#FF4C9AFF"
+                    android:text="67" />
+
+                <TextView
+                    android:id="@+id/countdown_unit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:maxLines="1"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textColor="#FF4C9AFF"
+                    android:text="天" />
+            </LinearLayout>
         </LinearLayout>
 
         <TextView
             android:id="@+id/countdown_sub"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingTop="2dp"
             android:maxLines="1"
             android:ellipsize="end"
             android:textSize="12sp"
@@ -84,7 +95,7 @@
             android:id="@+id/countdown_divider"
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="7dp"
             android:background="@color/widget_divider"
             android:contentDescription="@null" />
 
@@ -92,22 +103,24 @@
             android:id="@+id/countdown_next"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingTop="6dp"
-            android:maxLines="2"
+            android:paddingTop="5dp"
+            android:maxLines="3"
             android:ellipsize="end"
             android:textSize="12sp"
             android:textColor="@color/widget_text_secondary"
             android:text="接下来：实验报告 · 3 天" />
-
-        <TextView
-            android:id="@+id/countdown_empty"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:textSize="14sp"
-            android:textColor="@color/widget_text_secondary"
-            android:visibility="gone"
-            android:text="暂无待办倒计时\n给待办加上时间或截止日期即可" />
     </LinearLayout>
+
+    <!-- 空状态：整块盖住内容区居中显示 -->
+    <TextView
+        android:id="@+id/countdown_empty"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:textSize="13.5sp"
+        android:textColor="@color/widget_text_secondary"
+        android:visibility="gone"
+        android:text="暂无待办倒计时\n给待办加上时间或截止日期即可" />
 </FrameLayout>

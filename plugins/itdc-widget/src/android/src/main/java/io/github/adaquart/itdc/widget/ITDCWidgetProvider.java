@@ -850,40 +850,100 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         return new java.text.SimpleDateFormat("M-d HH:mm", Locale.US).format(new java.util.Date(millis));
     }
 
-    /** 「倒计时」条目的渲染：距最近一个待办目标（开始 / 结束 / 截止）的剩余时间 */
+    /**
+     * 「倒计时」条目的渲染：距最近一个待办目标（开始 / 结束 / 截止）的剩余时间。
+     *
+     * 尺寸优先取 launcher 的 appWidgetSizes——它同时带竖屏/横屏两套实际尺寸；只看
+     * OPTION_APPWIDGET_MIN_HEIGHT 会明显偏小（安卓 16 桌面上 4×2 报 148dp、实际给到
+     * 249dp），字号小、四周空一大片。拿不到该字段时退回 min 尺寸。
+     *
+     * 排版两套：宽扁组件（宽 ≥ 1.9×高，或高度不足 120dp）用横向两栏；其余纵向堆叠，
+     * 大数字所在行 weight=1，多出来的高度落在数字上下。字号由剩余空间反推，
+     * 多位数 + 单位再按宽度收敛，任意比例的格子都尽量撑满。
+     */
     private static void renderCountdown(Context context, int appWidgetId, String json) {
         try {
-            RemoteViews rv = new RemoteViews(context.getPackageName(), R.layout.widget_countdown);
-            applyAppearance(context, rv, appWidgetId);
-
-            // 按实际格子尺寸等比缩放排版：格子越高，大数字、间距、字号一起放大把空间用满；
-            // 又矮又窄时砍掉「接下来」行，避免挤成一团。任意比例都自适应。
             AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
             android.os.Bundle options = awm.getAppWidgetOptions(appWidgetId);
-            int cellW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250);
-            int cellH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 110);
+            int[] cell = resolveCellSize(context, options);
+            int cellW = cell[0];
+            int cellH = cell[1];
             Log.i(TAG, "countdown cell " + cellW + "x" + cellH);
+            boolean wide = cellW >= cellH * 1.9f || cellH < 120;
+
+            RemoteViews rv = new RemoteViews(context.getPackageName(),
+                    wide ? R.layout.widget_countdown_wide : R.layout.widget_countdown);
+            applyAppearance(context, rv, appWidgetId);
+
+            long now = System.currentTimeMillis();
+            java.util.List<CdItem> items = countdownItems(json, now);
             float density = context.getResources().getDisplayMetrics().density;
-            float numSp = Math.max(30f, Math.min(72f, cellH * 0.48f));
-            float unitSp = Math.max(12f, Math.min(24f, numSp * 0.32f));
-            float labelSp = Math.max(12f, Math.min(15f, 11f + numSp * 0.06f));
-            float subSp = Math.max(11f, Math.min(14f, 10.5f + numSp * 0.045f));
-            float nextSp = subSp;
-            boolean showNextRow = cellW >= 180 && cellH >= 90;
-            boolean moreNext = numSp >= 58f;
-            int padH = Math.round(16 * density);
-            int padTop = Math.round(numSp * 0.22f * density);
-            int padBottom = Math.round(numSp * 0.18f * density);
-            rv.setViewPadding(R.id.widget_content, padH, padTop, padH, padBottom);
-            rv.setViewPadding(R.id.countdown_num_row, 0, Math.round(numSp * 0.12f * density), 0, 0);
-            rv.setViewPadding(R.id.countdown_sub, 0, Math.round(numSp * 0.07f * density), 0, 0);
-            rv.setViewPadding(R.id.countdown_next, 0, Math.round(numSp * 0.13f * density), 0, 0);
+
+            // —— 字号预算 ——
+            float labelSp;
+            float subSp;
+            float numSp;
+            int nextLines;
+            boolean showSub = true;
+            if (wide) {
+                // 横扁：左栏大数字，右栏标题 / 目标时刻 /（够高时）接下来
+                // 窄条（2×1）右栏只留标题，数字可以多占一点宽度
+                float widthFactor = cellW < 240 ? 0.22f : 0.17f;
+                numSp = clampF(Math.min(cellH * 0.52f, cellW * widthFactor), 24f, 84f);
+                labelSp = 13f;
+                subSp = 12f;
+                nextLines = cellH >= 132 ? 1 : 0;
+                // 2×1 这种窄条：右栏再塞目标时刻就要截断，只留标题
+                if (cellW < 240) {
+                    nextLines = 0;
+                    showSub = false;
+                }
+            } else {
+                // 以 148dp 高的格子为基准整体放大：大数字适当收着（s 上限 1.32），
+                // 下面的目标时刻 / 接下来一行涨得更快（上限 15sp）——
+                // 之前字号全让给大数字，底部两行显得特别小、整块比例失衡。
+                float sNum = clampF(cellH / 148f, 0.72f, cellH >= 380 ? 2.0f : 1.32f);
+                float sText = clampF(cellH / 148f, 0.72f, 1.6f);
+                if (cellH >= 320) nextLines = 3;
+                else if (cellH >= 210) nextLines = 2;
+                else if (cellH >= 170) nextLines = 1;
+                else nextLines = 0;
+                if (cellW < 200) nextLines = Math.min(nextLines, 1);
+                labelSp = Math.min(13f * sText, 16f);
+                subSp = Math.min(12f * sText, 15f);
+                numSp = 71f * sNum;
+                // 超小格子兜底：内容总高（含内边距）超过格子高度时整体等比缩小，避免裁切
+                float contentH = 1.35f * (labelSp + subSp) + numSp * 1.05f + 9f
+                        + (nextLines > 0 ? 1.35f * subSp * nextLines + 3f : 0f) + 18f;
+                if (contentH > cellH) {
+                    float k = cellH / contentH;
+                    labelSp *= k;
+                    subSp *= k;
+                    numSp *= k;
+                }
+                numSp = clampF(numSp, 24f, 190f);
+            }
+
+            // 大数字 + 单位还要按可用宽度收敛（多位数时尤其重要）
+            String[] parts = items.isEmpty() ? new String[]{"", ""}
+                    : remainingParts(context, items.get(0).when - now);
+            float availW = wide ? cellW * 0.5f - 24f : cellW - 40f;
+            float unitSp = clampF(numSp * 0.30f, 13f, 40f);
+            float textUnits = parts[0].isEmpty() ? 4f : parts[0].length() * 0.60f;
+            float needW = textUnits * numSp + unitSp + 8f;
+            if (needW > availW) {
+                numSp = Math.max(22f, numSp * (availW / needW));
+                unitSp = clampF(numSp * 0.30f, 13f, 40f);
+            }
+
+            rv.setViewPadding(R.id.widget_content, Math.round(16 * density), Math.round(10 * density),
+                    Math.round(16 * density), Math.round(8 * density));
             rv.setTextViewTextSize(R.id.countdown_num, TypedValue.COMPLEX_UNIT_SP, numSp);
             rv.setTextViewTextSize(R.id.countdown_unit, TypedValue.COMPLEX_UNIT_SP, unitSp);
             rv.setTextViewTextSize(R.id.countdown_label, TypedValue.COMPLEX_UNIT_SP, labelSp);
             rv.setTextViewTextSize(R.id.countdown_sub, TypedValue.COMPLEX_UNIT_SP, subSp);
-            rv.setTextViewTextSize(R.id.countdown_next, TypedValue.COMPLEX_UNIT_SP, nextSp);
-            rv.setInt(R.id.countdown_next, "setMaxLines", moreNext ? 3 : 2);
+            rv.setTextViewTextSize(R.id.countdown_next, TypedValue.COMPLEX_UNIT_SP, subSp);
+            rv.setInt(R.id.countdown_next, "setMaxLines", Math.max(1, nextLines));
 
             if (!WidgetAppearance.useConfigColors(context)) {
                 rv.setTextColor(R.id.countdown_label, WidgetAppearance.textPrimary(context));
@@ -896,32 +956,21 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             rv.setTextColor(R.id.countdown_num, accent);
             rv.setTextColor(R.id.countdown_unit, accent);
 
-            long now = System.currentTimeMillis();
-            java.util.List<CdItem> items = countdownItems(json, now);
             if (items.isEmpty()) {
+                rv.setViewVisibility(R.id.widget_content, View.GONE);
                 rv.setViewVisibility(R.id.countdown_empty, View.VISIBLE);
-                rv.setViewVisibility(R.id.countdown_label, View.GONE);
-                rv.setViewVisibility(R.id.countdown_num, View.GONE);
-                rv.setViewVisibility(R.id.countdown_unit, View.GONE);
-                rv.setViewVisibility(R.id.countdown_sub, View.GONE);
-                rv.setViewVisibility(R.id.countdown_divider, View.GONE);
-                rv.setViewVisibility(R.id.countdown_next, View.GONE);
             } else {
-                CdItem main = items.get(0);
+                rv.setViewVisibility(R.id.widget_content, View.VISIBLE);
                 rv.setViewVisibility(R.id.countdown_empty, View.GONE);
-                rv.setViewVisibility(R.id.countdown_label, View.VISIBLE);
-                rv.setViewVisibility(R.id.countdown_num, View.VISIBLE);
-                rv.setViewVisibility(R.id.countdown_unit, View.VISIBLE);
-                rv.setViewVisibility(R.id.countdown_sub, View.VISIBLE);
 
-                // 第一行：目标 + 状态词（「还有」/「进行中」），第二行：大数字 + 单位
+                CdItem main = items.get(0);
+                // 第一行：目标 + 状态词（「还有」/「进行中」），中间：大数字 + 单位
                 rv.setTextViewText(R.id.countdown_label, main.title + " " + context.getString(
                         main.kind == 1 ? R.string.widget_countdown_in_progress : R.string.widget_countdown_also));
-                String[] parts = remainingParts(context, main.when - now);
                 rv.setTextViewText(R.id.countdown_num, parts[0]);
                 rv.setTextViewText(R.id.countdown_unit, parts[1]);
 
-                // 第三行：目标时刻
+                // 目标时刻
                 String sub;
                 if (main.kind == 0) {
                     sub = shortTime(main.when) + " " + context.getString(R.string.widget_countdown_start_suffix);
@@ -931,16 +980,17 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
                     sub = context.getString(R.string.widget_countdown_due_prefix) + shortTime(main.when);
                 }
                 rv.setTextViewText(R.id.countdown_sub, sub);
+                rv.setViewVisibility(R.id.countdown_sub, showSub ? View.VISIBLE : View.GONE);
 
-                // 后续 1-2 条：让「下一个目标」也能一眼看到
+                // 后续条目：让「下一个目标」也能一眼看到
                 StringBuilder sb = new StringBuilder();
-                for (int i = 1; i < items.size() && i <= (moreNext ? 3 : 2); i++) {
+                for (int i = 1; i < items.size() && i <= nextLines; i++) {
                     CdItem n = items.get(i);
                     if (sb.length() > 0) sb.append('\n');
                     sb.append(context.getString(R.string.widget_countdown_next_prefix))
                             .append(n.title).append(" · ").append(coarseRemaining(context, n.when - now));
                 }
-                boolean hasNext = sb.length() > 0 && showNextRow;
+                boolean hasNext = sb.length() > 0 && nextLines > 0;
                 rv.setViewVisibility(R.id.countdown_divider, hasNext ? View.VISIBLE : View.GONE);
                 rv.setViewVisibility(R.id.countdown_next, hasNext ? View.VISIBLE : View.GONE);
                 if (hasNext) rv.setTextViewText(R.id.countdown_next, sb.toString());
@@ -951,11 +1001,51 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             rv.setOnClickPendingIntent(R.id.widget_content, openApp);
             rv.setOnClickPendingIntent(R.id.countdown_label, openApp);
             rv.setOnClickPendingIntent(R.id.countdown_num, openApp);
+            rv.setOnClickPendingIntent(R.id.countdown_unit, openApp);
+            rv.setOnClickPendingIntent(R.id.countdown_sub, openApp);
+            rv.setOnClickPendingIntent(R.id.countdown_next, openApp);
+            rv.setOnClickPendingIntent(R.id.countdown_empty, openApp);
 
             awm.updateAppWidget(appWidgetId, rv);
         } catch (Exception e) {
             Log.e(TAG, "renderCountdown failed", e);
         }
+    }
+
+    /**
+     * 当前朝向下的实际格子尺寸（dp）。appWidgetSizes 里同时带竖屏/横屏两套尺寸，
+     * 竖屏取较高的那套、横屏取较矮的那套；字段缺失（老 launcher）时退回 min 尺寸。
+     */
+    private static int[] resolveCellSize(Context context, android.os.Bundle options) {
+        int minW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250);
+        int minH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 110);
+        try {
+            // 该字段是 ArrayList<SizeF>（用 getParcelableArray 取会 ClassCastException）
+            Object rawObj = options.get("appWidgetSizes");
+            if (rawObj instanceof java.util.List) {
+                java.util.List<?> raw = (java.util.List<?>) rawObj;
+                boolean portrait = context.getResources().getConfiguration().orientation
+                        == android.content.res.Configuration.ORIENTATION_PORTRAIT;
+                float bestW = -1f;
+                float bestH = -1f;
+                for (Object p : raw) {
+                    if (!(p instanceof android.util.SizeF)) continue;
+                    android.util.SizeF s = (android.util.SizeF) p;
+                    if (bestW < 0f || (portrait ? s.getHeight() > bestH : s.getHeight() < bestH)) {
+                        bestW = s.getWidth();
+                        bestH = s.getHeight();
+                    }
+                }
+                if (bestW > 0f && bestH > 0f) return new int[]{Math.round(bestW), Math.round(bestH)};
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "resolveCellSize failed", t);
+        }
+        return new int[]{minW, minH};
+    }
+
+    private static float clampF(float v, float lo, float hi) {
+        return Math.max(lo, Math.min(hi, v));
     }
 
     /** 倒计时条目的下一次刷新时刻：显示粒度决定（≥1 天按整点，临近按分钟） */

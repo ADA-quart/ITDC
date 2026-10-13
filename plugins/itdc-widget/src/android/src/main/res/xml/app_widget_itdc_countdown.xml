@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 「倒计时」条目：距下一个待办（考试/作业等目标）开始或截止的倒计时。
-     小米等桌面按 min 尺寸换算格数（≈ (dp+30)/70）：250×100dp → 4×2，可自由拖动。 -->
+     默认摆放 4×2（targetCell*；旧桌面按 min 尺寸换算 ≈ (dp+30)/70 → 4×2）。
+     minResize* 单独放宽到 110×35dp：允许一路拖成 2×1 的窄条，
+     布局会按格子比例自动切换成横排 / 收起次要行（见 ITDCWidgetProvider.renderCountdown）。 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="250dp"
     android:minHeight="100dp"
+    android:minResizeWidth="110dp"
     android:minResizeHeight="35dp"
     android:targetCellWidth="4"
     android:targetCellHeight="2"
