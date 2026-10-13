@@ -104,6 +104,71 @@ final class WidgetAppearance {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
+    // ---------- 实例级覆盖：每个桌面小组件单独配背景图 ----------
+    // 不配（BG_INHERIT）时完全沿用全局外观；配了专属图就只影响那一个实例。
+    private static final String INSTANCE_PREFS = "widget_instance_prefs";
+    static final int BG_INHERIT = 0;
+    static final int BG_NONE = 1;
+    static final int BG_CUSTOM = 2;
+
+    private static SharedPreferences iprefs(Context context) {
+        return context.getSharedPreferences(INSTANCE_PREFS, Context.MODE_PRIVATE);
+    }
+
+    static int instanceBgMode(Context context, int id) {
+        return id < 0 ? BG_INHERIT : iprefs(context).getInt("bg_" + id, BG_INHERIT);
+    }
+
+    // 实例参数（设置页回显用；只在 BG_CUSTOM 下有意义）
+    static int instanceFocusX(Context context, int id) { return iprefs(context).getInt("fx_" + id, 50); }
+    static int instanceFocusY(Context context, int id) { return iprefs(context).getInt("fy_" + id, 50); }
+    static float instanceZoom(Context context, int id) { return iprefs(context).getFloat("zoom_" + id, 1f); }
+    static int instanceBlur(Context context, int id) { return iprefs(context).getInt("blur_" + id, 0); }
+
+    private static File instanceImageFile(Context context, int id) {
+        return new File(context.getFilesDir(), "widget_bg_" + id + ".jpg");
+    }
+
+    /** 该实例实际生效的图片来源：0 = 没有图，1 = 全局图，2 = 实例专属图 */
+    private static int imageSource(Context context, int id) {
+        if (id >= 0) {
+            int mode = instanceBgMode(context, id);
+            if (mode == BG_NONE) return 0;
+            // 选了「专属图」但还没上传：同样按「没有图」处理，绝不回落到全局图
+            if (mode == BG_CUSTOM) return instanceImageFile(context, id).exists() ? 2 : 0;
+        }
+        return hasImage(context) ? 1 : 0;
+    }
+
+    private static boolean usesInstanceImage(Context context, int id) {
+        return imageSource(context, id) == 2;
+    }
+
+    private static File sourceImageFile(Context context, int id) {
+        return imageSource(context, id) == 2 ? instanceImageFile(context, id) : imageFile(context);
+    }
+
+    // 实例裁切参数：用专属图时读实例的那份，否则沿用全局
+    private static int cropFocusX(Context context, int id) {
+        return usesInstanceImage(context, id)
+                ? iprefs(context).getInt("fx_" + id, 50) : prefs(context).getInt(KEY_FOCUS_X, 50);
+    }
+
+    private static int cropFocusY(Context context, int id) {
+        return usesInstanceImage(context, id)
+                ? iprefs(context).getInt("fy_" + id, 50) : prefs(context).getInt(KEY_FOCUS_Y, 50);
+    }
+
+    private static float cropZoom(Context context, int id) {
+        return usesInstanceImage(context, id)
+                ? iprefs(context).getFloat("zoom_" + id, 1f) : prefs(context).getFloat(KEY_ZOOM, 1f);
+    }
+
+    private static int cropImageBlur(Context context, int id) {
+        return usesInstanceImage(context, id)
+                ? iprefs(context).getInt("blur_" + id, 0) : prefs(context).getInt(KEY_IMAGE_BLUR, 0);
+    }
+
     /** 缩放统一钳位：把越界、NaN 都收进合法区间，默认 1 倍 */
     private static float clampZoom(float zoom) {
         if (Float.isNaN(zoom) || Float.isInfinite(zoom)) return 1f;
@@ -144,6 +209,11 @@ final class WidgetAppearance {
     }
 
     private static void writeImage(Context context, String dataUrl) throws Exception {
+        writeImageFile(imageFile(context), dataUrl);
+    }
+
+    /** 把一张 base64 图落盘（全局图 / 实例图共用）；先写临时文件再改名 */
+    private static void writeImageFile(File target, String dataUrl) throws Exception {
         int comma = dataUrl.indexOf(',');
         String base64 = comma >= 0 ? dataUrl.substring(comma + 1) : dataUrl;
         byte[] bytes;
@@ -152,13 +222,11 @@ final class WidgetAppearance {
         } catch (IllegalArgumentException e) {
             throw new Exception("背景图解码失败: " + e.getMessage());
         }
-        File target = imageFile(context);
         File tmp = new File(target.getAbsolutePath() + ".tmp");
         try (FileOutputStream out = new FileOutputStream(tmp)) {
             out.write(bytes);
             out.flush();
         }
-        // 先写临时文件再改名：刷新过程中读到写了一半的图会直接解码失败
         if (target.exists() && !target.delete()) {
             Log.w(TAG, "旧背景图删除失败，直接覆盖");
         }
@@ -169,6 +237,50 @@ final class WidgetAppearance {
             //noinspection ResultOfMethodCallIgnored
             tmp.delete();
         }
+    }
+
+    /**
+     * 实例级背景：mode = inherit / none / custom。
+     * custom 时 image 缺省表示沿用已存的实例图（只调焦点/缩放/模糊时不用重传图）。
+     */
+    static void setInstanceBackground(Context context, int id, int mode, String imageDataUrl,
+                                      int focusX, int focusY, float zoom, int blur) throws Exception {
+        if (id < 0) return;
+        File image = instanceImageFile(context, id);
+        if (mode == BG_CUSTOM) {
+            if (!TextUtils.isEmpty(imageDataUrl)) writeImageFile(image, imageDataUrl);
+            // 图还没传就先存着 custom：等上传后再渲染，UI 上也不会跳回「不用图」
+        }
+        SharedPreferences.Editor ed = iprefs(context).edit();
+        if (mode == BG_CUSTOM) {
+            ed.putInt("bg_" + id, BG_CUSTOM)
+                    .putInt("fx_" + id, Math.max(0, Math.min(100, focusX)))
+                    .putInt("fy_" + id, Math.max(0, Math.min(100, focusY)))
+                    .putFloat("zoom_" + id, clampZoom(zoom))
+                    .putInt("blur_" + id, Math.max(0, Math.min(20, blur)));
+        } else {
+            ed.putInt("bg_" + id, mode == BG_NONE ? BG_NONE : BG_INHERIT)
+                    .remove("fx_" + id).remove("fy_" + id)
+                    .remove("zoom_" + id).remove("blur_" + id);
+        }
+        // 图或参数变了：裁切图作废重做
+        ed.remove("crop_" + id).remove("sig_" + id).apply();
+        if (mode != BG_CUSTOM) {
+            //noinspection ResultOfMethodCallIgnored
+            image.delete();
+            clearInstanceCrops(context, id);
+        }
+    }
+
+    /** 小组件被删除时清掉实例级数据与文件 */
+    static void clearInstance(Context context, int id) {
+        if (id < 0) return;
+        iprefs(context).edit().remove("bg_" + id).remove("fx_" + id).remove("fy_" + id)
+                .remove("zoom_" + id).remove("blur_" + id)
+                .remove("crop_" + id).remove("sig_" + id).apply();
+        //noinspection ResultOfMethodCallIgnored
+        instanceImageFile(context, id).delete();
+        clearInstanceCrops(context, id);
     }
 
     private static void clearImage(Context context) {
@@ -200,6 +312,16 @@ final class WidgetAppearance {
         return new File(cropDir(context), name);
     }
 
+    /** 实例视角的裁切图：专属图走实例的裁切文件，其余沿用全局那份 */
+    static File currentCropFile(Context context, int id) {
+        if (id >= 0 && usesInstanceImage(context, id)) {
+            String name = iprefs(context).getString("crop_" + id, "");
+            if (TextUtils.isEmpty(name)) return null;
+            return new File(cropDir(context), name);
+        }
+        return currentCropFile(context);
+    }
+
     /** 图片 / 焦点 / 缩放任一变化都要重做裁切图，用签名比对避免无谓解码 */
     private static String cropSignature(Context context) {
         File image = imageFile(context);
@@ -229,20 +351,50 @@ final class WidgetAppearance {
                     && sig.equals(prefs(context).getString(KEY_CROP_SIG, ""))) {
                 return false;
             }
-            return writeCrop(context, sig);
+            return writeCrop(context, imageFile(context),
+                    prefs(context).getInt(KEY_FOCUS_X, 50),
+                    prefs(context).getInt(KEY_FOCUS_Y, 50),
+                    prefs(context).getFloat(KEY_ZOOM, 1f),
+                    prefs(context).getInt(KEY_IMAGE_BLUR, 0),
+                    "bg_", sig, prefs(context), KEY_CROP_FILE, KEY_CROP_SIG);
         }
     }
 
-    private static boolean writeCrop(Context context, String sig) {
+    /** 实例级裁切：专属图生成 / 参数变更时重做，与全局那份互不干扰 */
+    static boolean ensureCrop(Context context, int id) {
+        int src = imageSource(context, id);
+        if (src == 0) {
+            clearInstanceCrops(context, id);
+            return false;
+        }
+        if (src != 2) return ensureCrop(context);
+        File image = instanceImageFile(context, id);
+        int fx = cropFocusX(context, id);
+        int fy = cropFocusY(context, id);
+        float zoom = cropZoom(context, id);
+        int blur = cropImageBlur(context, id);
+        String sig = image.length() + "@" + image.lastModified()
+                + "#" + fx + "#" + fy + "#" + zoom + "#" + blur;
+        synchronized (CROP_LOCK) {
+            File current = currentCropFile(context, id);
+            if (current != null && current.exists()
+                    && sig.equals(iprefs(context).getString("sig_" + id, ""))) {
+                return false;
+            }
+            return writeCrop(context, image, fx, fy, zoom, blur,
+                    "inst" + id + "_", sig, iprefs(context), "crop_" + id, "sig_" + id);
+        }
+    }
+
+    private static boolean writeCrop(Context context, File source, int focusX, int focusY,
+                                     float zoom, int blurSetting, String prefix, String sig,
+                                     SharedPreferences targetPrefs, String keyFile, String keySig) {
         Bitmap photo = null;
         Bitmap cropped = null;
         try {
-            photo = decodePhoto(context, CROP_MAX_SIDE, CROP_MAX_SIDE, false);
+            photo = decodePhotoFile(source, CROP_MAX_SIDE, CROP_MAX_SIDE, false);
             if (photo == null) return false;
-            cropped = squareCropBitmap(photo,
-                    prefs(context).getInt(KEY_FOCUS_X, 50),
-                    prefs(context).getInt(KEY_FOCUS_Y, 50),
-                    prefs(context).getFloat(KEY_ZOOM, 1f));
+            cropped = squareCropBitmap(photo, focusX, focusY, zoom);
             if (cropped.getWidth() > CROP_MAX_SIDE) {
                 Bitmap scaled = Bitmap.createScaledBitmap(cropped, CROP_MAX_SIDE, CROP_MAX_SIDE, true);
                 if (scaled != cropped) cropped.recycle();
@@ -250,7 +402,7 @@ final class WidgetAppearance {
             }
             // 背景预模糊（用户滑条）：RemoteViews 拿不到"小组件背后的壁纸"，
             // 但自家背景图的像素在手里——先在 App 端模糊好再下发，全桌面通用。
-            float blurRadius = imageBlurRadius(context, cropped.getWidth());
+            float blurRadius = blurRadiusFor(blurSetting, cropped.getWidth());
             if (blurRadius > 0f) {
                 Bitmap blurred = blurBitmap(cropped, blurRadius);
                 if (blurred != cropped) cropped.recycle();
@@ -260,7 +412,7 @@ final class WidgetAppearance {
             if (!dir.exists() && !dir.mkdirs()) return false;
             // 文件名带时间戳：URI 变了桌面才会重新解码。沿用同名文件时
             // RemoteViews 复用旧视图，ImageView 会认为"还是那张图"而不刷新。
-            File target = new File(dir, "bg_" + System.currentTimeMillis() + ".jpg");
+            File target = new File(dir, prefix + System.currentTimeMillis() + ".jpg");
             File tmp = new File(target.getAbsolutePath() + ".tmp");
             try (FileOutputStream out = new FileOutputStream(tmp)) {
                 if (!cropped.compress(Bitmap.CompressFormat.JPEG, CROP_QUALITY, out)) return false;
@@ -271,11 +423,11 @@ final class WidgetAppearance {
                 tmp.delete();
                 return false;
             }
-            prefs(context).edit()
-                    .putString(KEY_CROP_FILE, target.getName())
-                    .putString(KEY_CROP_SIG, sig)
+            targetPrefs.edit()
+                    .putString(keyFile, target.getName())
+                    .putString(keySig, sig)
                     .apply();
-            cleanupCrops(context, target);
+            cleanupCrops(context, target, prefix);
             return true;
         } catch (Exception e) {
             Log.e(TAG, "writeCrop failed", e);
@@ -286,12 +438,12 @@ final class WidgetAppearance {
         }
     }
 
-    /** 清掉除 keep 以外的裁切图，避免旧文件越积越多 */
-    private static void cleanupCrops(Context context, File keep) {
+    /** 清掉同槽位（同一前缀）里除 keep 以外的裁切图，避免旧文件越积越多 */
+    private static void cleanupCrops(Context context, File keep, String prefix) {
         File[] files = cropDir(context).listFiles();
         if (files == null) return;
         for (File file : files) {
-            if (!file.equals(keep)) {
+            if (!file.equals(keep) && file.getName().startsWith(prefix)) {
                 //noinspection ResultOfMethodCallIgnored
                 file.delete();
             }
@@ -300,8 +452,15 @@ final class WidgetAppearance {
 
     private static void clearCrop(Context context) {
         synchronized (CROP_LOCK) {
-            cleanupCrops(context, null);
+            cleanupCrops(context, null, "bg_");
             prefs(context).edit().remove(KEY_CROP_FILE).remove(KEY_CROP_SIG).apply();
+        }
+    }
+
+    private static void clearInstanceCrops(Context context, int id) {
+        synchronized (CROP_LOCK) {
+            cleanupCrops(context, null, "inst" + id + "_");
+            iprefs(context).edit().remove("crop_" + id).remove("sig_" + id).apply();
         }
     }
 
@@ -424,6 +583,11 @@ final class WidgetAppearance {
         return prefs(context).getBoolean(KEY_HAS_IMAGE, false) && imageFile(context).exists();
     }
 
+    /** 该实例视角下有没有背景图：专属图 / 明确不要 / 沿用全局 */
+    static boolean hasImage(Context context, int id) {
+        return imageSource(context, id) != 0;
+    }
+
     /** 液态玻璃：小组件做不了真模糊，用顶部高光 + 内描边模拟玻璃质感 */
     static boolean glass(Context context) {
         return prefs(context).getBoolean(KEY_GLASS, false);
@@ -444,14 +608,14 @@ final class WidgetAppearance {
     static Bitmap croppedPhotoBitmap(Context context, int appWidgetId) {
         Bitmap photo = null;
         try {
-            photo = decodePhoto(context, 720, 720, false);
+            photo = decodePhotoFile(sourceImageFile(context, appWidgetId), 720, 720, false);
             if (photo == null) return null;
             int bw = photo.getWidth();
             int bh = photo.getHeight();
             if (bw <= 0 || bh <= 0) return photo;
-            int focusX = prefs(context).getInt(KEY_FOCUS_X, 50);
-            int focusY = prefs(context).getInt(KEY_FOCUS_Y, 50);
-            float z = clampZoom(prefs(context).getFloat(KEY_ZOOM, 1f));
+            int focusX = cropFocusX(context, appWidgetId);
+            int focusY = cropFocusY(context, appWidgetId);
+            float z = clampZoom(cropZoom(context, appWidgetId));
             Bitmap square = squareCropBitmap(photo, focusX, focusY, z);
             if (square != photo) photo.recycle();
             int side = Math.min(square.getWidth(), square.getHeight());
@@ -463,7 +627,7 @@ final class WidgetAppearance {
                 if (scaled != square) square.recycle();
                 square = scaled;
             }
-            float blurRadius = imageBlurRadius(context, square.getWidth());
+            float blurRadius = blurRadiusFor(cropImageBlur(context, appWidgetId), square.getWidth());
             if (blurRadius > 0f) {
                 Bitmap blurred = blurBitmap(square, blurRadius);
                 if (blurred != square) square.recycle();
@@ -542,8 +706,8 @@ final class WidgetAppearance {
     }
 
     /** 滑条 0-20 → 以 1280px 的裁切图为基准，最大 40px 半径；小图按比例缩 */
-    private static float imageBlurRadius(Context context, int bitmapWidth) {
-        int blur = Math.max(0, Math.min(20, prefs(context).getInt(KEY_IMAGE_BLUR, 0)));
+    private static float blurRadiusFor(int blurSetting, int bitmapWidth) {
+        int blur = Math.max(0, Math.min(20, blurSetting));
         if (blur <= 0) return 0f;
         return blur * 2f * Math.max(0.2f, bitmapWidth / (float) CROP_MAX_SIDE);
     }
@@ -591,10 +755,10 @@ final class WidgetAppearance {
         try {
             int opacity = prefs(context).getInt(KEY_OPACITY, DEFAULT_OPACITY);
             int alpha = Math.round(Math.max(0, Math.min(100, opacity)) * 255f / 100f);
-            boolean useImage = hasImage(context);
-            int focusX = prefs(context).getInt(KEY_FOCUS_X, 50);
-            int focusY = prefs(context).getInt(KEY_FOCUS_Y, 50);
-            float zoom = prefs(context).getFloat(KEY_ZOOM, 1f);
+            boolean useImage = hasImage(context, appWidgetId);
+            int focusX = cropFocusX(context, appWidgetId);
+            int focusY = cropFocusY(context, appWidgetId);
+            float zoom = cropZoom(context, appWidgetId);
 
             int[] size = targetSize(context, appWidgetId, useImage, alpha);
             int width = size[0];
@@ -612,7 +776,9 @@ final class WidgetAppearance {
             canvas.clipPath(clip);
 
             Bitmap photo = null;
-            if (useImage) photo = decodePhoto(context, width, height, alpha >= 255);
+            if (useImage) {
+                photo = decodePhotoFile(sourceImageFile(context, appWidgetId), width, height, alpha >= 255);
+            }
 
             if (photo != null) {
                 Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
@@ -760,9 +926,12 @@ final class WidgetAppearance {
 
     /** 按目标尺寸采样解码，绝不把原图整张读进内存 */
     private static Bitmap decodePhoto(Context context, int reqWidth, int reqHeight, boolean opaque) {
+        return decodePhotoFile(imageFile(context), reqWidth, reqHeight, opaque);
+    }
+
+    private static Bitmap decodePhotoFile(File file, int reqWidth, int reqHeight, boolean opaque) {
         try {
-            File file = imageFile(context);
-            if (!file.exists()) return null;
+            if (file == null || !file.exists()) return null;
 
             BitmapFactory.Options bounds = new BitmapFactory.Options();
             bounds.inJustDecodeBounds = true;

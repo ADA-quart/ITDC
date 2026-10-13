@@ -105,6 +105,30 @@ RemoteViews 重新渲染
   `setColorFilter` 决定（实心框染主题色、空心框染次要文字色、对勾保持白色）。
   一开始是自绘位图，但位图在集合型子项里不可靠 —— 见下面第 7 条坑。
 
+### 实例级定制（背景图 / 倒计时目标）
+
+上面的外观是「全局」的；桌面可能同时摆着好几个小组件（比如两个倒计时），
+每个实例还能再单独覆盖：
+
+```
+设置 → 外观 → 桌面上的小组件（src/components/WidgetInstances.tsx）
+   ↓ ITDCWidgetPlugin.listWidgetInstances()   —— 枚举 PROVIDER_CLASSES 下全部实例
+   ↓ ITDCWidgetPlugin.setWidgetBackground()   —— 背景：inherit / none / custom
+WidgetAppearance.java → SharedPreferences(widget_instance_prefs) + files/widget_bg_<id>.jpg
+   ↓ 专属图异步重做裁切（crop 目录下 inst<id>_*.jpg，与全局 bg_*.jpg 互不干扰）
+   ↓ ITDCWidgetProvider.refreshInstance(id)   —— 只刷新这一个实例
+```
+
+- **倒计时目标按实例记**。`localStorage: itdc_countdown_pins_v1`（widgetId → todoId）
+  随快照下发成 `todos[].pinnedFor`；原生 `countdownItems(json, now, widgetId)` 取
+  「本实例指定 > 全局指定 > 最近一条」。实例列表里同类多个用 ①②③ 区分。
+- **专属图不会悄悄回落**。选了「专属图」但还没上传时按「没有图」处理，不会渲染成
+  全局图；`onDeleted` 时把该实例的配置、专属图文件和裁切图一起清理。
+- **只刷新受影响的实例**。改一个实例的背景不会带着其它小组件一起重绘
+  （`refreshInstance` 定向刷新，其它实例维持原样）。
+- **滑杆拖动用草稿值**。实例滑杆松手才下发原生（避免拖动中反复重裁切），
+  拖动中的位置存在组件本地 state 里，否则受控滑杆的圆点不会跟手。
+
 ## 踩过的坑
 
 这些限制都不是文档里显眼写着的，是实测撞出来的。改动小组件时请留意：

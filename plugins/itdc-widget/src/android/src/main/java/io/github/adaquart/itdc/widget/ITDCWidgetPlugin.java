@@ -265,4 +265,76 @@ public class ITDCWidgetPlugin extends Plugin {
         call.resolve();
     }
 
+    // ---------- 实例级配置 ----------
+    // 桌面上可能同时摆着好几个小组件（比如两个倒计时）：给每个实例单独配背景图、单独指目标。
+
+    /** 列出桌面上已放置的小组件实例（类型 / 尺寸 / 实例级背景模式），供外观设置页逐个配置 */
+    @PluginMethod
+    public void listWidgetInstances(PluginCall call) {
+        try {
+            android.content.Context context = getContext();
+            android.appwidget.AppWidgetManager awm =
+                    (android.appwidget.AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
+            org.json.JSONArray arr = new org.json.JSONArray();
+            for (Class<?> cls : ITDCWidgetProvider.PROVIDER_CLASSES) {
+                int[] ids = awm.getAppWidgetIds(new android.content.ComponentName(context, cls.getName()));
+                if (ids == null) continue;
+                for (int id : ids) {
+                    JSONObject o = new JSONObject();
+                    o.put("id", id);
+                    o.put("kind", ITDCWidgetProvider.kindOf(cls));
+                    android.os.Bundle opts = awm.getAppWidgetOptions(id);
+                    o.put("w", opts.getInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0));
+                    o.put("h", opts.getInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0));
+                    o.put("bgMode", WidgetAppearance.instanceBgMode(context, id));
+                    o.put("focusX", WidgetAppearance.instanceFocusX(context, id));
+                    o.put("focusY", WidgetAppearance.instanceFocusY(context, id));
+                    o.put("zoom", WidgetAppearance.instanceZoom(context, id));
+                    o.put("blur", WidgetAppearance.instanceBlur(context, id));
+                    arr.put(o);
+                }
+            }
+            JSObject ret = new JSObject();
+            ret.put("widgets", arr);
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("list widget instances failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 实例级背景图：mode = inherit（跟随全局）/ none（不要图）/ custom（专属图）。
+     * custom 时 image 只在首次或换图时传（base64 data URL），只调焦点/缩放/模糊可以省略。
+     */
+    @PluginMethod
+    public void setWidgetBackground(PluginCall call) {
+        int id = call.getInt("id", -1);
+        if (id < 0) {
+            call.reject("missing widget id");
+            return;
+        }
+        String modeStr = call.getString("mode", "inherit");
+        int mode = "none".equals(modeStr) ? WidgetAppearance.BG_NONE
+                : ("custom".equals(modeStr) ? WidgetAppearance.BG_CUSTOM : WidgetAppearance.BG_INHERIT);
+        try {
+            WidgetAppearance.setInstanceBackground(getContext(), id, mode, call.getString("image"),
+                    call.getInt("focusX", 50), call.getInt("focusY", 50),
+                    call.getFloat("zoom", 1f), call.getInt("blur", 0));
+        } catch (Exception e) {
+            call.reject("set widget background failed: " + e.getMessage());
+            return;
+        }
+        // 专属图要重新裁切：解码 + 编码放后台，做完再定向刷新这一个实例
+        final android.content.Context context = getContext();
+        new Thread(() -> {
+            try {
+                WidgetAppearance.ensureCrop(context, id);
+            } catch (Exception e) {
+                android.util.Log.w("ITDCWidgetPlugin", "ensureCrop(instance) failed", e);
+            }
+            ITDCWidgetProvider.refreshInstance(context, id);
+        }, "itdc-widget-crop-instance").start();
+        call.resolve();
+    }
+
 }

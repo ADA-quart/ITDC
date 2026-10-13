@@ -46,6 +46,53 @@ export function setCountdownPin(id: number | null): void {
   } catch {}
 }
 
+/**
+ * 按小组件实例分别指定的「倒计时目标」：{ [appWidgetId]: todoId }。
+ * 桌面可以同时摆多个倒计时卡片，每个卡片认自己这一份；没指定就落到上面的全局目标。
+ */
+const COUNTDOWN_PINS_KEY = 'itdc_countdown_pins_v1';
+
+export function getCountdownPins(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(COUNTDOWN_PINS_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (!parsed || typeof parsed !== 'object') return {};
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof v === 'number' && Number.isFinite(v)) out[k] = v;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+/** widgetId 传 null 表示恢复「自动」（跟随全局 / 取最近一条） */
+export function setCountdownPinForWidget(widgetId: number, todoId: number | null): void {
+  try {
+    const pins = getCountdownPins();
+    if (todoId === null) delete pins[String(widgetId)];
+    else pins[String(widgetId)] = todoId;
+    localStorage.setItem(COUNTDOWN_PINS_KEY, JSON.stringify(pins));
+  } catch {}
+}
+
+/** 桌面上的实例被删后清理对应配置（避免旧 id 一直留着） */
+export function pruneCountdownPins(aliveWidgetIds: number[]): void {
+  try {
+    const pins = getCountdownPins();
+    const alive = new Set(aliveWidgetIds.map(String));
+    let changed = false;
+    for (const key of Object.keys(pins)) {
+      if (!alive.has(key)) {
+        delete pins[key];
+        changed = true;
+      }
+    }
+    if (changed) localStorage.setItem(COUNTDOWN_PINS_KEY, JSON.stringify(pins));
+  } catch {}
+}
+
 /** 单条课程/日程：今天与明天共用同一结构 */
 export interface WidgetScheduleItem {
   id: number;
@@ -75,6 +122,8 @@ export interface WidgetTodoItem {
   deadlineIso: string;
   /** 用户的「倒计时目标」：原生端优先用这条当主倒计时 */
   pinned?: boolean;
+  /** 指定给哪些倒计时实例（按实例配置的目标）：原生端按实例取这条当主目标 */
+  pinnedFor?: number[];
 }
 
 /** 单天的安排（跨天渲染用：快照一次覆盖多天，小组件自行选取"今天"） */
@@ -344,10 +393,18 @@ export async function buildWidgetSnapshot(): Promise<WidgetSnapshot> {
 
   // 「倒计时目标」必须进快照（即使不在待办 Top10），原生端优先把它当主目标
   const pin = getCountdownPin();
+  const pinsByWidget = getCountdownPins();
+  const pinnedIds = new Set<number>();
+  if (pin !== null) pinnedIds.add(pin);
+  for (const value of Object.values(pinsByWidget)) {
+    if (Number.isFinite(value)) pinnedIds.add(value);
+  }
   let listTodos = pending;
-  if (pin !== null && !pending.some((t) => t.id === pin)) {
-    const pinTodo = sortedTodos.find((t) => t.id === pin && !isDone(t));
-    if (pinTodo) listTodos = [pinTodo, ...pending].slice(0, 10);
+  if (pinnedIds.size > 0) {
+    const extras = sortedTodos.filter(
+      (t) => !isDone(t) && pinnedIds.has(t.id) && !pending.some((p) => p.id === t.id),
+    );
+    if (extras.length) listTodos = [...extras, ...pending].slice(0, 10);
   }
 
   const week = teachingWeek(now);
@@ -375,6 +432,9 @@ export async function buildWidgetSnapshot(): Promise<WidgetSnapshot> {
       endIso: t.scheduled_end ?? '',
       deadlineIso: t.deadline ?? '',
       pinned: pin !== null && t.id === pin,
+      pinnedFor: Object.entries(pinsByWidget)
+        .filter(([, value]) => value === t.id)
+        .map(([key]) => Number(key)),
     })),
     day: dayKey(now),
     updated_at: new Date().toISOString(),

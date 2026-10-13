@@ -19,6 +19,7 @@ import {
   resetPushedImageCache,
   resolveWidgetImage,
 } from '../api/appearance';
+import WidgetInstances from './WidgetInstances';
 
 /**
  * 预览用的打底层：缩放小于 1 倍时，App 背景与小组件都会在图片四周
@@ -640,6 +641,8 @@ const AppearanceSettings: React.FC = () => {
               <Button>{t.settings.widgetReset}</Button>
             </Popconfirm>
           </Space>
+
+          <WidgetInstances />
         </div>
       </div>
 

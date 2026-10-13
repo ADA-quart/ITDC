@@ -148,10 +148,43 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
      *
      * 枚举实例、刷新、判断要不要停闹钟时必须两个都算上。
      */
-    private static final Class<?>[] PROVIDER_CLASSES = {
+    static final Class<?>[] PROVIDER_CLASSES = {
             ITDCWidgetProvider.class, ITDCWidgetSmallProvider.class,
             ITDCWidgetPureTimetableProvider.class, ITDCWidgetCountdownProvider.class
     };
+
+    /** provider 类 → 条目类型名（插件层列实例用） */
+    static String kindOf(Class<?> cls) {
+        if (cls == ITDCWidgetSmallProvider.class) return "small";
+        if (cls == ITDCWidgetPureTimetableProvider.class) return "pure";
+        if (cls == ITDCWidgetCountdownProvider.class) return "countdown";
+        return "standard";
+    }
+
+    /** 供插件在实例级配置（背景图 / 倒计时目标）变更后定向刷新单个小组件 */
+    static void refreshInstance(Context context, int appWidgetId) {
+        try {
+            AppWidgetManager awm = (AppWidgetManager) context.getSystemService(Context.APPWIDGET_SERVICE);
+            if (!isCountdown(context, appWidgetId)) {
+                awm.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_today_list);
+                awm.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_tomorrow_list);
+                awm.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_todo_list);
+            }
+            refreshWidget(context, appWidgetId);
+            scheduleRefresh(context);
+        } catch (Exception e) {
+            Log.e(TAG, "refreshInstance failed", e);
+        }
+    }
+
+    /** 实例被删掉：把它的专属背景图等实例级数据一起清掉 */
+    @Override
+    public void onDeleted(Context context, int[] appWidgetIds) {
+        if (appWidgetIds != null) {
+            for (int id : appWidgetIds) WidgetAppearance.clearInstance(context, id);
+        }
+        super.onDeleted(context, appWidgetIds);
+    }
 
     /** 两个条目在桌面上的全部实例 id */
     static int[] allWidgetIds(Context context) {
@@ -506,7 +539,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             // Android 12+：圆角和面板色交给根布局（保留 ShapeDrawable 的圆角），
             // 图片层用 centerCrop 等比填满，位图尺寸和桌面尺寸不一致也不会拉伸。
             if (Build.VERSION.SDK_INT >= 31) {
-                boolean hasImage = WidgetAppearance.hasImage(context);
+                boolean hasImage = WidgetAppearance.hasImage(context, appWidgetId);
                 boolean configColors = WidgetAppearance.useConfigColors(context);
                 // 有图时根底色透明，让壁纸从图片透明度里透出来；无图时才是用户的面板色
                 int rootTint = hasImage || configColors
@@ -522,7 +555,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
                     rv.setFloat(R.id.widget_bg_image, "setAlpha", 1f);
                     // 优先让桌面自己读高清裁切图（FileProvider）：位图走 Binder
                     // 有 1MB 量级的事务上限，只能传缩略图，放大后就是糊的。
-                    Uri crop = cropUri(context);
+                    Uri crop = cropUri(context, appWidgetId);
                     if (crop != null) {
                         grantCropPermission(context, crop);
                         rv.setImageViewUri(R.id.widget_bg_image, crop);
@@ -569,9 +602,9 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
     }
 
     /** 高清背景图的 content:// URI；还没生成裁切图时返回 null */
-    private static Uri cropUri(Context context) {
+    private static Uri cropUri(Context context, int appWidgetId) {
         try {
-            java.io.File file = WidgetAppearance.currentCropFile(context);
+            java.io.File file = WidgetAppearance.currentCropFile(context, appWidgetId);
             if (file == null || !file.exists()) return null;
             return WidgetFileProvider.getUriForFile(
                     context, WidgetAppearance.fileProviderAuthority(context), file);
@@ -750,10 +783,12 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         int kind;
         /** 用户指定的「倒计时目标」：固定当主目标 */
         boolean pinned;
+        /** 指定给哪些倒计时实例（按实例配置的目标） */
+        java.util.List<Integer> pinnedFor = new java.util.ArrayList<>();
     }
 
     /** 从快照待办里挑出倒计时候选，按目标时刻升序 */
-    private static java.util.List<CdItem> countdownItems(String json, long now) {
+    private static java.util.List<CdItem> countdownItems(String json, long now, int widgetId) {
         java.util.List<CdItem> out = new java.util.ArrayList<>();
         try {
             JSONObject root = new JSONObject(json);
@@ -784,17 +819,27 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
                 if (item != null) {
                     item.title = title;
                     item.pinned = t.optBoolean("pinned", false);
+                    JSONArray pinnedFor = t.optJSONArray("pinnedFor");
+                    if (pinnedFor != null) {
+                        for (int k = 0; k < pinnedFor.length(); k++) {
+                            item.pinnedFor.add(pinnedFor.optInt(k, -1));
+                        }
+                    }
                     out.add(item);
                 }
             }
             java.util.Collections.sort(out, (a, b) -> Long.compare(a.when, b.when));
-            // 用户指定的「倒计时目标」固定当主目标（不管它是不是最近一条）
+            // 主目标：本实例单独指定的 > 全局「设为倒计时目标」 > 最近一条
+            int best = -1;
             for (int i = 0; i < out.size(); i++) {
-                if (out.get(i).pinned) {
-                    out.add(0, out.remove(i));
-                    break;
+                if (out.get(i).pinnedFor.contains(widgetId)) { best = i; break; }
+            }
+            if (best < 0) {
+                for (int i = 0; i < out.size(); i++) {
+                    if (out.get(i).pinned) { best = i; break; }
                 }
             }
+            if (best > 0) out.add(0, out.remove(best));
         } catch (Exception e) {
             Log.w(TAG, "countdownItems failed", e);
         }
@@ -876,7 +921,7 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
             applyAppearance(context, rv, appWidgetId);
 
             long now = System.currentTimeMillis();
-            java.util.List<CdItem> items = countdownItems(json, now);
+                java.util.List<CdItem> items = countdownItems(json, now, appWidgetId);
             float density = context.getResources().getDisplayMetrics().density;
 
             // —— 字号预算 ——
@@ -1048,25 +1093,41 @@ public class ITDCWidgetProvider extends AppWidgetProvider {
         return Math.max(lo, Math.min(hi, v));
     }
 
-    /** 倒计时条目的下一次刷新时刻：显示粒度决定（≥1 天按整点，临近按分钟） */
+    /**
+     * 倒计时条目的下一次刷新时刻：每个实例的主目标各按显示粒度算一个下界
+     * （≥1 天按整点，临近按分钟），取最近的那个。
+     */
     private static long countdownNextTick(Context context, long now) {
         try {
             String snapshot = getLocalSnapshot(context);
             if (TextUtils.isEmpty(snapshot)) return now + REFRESH_INTERVAL_MS;
-            java.util.List<CdItem> items = countdownItems(snapshot, now);
-            if (items.isEmpty()) return now + REFRESH_INTERVAL_MS;
-            long remain = items.get(0).when - now;
-            if (remain <= 0) return now - (now % 60_000L) + 60_000L + 3_000L;
-            if (remain >= 24 * 3600_000L) {
-                // 显示到「天」：跨天（00:01）后再刷新
-                return dayStart(now) + 24 * 3600_000L + 60_000L;
+            int[] ids = allWidgetIds(context);
+            long tick = Long.MAX_VALUE;
+            boolean any = false;
+            for (int id : ids) {
+                if (!isCountdown(context, id)) continue;
+                any = true;
+                java.util.List<CdItem> items = countdownItems(snapshot, now, id);
+                if (items.isEmpty()) continue;
+                long remain = items.get(0).when - now;
+                long t;
+                if (remain <= 0) {
+                    t = now - (now % 60_000L) + 60_000L + 3_000L;
+                } else if (remain >= 24 * 3600_000L) {
+                    // 显示到「天」：跨天（00:01）后再刷新
+                    t = dayStart(now) + 24 * 3600_000L + 60_000L;
+                } else if (remain >= 3600_000L) {
+                    // 显示到「小时」：下一个整点再刷新
+                    t = now - (now % 3_600_000L) + 3_600_000L + 5_000L;
+                } else {
+                    // 显示到「分钟」：下一分钟边界
+                    t = now - (now % 60_000L) + 60_000L + 3_000L;
+                }
+                if (t > now && t < tick) tick = t;
             }
-            if (remain >= 3600_000L) {
-                // 显示到「小时」：下一个整点再刷新
-                return now - (now % 3_600_000L) + 3_600_000L + 5_000L;
-            }
-            // 显示到「分钟」：下一分钟边界
-            return now - (now % 60_000L) + 60_000L + 3_000L;
+            if (!any) return now + REFRESH_INTERVAL_MS;
+            if (tick == Long.MAX_VALUE) return now + 30 * 60_000L;
+            return tick;
         } catch (Exception e) {
             Log.w(TAG, "countdownNextTick failed", e);
             return now + REFRESH_INTERVAL_MS;

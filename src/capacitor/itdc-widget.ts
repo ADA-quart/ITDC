@@ -42,6 +42,35 @@ export interface ItdcWidgetPluginInterface {
   secureSet(params: { key: string; value: string }): Promise<void>;
   secureGet(params: { key: string }): Promise<{ value?: string | null }>;
   secureRemove(params: { key: string }): Promise<void>;
+  /** 列出桌面上已放置的小组件实例，用于逐个实例配置（背景图 / 倒计时目标） */
+  listWidgetInstances(): Promise<{
+    widgets: {
+      id: number;
+      /** standard / small / pure / countdown */
+      kind: string;
+      w: number;
+      h: number;
+      /** 0=跟随全局 1=不用图 2=专属图 */
+      bgMode: number;
+      focusX: number;
+      focusY: number;
+      zoom: number;
+      blur: number;
+    }[];
+  }>;
+  /**
+   * 实例级背景图：mode = inherit（跟随全局）/ none（不要图）/ custom（专属图）。
+   * custom 时 image 只在首次或换图时传（base64 data URL），只调焦点/缩放/模糊可省略。
+   */
+  setWidgetBackground(params: {
+    id: number;
+    mode: 'inherit' | 'none' | 'custom';
+    image?: string;
+    focusX?: number;
+    focusY?: number;
+    zoom?: number;
+    blur?: number;
+  }): Promise<void>;
 }
 
 export const ITDCWidgetPlugin = registerPlugin<ItdcWidgetPluginInterface>("itdc-widget");
