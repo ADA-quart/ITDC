@@ -60,7 +60,8 @@ Highlights:
 - **Course colors.** 18 bright presets; the same course keeps the same color and different courses try
   not to clash. Any course can be recolored individually.
 - **Class reminders.** A notification before each class with the course name, room and time. The lead
-  time defaults to 10 minutes and can be changed, including a silent mode.
+  time defaults to 10 minutes and can be changed, including a silent mode; notifications can be set to
+  auto-dismiss after a configurable number of minutes.
 
 **✅ To-dos**
 
@@ -73,6 +74,7 @@ Highlights:
 - **Can do in class.** Tasks marked as doable during class may be scheduled into class time.
 - **Time splitting.** Large tasks can be split into several slices, automatically or manually.
 - **Reminders.** Notifications before the scheduled time or the deadline, with adjustable lead time.
+  A to-do can also be pinned as the widget's countdown target.
 
 **🧠 Smart scheduling**
 
@@ -94,19 +96,28 @@ Highlights:
 
 **🧩 Home-screen widget (Android)**
 
-- **Two sizes.** Standard 4×2 and compact 2×2, sharing one dataset and adapting as you resize them;
-  the square size falls back to a single “today” column.
+- **Four entries.** Standard 4×2 “Timetable + To-dos”, a compact “(small)” variant, a timetable-only
+  widget, and a days-matter-style “Countdown”. They share one dataset and adapt as you resize — the
+  Countdown shrinks down to a 2×1 strip, the timetable-only one to a single row, and the square small
+  size falls back to a single “today” column.
 - **Timetable and to-dos.** Today and tomorrow columns plus a to-do list; all three areas scroll, and
   finished classes disappear on their own.
 - **Check off on the home screen.** Ticking a to-do there is written back to the app automatically.
+- **Countdown.** A large number counting down to the nearest target (start / in progress / deadline),
+  refreshing more often as it gets close; pin a to-do as the target, and several countdown widgets can
+  each follow their own.
 - **Separate appearance.** Panel color, opacity, light/dark and background image (with pre-blur) can be
   set independently, and reset to default in one tap.
+- **Per-instance styling.** “Widgets on your home screen” under Appearance lists every instance and
+  lets each one use its own background image (inherit / none / custom, with zoom, focus and blur)
+  without affecting the others.
 
 **🎨 Personalization**
 
 - **Accent color.** 11 presets, shared by buttons, selection states and the widget.
 - **Background image.** Focus, zoom and blur plus separate opacity for the wallpaper and panel layers;
-  the app and the widget share the same image.
+  the app and the widget share the same image, and any single widget can use its own (see the widget
+  section).
 - **Liquid glass.** Stronger blur, saturation and inner highlight for cards and the bottom bar.
 - **Light / dark / system**, three text tones for course blocks, and phone / landscape / tablet
   layouts.
